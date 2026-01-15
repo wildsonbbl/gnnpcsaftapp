@@ -1,0 +1,27 @@
+[project]
+name = "gnnpcsaft"
+version = "7.0.0"
+description = "\"Thermodynamic Modeling with GNNPCSAFT\""
+authors = [
+    {name = "wildsonbbl",email = "wil_bbl@hotmail.com"}
+]
+license = {text = "GNU GENERAL PUBLIC LICENSE"}
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "gnnepcsaft-mcp-server (>=0.3.1,<0.4.0)",
+    "gnnepcsaft (>=0.2.7,<0.3.0)",
+    "numpy (>=2.4.1,<3.0.0)",
+    "kivy (>=2.3.1,<3.0.0)",
+    "kivy-matplotlib-widget (>=0.16.0,<0.17.0)",
+    "matplotlib (>=3.10.8,<4.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+polars = "^1.37.1"
+

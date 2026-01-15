@@ -1,0 +1,328 @@
+#:kivy 1.0.9
+#:set color_primary_rgba kivy.utils.get_color_from_hex('#0d6efd')
+#:set color_bg_rgba kivy.utils.get_color_from_hex('#f8f9fa')
+#:set color_text_rgba kivy.utils.get_color_from_hex('#000000')
+#:set color_secondary_rgba kivy.utils.get_color_from_hex('#6c757d')
+#:set color_success_rgba kivy.utils.get_color_from_hex('#198754')
+#:set color_danger_rgba kivy.utils.get_color_from_hex('#dc3545')
+#:set color_warning_rgba kivy.utils.get_color_from_hex('#ffc107')
+#:set color_info_rgba kivy.utils.get_color_from_hex('#0dcaf0')
+#:set color_light_rgba kivy.utils.get_color_from_hex('#f8f9fa')
+#:set color_dark_rgba kivy.utils.get_color_from_hex('#212529')
+
+<Screen>:
+    canvas.before:
+        Color:
+            rgba: color_bg_rgba
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+<Label>:
+    color: color_text_rgba
+
+<TextInput>:
+    background_normal: ''
+    background_active: ''
+    background_color: 1, 1, 1, 1
+    foreground_color: color_text_rgba
+    cursor_color: color_primary_rgba
+    write_tab: False
+    padding: [10, 10, 5, 5]
+    font_size: 14
+    size_hint_y: None
+    height: 40
+
+<Button>:
+    background_normal: ''
+    background_color: color_primary_rgba
+    color: 1, 1, 1, 1
+    bold: True
+    font_size: 14
+
+<BoxLayout>:
+    padding: 10
+    spacing: 10
+
+WindowManager:
+    PureScreen:
+    MixtureScreen:
+    PlotScreen:
+
+<MenuButton@Button>:
+    background_color: color_primary_rgba
+    size_hint: 0.25, 1.0
+    
+<NavBar>:
+    orientation: "horizontal"
+    spacing: 2
+    padding: 0
+    size_hint: 1, None
+    height: 50
+    pos_hint: {"top": 1}
+
+    MenuButton:
+        text: "Pure"
+        on_release:
+            app.root.current = "pure_screen"
+            app.root.transition.direction = "left"
+
+    MenuButton:
+        text: "Mixture"
+        on_release:
+            app.root.current = "mixture_screen"
+            app.root.transition.direction = "right"
+    
+
+<PureScreen>:
+    name: "pure_screen"
+    PureLayout:
+
+<MixtureScreen>:
+    name: "mixture_screen"
+    MixtureLayout:
+
+<PlotScreen>:
+    name: "plot_screen"
+    PlotLayout:
+        id: plot_layout
+
+<PureLayout>:
+    smiles_or_inchi_input: smiles_or_inchi_input
+    temp_min: temp_min
+    temp_max: temp_max
+    pressure: pressure
+    predicted_parameters: predicted_parameters
+    
+    
+    orientation:'vertical'
+    size_hint: 1,1
+    spacing: 10
+    padding: [10, 10, 10, 10]
+
+    NavBar:
+    
+    Label:
+        text: "Pure Component Input"
+        font_size: 20
+        bold: True
+        size_hint_y: None
+        height: 30
+        color: color_primary_rgba
+            
+
+    GridLayout:
+        cols: 1
+        spacing: 10
+        size_hint_y: None
+        height: self.minimum_height
+        pos_hint: {"center_x":0.5}
+
+        TextInput:
+            id: smiles_or_inchi_input
+            hint_text: 'SMILES/InChI'
+            multiline: False
+            on_text_validate: root.on_submit()
+        TextInput:
+            id: temp_min
+            hint_text: 'Min Temperature (K)'
+            type: 'number'
+            multiline: False
+            on_text_validate: root.on_submit()
+        TextInput:
+            id: temp_max
+            hint_text: 'Max Temperature (K)'
+            type: 'number'
+            multiline: False
+            on_text_validate: root.on_submit()
+        TextInput:
+            id: pressure
+            hint_text: 'Pressure (Pa)'
+            type: 'number'
+            multiline: False
+            on_text_validate: root.on_submit()
+
+    GridLayout:
+        cols: 4
+        size_hint: 1, None
+        height: 40
+        pos_hint: {"center_x":0.5}
+        spacing: 5
+        
+        Button:
+            text: 'Analyse'
+            on_press: root.on_submit()
+        
+        Button:
+            text: 'Density'
+            on_press: root.on_plot_density()
+
+        Button:
+            text: 'Vap. Pres.'
+            on_press: root.on_plot_vp()
+
+        Button:
+            text: 'Enthalpy of Vap.'
+            on_press: root.on_plot_hlv()
+
+        Button:
+            text: 'Surface Tension'
+            on_press: root.on_plot_surface_tension()
+
+        Button:
+            text: 'Phase Diag. - T vs rho'
+            on_press: root.on_plot_phase_diagram_t_rho()
+        
+        Button:
+            text: 'Phase Diag. - P vs rho'
+            on_press: root.on_plot_phase_diagram_p_rho()
+
+    ScrollView:
+        size_hint: 1, 1
+        pos_hint: {"center_x":0.5}
+        do_scroll_x: False
+
+        BoxLayout:
+            id: predicted_parameters
+            orientation: 'vertical'
+            padding: 5
+            spacing: 5
+            size_hint_y: None
+            height: self.minimum_height
+            
+            # Placeholder text before search
+            Label:
+                text: "Enter parameters above to calculate"
+                color: (0.5, 0.5, 0.5, 1)
+                italic: True
+                size_hint_y: None
+                height: 40
+      
+<MixtureLayout>:
+    orientation:'vertical'
+    size_hint: 1,1
+    spacing: 10
+    padding: [10, 10, 10, 10]
+    
+    smiles_or_inchi_input: smiles_or_inchi_input
+    fractions_input: fractions_input
+    kij_input: kij_input
+    temp_min: temp_min
+    temp_max: temp_max
+    pressure: pressure
+    predicted_parameters: predicted_parameters
+
+    NavBar:
+    
+    Label:
+        text: "Mixture Component Input"
+        font_size: 20
+        bold: True
+        size_hint_y: None
+        height: 30
+        color: color_primary_rgba
+
+    GridLayout:
+        cols: 1
+        spacing: 10
+        size_hint_y: None
+        height: self.minimum_height
+        pos_hint: {"center_x":0.5}
+
+        TextInput:
+            id: smiles_or_inchi_input
+            hint_text: 'SMILES/InChI List (e.g., "water; methanol; ...")'
+            multiline: False
+            on_text_validate: root.on_submit()
+        
+        TextInput:
+            id: fractions_input
+            hint_text: 'Mole Fractions List (e.g., "0.5; 0.5; ...")'
+            multiline: False
+            on_text_validate: root.on_submit()
+
+        TextInput:
+            id: kij_input
+            hint_text: 'kij (e.g., k12; k13; k23; ...)'
+            multiline: False
+            on_text_validate: root.on_submit()
+
+        TextInput:
+            id: temp_min
+            hint_text: 'Min Temperature (K)'
+            type: 'number'
+            multiline: False
+            on_text_validate: root.on_submit()
+
+        TextInput:
+            id: temp_max
+            hint_text: 'Max Temperature (K)'
+            type: 'number'
+            multiline: False
+            on_text_validate: root.on_submit()
+        
+        TextInput:
+            id: pressure
+            hint_text: 'Pressure (Pa)'
+            type: 'number'
+            multiline: False
+            on_text_validate: root.on_submit()
+
+    BoxLayout:
+        size_hint: 1, None
+        height: 40
+        pos_hint: {"center_x":0.5}
+        spacing: 5
+        
+        Button:
+            text: 'Analyse'
+            on_press: root.on_submit()
+
+        Button:
+            text: 'Density'
+            on_press: root.on_plot_density()
+
+        Button:
+            text: 'Bubble/Dew Cur.'
+            on_press: root.on_plot_vp()
+
+    ScrollView:
+        size_hint: 1, 1
+        pos_hint: {"center_x":0.5}
+        do_scroll_x: False
+
+        BoxLayout:
+            id: predicted_parameters
+            orientation: 'vertical'
+            padding: 5
+            spacing: 10
+            size_hint_y: None
+            height: self.minimum_height
+            
+            Label:
+                text: "Enter parameters above to calculate"
+                color: (0.5, 0.5, 0.5, 1)
+                italic: True
+                size_hint_y: None
+                height: 40
+
+<PlotLayout>:
+    orientation: 'vertical'
+    mat_plot_figure: mat_plot_figure
+    
+    BoxLayout:
+        size_hint_y: 0.1
+        padding: 5
+        Button:
+            text: "Back"
+            size_hint_x: None
+            width: 100
+            on_release: 
+                app.root.current = root.previous_screen
+                app.root.transition.direction = "right"
+    
+    MatplotFigure:
+        id: mat_plot_figure
+        interactive_axis: True
+
+            
