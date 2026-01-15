@@ -7,7 +7,7 @@ authors = [
 ]
 license = {text = "GNU GENERAL PUBLIC LICENSE"}
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "gnnepcsaft-mcp-server (>=0.3.1,<0.4.0)",
     "gnnepcsaft (>=0.2.7,<0.3.0)",
@@ -24,4 +24,5 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev.dependencies]
 polars = "^1.37.1"
+pyinstaller = "^6.18.0"
 
