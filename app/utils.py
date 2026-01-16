@@ -100,3 +100,50 @@ def generate_plot(x_datas, y_datas, title, x_label, y_label, legends=None):
 
     app.root.transition.direction = "left"  # type: ignore
     app.root.current = "plot_screen"  # type: ignore
+
+
+def generate_ternary_plot(a, b, title, a_label, b_label):
+    "Helper to generate right triangle ternary plot and switch screen"
+
+    # Optimized for mobile (390px width)
+    fig = plt.figure(figsize=(3.5, 4.5), dpi=100)
+    fig.clf()  # Clear previous figure
+
+    # Reduce font sizes for mobile
+    plt.xticks(fontsize=8)
+    plt.yticks(fontsize=8)
+
+    # Right Triangle Frame
+    plt.plot([0, 1, 0, 0], [0, 0, 1, 0], "k-", linewidth=1.5)
+
+    # Plot Data
+    if a and isinstance(a[0], list):
+        for i, val in enumerate(a):
+            plt.scatter(val, b[i])
+    else:
+        plt.scatter(a, b)
+
+    plt.title(title, fontsize=10, pad=10)
+    plt.xlabel(a_label, fontsize=9)
+    plt.ylabel(b_label, fontsize=9)
+
+    plt.grid(True, linestyle="--", alpha=0.6)
+    plt.xlim(-0.1, 1.1)
+    plt.ylim(-0.1, 1.1)
+    plt.gca().set_aspect("equal", adjustable="box")
+
+    # Increase padding to ensure labels are not cut off
+    plt.tight_layout(pad=2.5)
+
+    # Interactive Plot Logic
+    app = App.get_running_app()
+    plot_screen = app.root.get_screen("plot_screen")  # type: ignore
+    plot_layout = plot_screen.ids.plot_layout
+
+    mat_plot_figure = plot_layout.ids.mat_plot_figure
+    mat_plot_figure.figure = fig.figure
+
+    plot_layout.previous_screen = app.root.current  # type: ignore
+
+    app.root.transition.direction = "left"  # type: ignore
+    app.root.current = "plot_screen"  # type: ignore
