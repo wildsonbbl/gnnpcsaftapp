@@ -18,7 +18,10 @@ def retrieve_rho_pure_data(smiles: str, pressure: float):
         df.filter(
             pl.col("inchi1") == smilestoinchi(smiles), pl.col("P_kPa") == pressure
         )
-        .select("T_K", "rho")
+        .select(
+            pl.col("T_K"),
+            (pl.col("rho") * 1000 / pl.col("molweight1")),
+        )
         .to_numpy()
     )
 
@@ -26,7 +29,7 @@ def retrieve_rho_pure_data(smiles: str, pressure: float):
 def retrieve_vp_pure_data(smiles: str, temp_min: float, temp_max: float):
     "retrieve vapor pressure data for plots"
 
-    df = pl.read_parquet(osp.join(application_path, "_data", "rho_pure.parquet"))
+    df = pl.read_parquet(osp.join(application_path, "_data", "vp_pure.parquet"))
 
     return (
         df.filter(

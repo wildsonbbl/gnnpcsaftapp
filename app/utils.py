@@ -37,7 +37,9 @@ def get_smiles_from_input(input_text):
     return smiles
 
 
-def generate_plot(x_datas, y_datas, title, x_label, y_label, legends=None):
+def generate_plot(
+    x_datas, y_datas, title, x_label, y_label, legends=None, exp_data=None
+):
     """Helper to generate plot and switch screen"""
 
     # Optimized for mobile (390px width)
@@ -79,6 +81,21 @@ def generate_plot(x_datas, y_datas, title, x_label, y_label, legends=None):
     else:
         # Single line
         plt.plot(x_datas, y_datas, marker="o", linestyle="-", markersize=4)
+
+    # Plot Experimental Data if available
+    if exp_data:
+        exp_x, exp_y, exp_lbl = exp_data
+        plt.scatter(
+            exp_x,
+            exp_y,
+            color="black",
+            marker="x",
+            s=30,
+            linewidths=1,
+            label=exp_lbl,
+            zorder=3,
+        )
+        plt.legend(fontsize=8)
 
     plt.title(title, fontsize=10, pad=10)
     plt.xlabel(x_label, fontsize=9)

@@ -10,7 +10,11 @@ from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
 from utils import available_params, generate_plot, get_smiles_from_input
-from utils_data import retrieve_available_data_pure
+from utils_data import (
+    retrieve_available_data_pure,
+    retrieve_rho_pure_data,
+    retrieve_vp_pure_data,
+)
 from utils_pure import (
     pure_den,
     pure_h_lv,
@@ -35,10 +39,12 @@ class PureLayout(BoxLayout):
     pressure = ObjectProperty(None)
     predicted_parameters = ObjectProperty(None)
 
-    def _generate_plot(self, x_data, y_data, title, x_label, y_label, legends=None):
+    def _generate_plot(
+        self, x_data, y_data, title, x_label, y_label, legends=None, exp_data=None
+    ):
         """Helper to generate plot and switch screen"""
         try:
-            generate_plot(x_data, y_data, title, x_label, y_label, legends)
+            generate_plot(x_data, y_data, title, x_label, y_label, legends, exp_data)
         except (RuntimeError, AssertionError) as e:
             self._show_error_alert(e)
 
@@ -79,6 +85,16 @@ class PureLayout(BoxLayout):
                 p_val = float(self.pressure.text)
             except ValueError as e:
                 raise ValueError("Pressure must be a numeric value") from e
+
+            # Fetch experimental data (convert Pa to kPa for DB lookup)
+            exp_data = None
+            try:
+                exp_array = retrieve_rho_pure_data(smiles, p_val / 1000.0)
+                if exp_array is not None and len(exp_array) > 0:
+                    exp_data = (exp_array[:, 0], exp_array[:, 1], "Exp. Data")
+            except (ValueError, RuntimeError):
+                pass  # Ignore exp data errors
+
             temperatures, densities = pure_den(smiles, t_min, t_max, p_val)
             self._generate_plot(
                 temperatures,
@@ -86,6 +102,7 @@ class PureLayout(BoxLayout):
                 f"Density vs Temperature\n({smiles})",
                 "Temperature (K)",
                 "Density (mol/m³)",
+                exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
@@ -96,6 +113,16 @@ class PureLayout(BoxLayout):
         if not smiles or not t_min or not t_max:
             return
         try:
+            # Fetch experimental data
+            exp_data = None
+            try:
+                exp_array = retrieve_vp_pure_data(smiles, t_min, t_max)
+                if exp_array is not None and len(exp_array) > 0:
+                    # Convert kPa to Pa for plotting
+                    exp_data = (exp_array[:, 0], exp_array[:, 1] * 1000.0, "Exp. Data")
+            except (ValueError, RuntimeError):
+                pass
+
             temperatures, vps = pure_vp(smiles, t_min, t_max)
             self._generate_plot(
                 temperatures,
@@ -103,6 +130,7 @@ class PureLayout(BoxLayout):
                 f"Vapor Pressure vs Temperature\n({smiles})",
                 "Temperature (K)",
                 "Pressure (Pa)",
+                exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
