@@ -8,12 +8,16 @@ a = Analysis(
     datas=[
         ("./app/512.png", "."),
         ("./app/gnnpcsaft.kv", "."),
+        ("./app/_data", "./_data"),
     ],
     hiddenimports=[],
     hookspath=["./hooks"],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=["polars"],
+    excludes=[
+        "pandas",
+        "pyarrow",
+    ],
     noarchive=False,
     optimize=0,
 )
