@@ -8,7 +8,9 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
+from kivy.uix.scrollview import ScrollView
 from utils import available_params, generate_plot, get_smiles_from_input
+from utils_data import retrieve_available_data_pure
 from utils_pure import (
     pure_den,
     pure_h_lv,
@@ -182,6 +184,93 @@ class PureLayout(BoxLayout):
 
         try:
             smiles = get_smiles_from_input(smiles_or_inchi_input)
+
+            # Display Available Data
+            try:
+                rho_data, vp_range = retrieve_available_data_pure(smiles)
+
+                self.predicted_parameters.add_widget(
+                    Label(
+                        text="Experimental Data Availability",
+                        size_hint_y=None,
+                        height=40,
+                        color="#0d6efd",
+                        font_size=20,
+                        bold=True,
+                    )
+                )
+
+                # Vapor Pressure
+                if vp_range[0] is not None:
+                    self.predicted_parameters.add_widget(
+                        Label(
+                            text=f"Vapor Pressure: {vp_range[0]:.2f} - {vp_range[1]:.2f} K",
+                            size_hint_y=None,
+                            height=30,
+                            color="#212529",
+                        )
+                    )
+                else:
+                    self.predicted_parameters.add_widget(
+                        Label(
+                            text="No Vapor Pressure data found",
+                            size_hint_y=None,
+                            height=30,
+                            color="#6c757d",
+                            italic=True,
+                        )
+                    )
+
+                # Density
+                if rho_data is not None and len(rho_data) > 0:
+                    self.predicted_parameters.add_widget(
+                        Label(
+                            text="Liquid Density (Isobars):",
+                            size_hint_y=None,
+                            height=30,
+                            color="#212529",
+                            bold=True,
+                        )
+                    )
+
+                    # Use ScrollView to show all exact ranges without taking up too much space
+                    scroll = ScrollView(size_hint_y=None, height=200)
+
+                    # Changed cols to 2 to use width efficiently and added spacing
+                    list_layout = GridLayout(
+                        cols=2, size_hint_y=None, spacing=[20, 5], padding=[5, 5]
+                    )
+                    list_layout.bind(minimum_height=list_layout.setter("height"))
+
+                    for row in rho_data:
+                        # row: [Pressure (kPa), T_min, T_max]
+                        list_layout.add_widget(
+                            Label(
+                                text=f"P={row[0]:.1f} kPa: {row[1]:.1f} - {row[2]:.1f} K",
+                                size_hint_y=None,
+                                height=25,
+                                color="#212529",
+                            )
+                        )
+
+                    scroll.add_widget(list_layout)
+                    self.predicted_parameters.add_widget(scroll)
+
+                else:
+                    self.predicted_parameters.add_widget(
+                        Label(
+                            text="No Liquid Density data found",
+                            size_hint_y=None,
+                            height=30,
+                            color="#6c757d",
+                            italic=True,
+                        )
+                    )
+
+                self.predicted_parameters.add_widget(Label(size_hint_y=None, height=20))
+            except (ValueError, RuntimeError):
+                pass  # Fail silently if data retrieval errors, proceed to prediction
+
             pred = predict_epcsaft_parameters(smiles)
             pred += critical_points_feos(copy(pred))
 
