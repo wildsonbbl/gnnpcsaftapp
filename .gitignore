@@ -1,5 +1,4 @@
 __pycache__
-hooks
 app_pkg
 *.lock
 *.ps1
