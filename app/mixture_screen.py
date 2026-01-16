@@ -8,8 +8,13 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
-from utils import available_params, generate_plot, get_smiles_from_input
-from utils_mix import mix_den, mix_vp
+from utils import (
+    available_params,
+    generate_plot,
+    generate_ternary_plot,
+    get_smiles_from_input,
+)
+from utils_mix import mix_den, mix_lle, mix_ternary_lle, mix_vle, mix_vp
 
 from gnnepcsaft_mcp_server.utils import predict_epcsaft_parameters
 
@@ -43,6 +48,12 @@ class MixtureLayout(BoxLayout):
     def _generate_plot(self, x_data, y_datas, title, x_label, y_label, legends=None):
         try:
             generate_plot(x_data, y_datas, title, x_label, y_label, legends)
+        except (ValueError, RuntimeError) as e:
+            self._show_error_alert(e)
+
+    def _generate_ternary_plot(self, a, b, title, a_label, b_label):
+        try:
+            generate_ternary_plot(a, b, title, a_label, b_label)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -235,6 +246,117 @@ class MixtureLayout(BoxLayout):
                 "Temperature (K)",
                 "Pressure (Pa)",
                 legends=["Bubble Point", "Dew Point"],
+            )
+        except (ValueError, RuntimeError) as e:
+            self._show_error_alert(e)
+
+    def on_plot_binary_vle_txy(self):
+        "plot binary VLE T-x-y"
+
+        smiles_list, fractions, kij_matrix, t_min, t_max = self._get_inputs()
+        if not smiles_list or not fractions or not kij_matrix or not t_min or not t_max:
+            return
+
+        try:
+            if len(smiles_list) != 2:
+                raise ValueError(
+                    f"VLE for binary mixture, got {len(smiles_list)} components instead"
+                )
+            try:
+                p_val = float(self.pressure.text)
+            except ValueError as e:
+                raise ValueError("Pressure must be a numeric value") from e
+            output = mix_vle(smiles_list, kij_matrix, p_val)
+            self._generate_plot(
+                [output["x0"], output["y0"]],
+                output["temperature"],
+                f"VLE T-x-y for {smiles_list[0]} at {p_val} Pa",
+                "x,y",
+                "Temperature (K)",
+                legends=["Liquid", "Vapor"],
+            )
+        except (ValueError, RuntimeError) as e:
+            self._show_error_alert(e)
+
+    def on_plot_binary_vle_xy(self):
+        "plot binary VLE x-y"
+
+        smiles_list, fractions, kij_matrix, t_min, t_max = self._get_inputs()
+        if not smiles_list or not fractions or not kij_matrix or not t_min or not t_max:
+            return
+
+        try:
+            if len(smiles_list) != 2:
+                raise ValueError(
+                    f"VLE for binary mixture, got {len(smiles_list)} components instead"
+                )
+            try:
+                p_val = float(self.pressure.text)
+            except ValueError as e:
+                raise ValueError("Pressure must be a numeric value") from e
+            output = mix_vle(smiles_list, kij_matrix, p_val)
+            self._generate_plot(
+                output["x0"],
+                output["y0"],
+                f"VLE x-y for {smiles_list[0]} at {p_val} Pa",
+                "x",
+                "y",
+            )
+        except (ValueError, RuntimeError) as e:
+            self._show_error_alert(e)
+
+    def on_plot_binary_lle_txx(self):
+        "plot binary LLE T-x-x"
+
+        smiles_list, fractions, kij_matrix, t_min, t_max = self._get_inputs()
+        if not smiles_list or not fractions or not kij_matrix or not t_min or not t_max:
+            return
+
+        try:
+            if len(smiles_list) != 2:
+                raise ValueError(
+                    f"LLE for binary mixture, got {len(smiles_list)} components instead"
+                )
+            try:
+                p_val = float(self.pressure.text)
+            except ValueError as e:
+                raise ValueError("Pressure must be a numeric value") from e
+            output = mix_lle(smiles_list, fractions, kij_matrix, t_min, p_val)
+            self._generate_plot(
+                [output["x0"], output["y0"]],
+                output["temperature"],
+                f"LLE T-x-x for {smiles_list[0]} at {p_val} Pa",
+                "x,x",
+                "Temperature (K)",
+                legends=["Phase 1", "Phase 2"],
+            )
+        except (ValueError, RuntimeError) as e:
+            self._show_error_alert(e)
+
+    def on_plot_ternary_lle(self):
+        "plot ternary LLE"
+
+        smiles_list, fractions, kij_matrix, t_min, t_max = self._get_inputs()
+        if not smiles_list or not fractions or not kij_matrix or not t_min or not t_max:
+            return
+
+        try:
+            if len(smiles_list) != 3:
+                raise ValueError(
+                    f"LLE for ternary mixture, got {len(smiles_list)} components instead"
+                )
+            try:
+                p_val = float(self.pressure.text)
+            except ValueError as e:
+                raise ValueError("Pressure must be a numeric value") from e
+            output = mix_ternary_lle(smiles_list, kij_matrix, t_min, p_val)
+
+            self._generate_ternary_plot(
+                [output["x1"], output["y1"]],
+                [output["x2"], output["y2"]],
+                title=f"LLE at {p_val} Pa, {t_min} K",
+                a_label=smiles_list[1],
+                b_label=smiles_list[2],
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
