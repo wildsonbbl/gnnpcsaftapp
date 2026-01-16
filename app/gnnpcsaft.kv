@@ -286,6 +286,22 @@ WindowManager:
             text: 'Bubble/Dew Cur.'
             on_press: root.on_plot_vp()
 
+        Button:
+            text: 'Binary VLE T-x-y'
+            on_press: root.on_plot_binary_vle_txy()
+
+        Button:
+            text: 'Binary VLE x-y'
+            on_press: root.on_plot_binary_vle_xy()
+
+        Button:
+            text: 'Binary LLE T-x-x'
+            on_press: root.on_plot_binary_lle_txx()
+
+        Button:
+            text: 'Ternary LLE'
+            on_press: root.on_plot_ternary_lle()
+
     ScrollView:
         size_hint: 1, 1
         pos_hint: {"center_x":0.5}
