@@ -87,7 +87,7 @@ def retrieve_rho_binary_data(smiles_list: list, pressure: float, x1: float):
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
     # Tolerance
-    tol_x = 0.01
+    tol_x = 0.001
 
     # Normalize x1 to strictly match input order
     # If file has (i1, i2) -> use mole_fraction_c1
@@ -136,7 +136,7 @@ def retrieve_bubble_pressure_data(smiles_list: list, x1: float):
     df = pl.read_parquet(osp.join(application_path, "_data", "vp_binary.parquet"))
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
-    tol_x = 0.01
+    tol_x = 0.001
 
     filtered = (
         df.filter(
