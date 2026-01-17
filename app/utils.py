@@ -42,6 +42,9 @@ def generate_plot(
 ):
     """Helper to generate plot and switch screen"""
 
+    if not x_datas or not y_datas:
+        return
+
     # Optimized for mobile (390px width)
     plt.figure(figsize=(3.5, 4.5), dpi=100)
     plt.clf()  # Clear previous figure

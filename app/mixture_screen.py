@@ -151,7 +151,7 @@ class MixtureLayout(BoxLayout):
                     bold=True,
                     halign="left",
                 )
-                comp_header.bind(size=comp_header.setter("text_size"))
+                comp_header.bind(size=comp_header.setter("text_size"))  # type: ignore pylint: disable=no-member
                 self.predicted_parameters.add_widget(comp_header)
 
                 # Table
@@ -183,13 +183,13 @@ class MixtureLayout(BoxLayout):
 
                 for name, para in zip(available_params, pred):
                     param_label = Label(text=str(name), color="#212529", halign="left")
-                    param_label.bind(size=param_label.setter("text_size"))
+                    param_label.bind(size=param_label.setter("text_size"))  # type: ignore pylint: disable=no-member
                     table.add_widget(param_label)
 
                     param_label_value = Label(
                         text=f"{para:.4f}", color="#212529", halign="right"
                     )
-                    param_label_value.bind(size=param_label_value.setter("text_size"))
+                    param_label_value.bind(size=param_label_value.setter("text_size"))  # type: ignore pylint: disable=no-member
                     table.add_widget(param_label_value)
 
                 self.predicted_parameters.add_widget(table)

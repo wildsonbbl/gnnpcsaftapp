@@ -33,7 +33,7 @@ class PureScreen(Screen):
     "Pure component screen"
 
 
-class ActionLabelCustom(ButtonBehavior, Label):
+class ActionLabelCustom(ButtonBehavior, Label):  # type: ignore
     "Label that acts as a button with hover effect"
 
     def __init__(self, **kwargs):
@@ -43,20 +43,20 @@ class ActionLabelCustom(ButtonBehavior, Label):
         self.background_color_hover = (0.9, 0.9, 0.9, 1)  # Light Gray
 
         # Determine initial background logic
-        with self.canvas.before:
+        with self.canvas.before:  # type: ignore
             self.bg_color = Color(*self.background_color_normal)
             self.rect = Rectangle(size=self.size, pos=self.pos)
 
-        self.bind(size=self._update_rect, pos=self._update_rect)
+        self.bind(size=self._update_rect, pos=self._update_rect)  # type: ignore pylint: disable=no-member
 
         # Bind mouse position for hover effect
         Window.bind(mouse_pos=self.on_mouse_pos)
 
-    def _update_rect(self, instance, value):
+    def _update_rect(self, instance, value):  # pylint: disable=unused-argument
         self.rect.pos = instance.pos
         self.rect.size = instance.size
 
-    def on_mouse_pos(self, window, pos):
+    def on_mouse_pos(self, window, pos):  # pylint: disable=unused-argument
         "function for mouse hover effect"
         if not self.get_root_window():
             return
@@ -294,7 +294,7 @@ class PureLayout(BoxLayout):
                         height=30,
                     )
                     # Use closure defaults to capture values
-                    vp_btn.bind(
+                    vp_btn.bind(  # type: ignore pylint: disable=no-member
                         on_release=lambda x, t1=vp_range[0], t2=vp_range[
                             1
                         ]: self._fill_inputs(t_min=t1, t_max=t2)
@@ -335,7 +335,7 @@ class PureLayout(BoxLayout):
                     list_layout = GridLayout(
                         cols=2, size_hint_y=None, spacing=[20, 5], padding=[5, 5]
                     )
-                    list_layout.bind(minimum_height=list_layout.setter("height"))
+                    list_layout.bind(minimum_height=list_layout.setter("height"))  # type: ignore pylint: disable=no-member
 
                     for row in rho_data:
                         # row: [Pressure (kPa), T_min, T_max]
@@ -345,7 +345,7 @@ class PureLayout(BoxLayout):
                             size_hint_y=None,
                             height=25,
                         )
-                        rho_btn.bind(
+                        rho_btn.bind(  # type: ignore pylint: disable=no-member
                             on_release=lambda x, p=row[0], t1=row[1], t2=row[
                                 2
                             ]: self._fill_inputs(pressure=p, t_min=t1, t_max=t2)
@@ -411,8 +411,8 @@ class PureLayout(BoxLayout):
             for name, para in zip(available_params, pred):
                 # Parameter Name
                 param_label = Label(text=str(name), color="#212529", halign="left")
-                param_label.bind(
-                    size=param_label.setter("text_size")
+                param_label.bind(  # type: ignore pylint: disable=no-member
+                    size=param_label.setter("text_size")  # type: ignore pylint: disable=no-member
                 )  # Ensure text aligns within widget
                 table.add_widget(param_label)
 
@@ -420,7 +420,7 @@ class PureLayout(BoxLayout):
                 param_label_value = Label(
                     text=f"{para:.4f}", color="#212529", halign="right"
                 )
-                param_label_value.bind(size=param_label_value.setter("text_size"))
+                param_label_value.bind(size=param_label_value.setter("text_size"))  # type: ignore pylint: disable=no-member
                 table.add_widget(param_label_value)
 
             self.predicted_parameters.add_widget(table)
