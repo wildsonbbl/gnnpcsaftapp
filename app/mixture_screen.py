@@ -24,6 +24,7 @@ from utils_data import (
     retrieve_available_data_ternary,
     retrieve_bubble_pressure_data,
     retrieve_lle_binary_data,
+    retrieve_lle_ternary_data,
     retrieve_rho_binary_data,
     retrieve_rho_ternary_data,
 )
@@ -111,9 +112,9 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
-    def _generate_ternary_plot(self, a, b, title, a_label, b_label):
+    def _generate_ternary_plot(self, a, b, title, a_label, b_label, exp_data=None):
         try:
-            generate_ternary_plot(a, b, title, a_label, b_label)
+            generate_ternary_plot(a, b, title, a_label, b_label, exp_data)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -344,8 +345,13 @@ class MixtureLayout(BoxLayout):
             elif len(smiles_list) == 3:
                 # Check for ternary data availability
                 try:
-                    rho_data_t = retrieve_available_data_ternary(smiles_list)
-                    if rho_data_t is not None and len(rho_data_t) > 0:
+                    rho_data_t, lle_data_t = retrieve_available_data_ternary(
+                        smiles_list
+                    )
+
+                    if (rho_data_t is not None and len(rho_data_t) > 0) or (
+                        lle_data_t is not None and len(lle_data_t) > 0
+                    ):
                         self.predicted_parameters.add_widget(
                             Label(
                                 text="Experimental Data Availability",
@@ -357,6 +363,8 @@ class MixtureLayout(BoxLayout):
                             )
                         )
 
+                    # Density Data
+                    if rho_data_t is not None and len(rho_data_t) > 0:
                         dropdown_t = DropDown()
                         for row in rho_data_t:
                             # [P_kPa, x1, x2, T_min, T_max]
@@ -388,6 +396,39 @@ class MixtureLayout(BoxLayout):
                             background_color=(0.1, 0.5, 0.8, 1),
                         )
                         main_button.bind(on_release=dropdown_t.open)  # type: ignore pylint: disable=no-member
+                        self.predicted_parameters.add_widget(main_button)
+
+                    # LLE Data
+                    if lle_data_t is not None and len(lle_data_t) > 0:
+                        dropdown_llet = DropDown()
+                        for row in lle_data_t:
+                            # [P_kPa, T_K]
+                            btn = Button(
+                                text=f"P={row[0]:.5g} kPa, T={row[1]:.2f} K",
+                                size_hint_y=None,
+                                height=44,
+                            )
+                            btn.bind(  # type: ignore pylint: disable=no-member
+                                on_release=lambda btn, r=row: (
+                                    self._fill_inputs_ternary(
+                                        pressure=r[0],
+                                        t_min=r[1],
+                                        t_max=r[1],  # Set fixed T
+                                    ),
+                                    dropdown_llet.dismiss(),
+                                )
+                            )
+                            dropdown_llet.add_widget(btn)
+
+                        main_button = Button(
+                            text="Select Ternary LLE Data",
+                            size_hint_y=None,
+                            height=44,
+                            size_hint_x=0.4,
+                            pos_hint={"center_x": 0.5},
+                            background_color=(0.1, 0.5, 0.8, 1),
+                        )
+                        main_button.bind(on_release=dropdown_llet.open)  # type: ignore pylint: disable=no-member
                         self.predicted_parameters.add_widget(main_button)
 
                 except (ValueError, RuntimeError):
@@ -664,14 +705,26 @@ class MixtureLayout(BoxLayout):
                 p_val = float(self.pressure.text)
             except ValueError as e:
                 raise ValueError("Pressure must be a numeric value") from e
+
+            # Fetch Experimental Data
+            exp_data = None
+            try:
+                # Use t_min as the calculation temperature
+                exp_arr = retrieve_lle_ternary_data(smiles_list, p_val / 1000.0, t_min)
+                if exp_arr is not None and len(exp_arr) > 0:
+                    exp_data = (exp_arr[:, 0], exp_arr[:, 1])
+            except (ValueError, RuntimeError):
+                pass
+
             output = mix_ternary_lle(smiles_list, kij_matrix, t_min, p_val)
 
             self._generate_ternary_plot(
+                [output["x0"], output["y0"]],
                 [output["x1"], output["y1"]],
-                [output["x2"], output["y2"]],
                 title=f"LLE at {p_val} Pa, {t_min} K",
-                a_label=smiles_list[1],
-                b_label=smiles_list[2],
+                a_label=smiles_list[0],
+                b_label=smiles_list[1],
+                exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)

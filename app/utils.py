@@ -148,7 +148,7 @@ def generate_plot(
     app.root.current = "plot_screen"  # type: ignore
 
 
-def generate_ternary_plot(a, b, title, a_label, b_label):
+def generate_ternary_plot(a, b, title, a_label, b_label, exp_data=None):
     "Helper to generate right triangle ternary plot and switch screen"
 
     # Optimized for mobile (390px width)
@@ -168,6 +168,21 @@ def generate_ternary_plot(a, b, title, a_label, b_label):
             plt.scatter(val, b[i])
     else:
         plt.scatter(a, b)
+
+    # Plot Experimental Data
+    if exp_data:
+        exp_a, exp_b = exp_data
+        plt.scatter(
+            exp_a,
+            exp_b,
+            color="black",
+            marker="x",
+            s=30,
+            linewidths=1,
+            label="Exp. Data",
+            zorder=3,
+        )
+        plt.legend(fontsize=8)
 
     plt.title(title, fontsize=10, pad=10)
     plt.xlabel(a_label, fontsize=9)
