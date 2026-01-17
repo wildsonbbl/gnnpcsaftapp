@@ -8,10 +8,11 @@ from kivy.graphics import Color, Rectangle
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
-from kivy.uix.scrollview import ScrollView
 from utils import available_params, generate_plot, get_smiles_from_input
 from utils_data import (
     retrieve_available_data_pure,
@@ -275,96 +276,73 @@ class PureLayout(BoxLayout):
             try:
                 rho_data, vp_range = retrieve_available_data_pure(smiles)
 
-                self.predicted_parameters.add_widget(
-                    Label(
-                        text="Experimental Data Availability (tap to fill)",
-                        size_hint_y=None,
-                        height=40,
-                        color="#0d6efd",
-                        font_size=20,
-                        bold=True,
-                    )
-                )
-
-                # Vapor Pressure
-                if vp_range[0] is not None:
-                    vp_btn = ActionLabelCustom(
-                        text=f"Vapor Pressure: {vp_range[0]:.2f} - {vp_range[1]:.2f} K",
-                        size_hint_y=None,
-                        height=30,
-                    )
-                    # Use closure defaults to capture values
-                    vp_btn.bind(  # type: ignore pylint: disable=no-member
-                        on_release=lambda x, t1=vp_range[0], t2=vp_range[
-                            1
-                        ]: self._fill_inputs(t_min=t1, t_max=t2)
-                    )
-                    self.predicted_parameters.add_widget(vp_btn)
-                else:
+                if (rho_data is not None and len(rho_data) > 0) or (
+                    vp_range[0] is not None
+                ):
                     self.predicted_parameters.add_widget(
                         Label(
-                            text="No Vapor Pressure data found",
+                            text="Experimental Data Availability (tap to fill)",
                             size_hint_y=None,
-                            height=30,
-                            color="#6c757d",
-                            italic=True,
-                        )
-                    )
-
-                # Density
-                if rho_data is not None and len(rho_data) > 0:
-                    self.predicted_parameters.add_widget(
-                        Label(
-                            text="Liquid Density (Isobars):",
-                            size_hint_y=None,
-                            height=30,
-                            color="#212529",
+                            height=40,
+                            color="#0d6efd",
+                            font_size=20,
                             bold=True,
                         )
                     )
 
-                    # Use ScrollView to show all exact ranges without taking up too much space
-                    scroll = ScrollView(
+                # Vapor Pressure
+                if vp_range[0] is not None:
+                    dropdown_vp = DropDown()
+                    btn = Button(
+                        text=f"VP: {vp_range[0]:.2f} - {vp_range[1]:.2f} K",
                         size_hint_y=None,
-                        height=200,
-                        size_hint_x=0.8,
-                        pos_hint={"center_x": 0.5},
+                        height=44,
                     )
-
-                    # Changed cols to 2 to use width efficiently and added spacing
-                    list_layout = GridLayout(
-                        cols=2, size_hint_y=None, spacing=[20, 5], padding=[5, 5]
+                    btn.bind(  # type: ignore pylint: disable=no-member
+                        on_release=lambda btn: (
+                            self._fill_inputs(t_min=vp_range[0], t_max=vp_range[1]),
+                            dropdown_vp.dismiss(),
+                        )
                     )
-                    list_layout.bind(minimum_height=list_layout.setter("height"))  # type: ignore pylint: disable=no-member
+                    dropdown_vp.add_widget(btn)
 
+                    main_button = Button(
+                        text="Select Vapor Pressure Data",
+                        size_hint_y=None,
+                        height=44,
+                        background_color=(0.1, 0.5, 0.8, 1),
+                    )
+                    main_button.bind(on_release=dropdown_vp.open)  # type: ignore pylint: disable=no-member
+                    self.predicted_parameters.add_widget(main_button)
+
+                # Density
+                if rho_data is not None and len(rho_data) > 0:
+                    dropdown = DropDown()
                     for row in rho_data:
                         # row: [Pressure (kPa), T_min, T_max]
-                        # Using ActionLabel and increasing precision to .4g to show differences
-                        rho_btn = ActionLabelCustom(
+                        btn = Button(
                             text=f"P={row[0]:.4g} kPa: {row[1]:.1f} - {row[2]:.1f} K",
                             size_hint_y=None,
-                            height=25,
+                            height=44,
                         )
-                        rho_btn.bind(  # type: ignore pylint: disable=no-member
-                            on_release=lambda x, p=row[0], t1=row[1], t2=row[
-                                2
-                            ]: self._fill_inputs(pressure=p, t_min=t1, t_max=t2)
+                        btn.bind(  # type: ignore pylint: disable=no-member
+                            on_release=lambda btn, r=row: (
+                                self._fill_inputs(
+                                    pressure=r[0], t_min=r[1], t_max=r[2]
+                                ),
+                                dropdown.dismiss(),
+                            )
                         )
-                        list_layout.add_widget(rho_btn)
+                        dropdown.add_widget(btn)
 
-                    scroll.add_widget(list_layout)
-                    self.predicted_parameters.add_widget(scroll)
-
-                else:
-                    self.predicted_parameters.add_widget(
-                        Label(
-                            text="No Liquid Density data found",
-                            size_hint_y=None,
-                            height=30,
-                            color="#6c757d",
-                            italic=True,
-                        )
+                    main_button = Button(
+                        text="Select Liquid Density Data",
+                        size_hint_y=None,
+                        height=44,
+                        background_color=(0.1, 0.5, 0.8, 1),
                     )
+                    main_button.bind(on_release=dropdown.open)  # type: ignore pylint: disable=no-member
+                    self.predicted_parameters.add_widget(main_button)
 
                 self.predicted_parameters.add_widget(Label(size_hint_y=None, height=20))
             except (ValueError, RuntimeError):

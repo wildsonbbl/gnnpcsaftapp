@@ -8,10 +8,11 @@ from kivy.graphics import Color, Rectangle
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
-from kivy.uix.scrollview import ScrollView
 from utils import (
     available_params,
     generate_plot,
@@ -224,85 +225,67 @@ class MixtureLayout(BoxLayout):
                         )
 
                     # Bubble Point Data (P-T Envelopes)
-                    if bubble_data is not None:
-                        self.predicted_parameters.add_widget(
-                            Label(
-                                text="Bubble Pt. Press. (Isopleths):",
-                                size_hint_y=None,
-                                height=30,
-                                color="#212529",
-                                bold=True,
-                            )
-                        )
-                        vle_scroll = ScrollView(
-                            size_hint_y=None,
-                            height=150,
-                            size_hint_x=0.9,
-                            pos_hint={"center_x": 0.5},
-                        )
-                        vle_grid = GridLayout(
-                            cols=2, size_hint_y=None, spacing=[10, 5], padding=[5, 5]
-                        )
-                        vle_grid.bind(minimum_height=vle_grid.setter("height"))  # type: ignore pylint: disable=no-member
-
+                    if bubble_data is not None and len(bubble_data) > 0:
+                        dropdown_bp = DropDown()
                         for row in bubble_data:
                             # [x_approx, T_min, T_max]
-                            vle_btn = ActionLabelCustom(
+                            btn = Button(
                                 text=f"x={row[0]:.2f}: {row[1]:.1f}-{row[2]:.1f} K",
                                 size_hint_y=None,
-                                height=25,
+                                height=44,
                             )
-                            vle_btn.bind(  # type: ignore pylint: disable=no-member
-                                on_release=lambda x, x1=row[0], t1=row[1], t2=row[
-                                    2
-                                ]: self._fill_inputs_binary(t_min=t1, t_max=t2, x1=x1)
+                            btn.bind(  # type: ignore pylint: disable=no-member
+                                on_release=lambda btn, r=row: (
+                                    self._fill_inputs_binary(
+                                        t_min=r[1], t_max=r[2], x1=r[0]
+                                    ),
+                                    dropdown_bp.dismiss(),
+                                )
                             )
-                            vle_grid.add_widget(vle_btn)
-                        vle_scroll.add_widget(vle_grid)
-                        self.predicted_parameters.add_widget(vle_scroll)
+                            dropdown_bp.add_widget(btn)
+
+                        main_button = Button(
+                            text="Select Bubble Pt. Data",
+                            size_hint_y=None,
+                            height=44,
+                            background_color=(0.1, 0.5, 0.8, 1),
+                        )
+                        main_button.bind(on_release=dropdown_bp.open)  # type: ignore pylint: disable=no-member
+                        self.predicted_parameters.add_widget(main_button)
 
                     # Density Data
                     if rho_data is not None and len(rho_data) > 0:
-                        self.predicted_parameters.add_widget(
-                            Label(
-                                text="Liquid Density Data:",
-                                size_hint_y=None,
-                                height=30,
-                                color="#212529",
-                                bold=True,
-                            )
-                        )
-                        rho_scroll = ScrollView(
-                            size_hint_y=None,
-                            height=150,
-                            size_hint_x=0.9,
-                            pos_hint={"center_x": 0.5},
-                        )
-                        rho_grid = GridLayout(
-                            cols=2, size_hint_y=None, spacing=[10, 5], padding=[5, 5]
-                        )
-                        rho_grid.bind(minimum_height=rho_grid.setter("height"))  # type: ignore pylint: disable=no-member
-
+                        dropdown = DropDown()
                         for row in rho_data:
                             # [P_kPa, x_c1, T_min, T_max]
-                            rho_btn = ActionLabelCustom(
+                            btn = Button(
                                 text=f"P={row[0]:.4g} kPa, x={row[1]:.2f}",
                                 size_hint_y=None,
-                                height=25,
+                                height=44,
                             )
-                            rho_btn.bind(  # type: ignore pylint: disable=no-member
-                                on_release=lambda x, p=row[0], x1=row[1], t1=row[
-                                    2
-                                ], t2=row[3]: self._fill_inputs_binary(
-                                    pressure=p, t_min=t1, t_max=t2, x1=x1
+                            btn.bind(  # type: ignore pylint: disable=no-member
+                                on_release=lambda btn, r=row: (
+                                    self._fill_inputs_binary(
+                                        pressure=r[0], t_min=r[2], t_max=r[3], x1=r[1]
+                                    ),
+                                    dropdown.dismiss(),
                                 )
                             )
-                            rho_grid.add_widget(rho_btn)
-                        rho_scroll.add_widget(rho_grid)
-                        self.predicted_parameters.add_widget(rho_scroll)
+                            dropdown.add_widget(btn)
+
+                        main_button = Button(
+                            text="Select Liquid Density Data",
+                            size_hint_y=None,
+                            height=44,
+                            background_color=(0.1, 0.5, 0.8, 1),
+                        )
+                        main_button.bind(on_release=dropdown.open)  # type: ignore pylint: disable=no-member
+                        self.predicted_parameters.add_widget(main_button)
 
                 except (ValueError, RuntimeError):
                     pass
+
+            self.predicted_parameters.add_widget(Label(size_hint_y=None, height=10))
 
             for smile in smiles_list:
                 pred = predict_epcsaft_parameters(smile)
