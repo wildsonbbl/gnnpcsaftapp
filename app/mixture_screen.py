@@ -116,17 +116,17 @@ class MixtureLayout(BoxLayout):
 
     def _get_inputs(self):
         try:
-            raw_smiles = self.smiles_or_inchi_input.text.split(";")
+            raw_smiles = self.smiles_or_inchi_input.text.split(" ")
             smiles_list = [
                 get_smiles_from_input(s.strip()) for s in raw_smiles if s.strip()
             ]
 
-            raw_fracs = self.fractions_input.text.split(";")
+            raw_fracs = self.fractions_input.text.split(" ")
             try:
                 fractions = [float(f.strip()) for f in raw_fracs if f.strip()]
             except ValueError as e:
                 raise ValueError(
-                    "Fractions must be numeric values separated by semicolons"
+                    "Fractions must be numeric values separated by empty space"
                 ) from e
 
             if len(smiles_list) != len(fractions):
@@ -154,12 +154,12 @@ class MixtureLayout(BoxLayout):
 
     def _set_kij_values(self, kij_txt, n, kij_matrix):
         if kij_txt:
-            parts = [p.strip() for p in kij_txt.split(";") if p.strip()]
+            parts = [p.strip() for p in kij_txt.split(" ") if p.strip()]
             try:
                 k_vals = [float(x) for x in parts]
             except ValueError as e:
                 raise ValueError(
-                    "Kij values must be numeric values separated by semicolons"
+                    "Kij values must be numeric values separated by empty space"
                 ) from e
             if len(parts) == 1:
                 for i in range(n):
@@ -171,7 +171,7 @@ class MixtureLayout(BoxLayout):
                 expected = (n * (n - 1)) // 2
                 if len(parts) != expected:
                     raise ValueError(
-                        f"Expected {expected} Kij values (k12; k13...), got {len(parts)}"
+                        f"Expected {expected} kij values (k12 k13 ...), got {len(parts)}"
                     )
 
                 k_idx = 0
@@ -190,14 +190,14 @@ class MixtureLayout(BoxLayout):
         if t_max is not None:
             self.temp_max.text = str(t_max)
         if x1 is not None:
-            self.fractions_input.text = f"{x1:.2f}; {1.0 - x1:.2f}"
+            self.fractions_input.text = f"{x1:.2f} {1.0 - x1:.2f}"
 
     def on_submit(self):
         "handle submit button for mixture parameters"
         self.predicted_parameters.clear_widgets()
 
         try:
-            raw_smiles = self.smiles_or_inchi_input.text.split(";")
+            raw_smiles = self.smiles_or_inchi_input.text.split(" ")
             smiles_list = [
                 get_smiles_from_input(s.strip()) for s in raw_smiles if s.strip()
             ]
@@ -215,7 +215,7 @@ class MixtureLayout(BoxLayout):
                     ):
                         self.predicted_parameters.add_widget(
                             Label(
-                                text="Experimental Data Availability (tap to fill)",
+                                text="Experimental Data Availability",
                                 size_hint_y=None,
                                 height=40,
                                 color="#0d6efd",
@@ -248,6 +248,8 @@ class MixtureLayout(BoxLayout):
                             text="Select Bubble Pt. Data",
                             size_hint_y=None,
                             height=44,
+                            size_hint_x=0.4,
+                            pos_hint={"center_x": 0.5},
                             background_color=(0.1, 0.5, 0.8, 1),
                         )
                         main_button.bind(on_release=dropdown_bp.open)  # type: ignore pylint: disable=no-member
@@ -277,6 +279,8 @@ class MixtureLayout(BoxLayout):
                             text="Select Liquid Density Data",
                             size_hint_y=None,
                             height=44,
+                            size_hint_x=0.4,
+                            pos_hint={"center_x": 0.5},
                             background_color=(0.1, 0.5, 0.8, 1),
                         )
                         main_button.bind(on_release=dropdown.open)  # type: ignore pylint: disable=no-member

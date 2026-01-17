@@ -231,19 +231,19 @@ WindowManager:
 
         TextInput:
             id: smiles_or_inchi_input
-            hint_text: 'SMILES/InChI List (e.g., "water; methanol; ...")'
+            hint_text: 'SMILES/InChI separated by empty space (e.g., "water methanol ...")'
             multiline: False
             on_text_validate: root.on_submit()
         
         TextInput:
             id: fractions_input
-            hint_text: 'Mole Fractions List (e.g., "0.5; 0.5; ...")'
+            hint_text: 'Mole Fractions separated by empty space (e.g., "0.5 0.5 ...")'
             multiline: False
             on_text_validate: root.on_submit()
 
         TextInput:
             id: kij_input
-            hint_text: 'kij (e.g., k12; k13; k23; ...)'
+            hint_text: 'kij values separated by empty space (e.g., k12 k13 k23 ...)'
             multiline: False
             on_text_validate: root.on_submit()
 

@@ -281,7 +281,7 @@ class PureLayout(BoxLayout):
                 ):
                     self.predicted_parameters.add_widget(
                         Label(
-                            text="Experimental Data Availability (tap to fill)",
+                            text="Experimental Data Availability",
                             size_hint_y=None,
                             height=40,
                             color="#0d6efd",
@@ -310,6 +310,8 @@ class PureLayout(BoxLayout):
                         text="Select Vapor Pressure Data",
                         size_hint_y=None,
                         height=44,
+                        size_hint_x=0.4,
+                        pos_hint={"center_x": 0.5},
                         background_color=(0.1, 0.5, 0.8, 1),
                     )
                     main_button.bind(on_release=dropdown_vp.open)  # type: ignore pylint: disable=no-member
@@ -339,6 +341,8 @@ class PureLayout(BoxLayout):
                         text="Select Liquid Density Data",
                         size_hint_y=None,
                         height=44,
+                        size_hint_x=0.4,
+                        pos_hint={"center_x": 0.5},
                         background_color=(0.1, 0.5, 0.8, 1),
                     )
                     main_button.bind(on_release=dropdown.open)  # type: ignore pylint: disable=no-member
