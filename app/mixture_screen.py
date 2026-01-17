@@ -22,6 +22,7 @@ from utils import (
 from utils_data import (
     retrieve_available_data_binary,
     retrieve_bubble_pressure_data,
+    retrieve_lle_binary_data,
     retrieve_rho_binary_data,
 )
 from utils_mix import mix_den, mix_lle, mix_ternary_lle, mix_vle, mix_vp
@@ -208,10 +209,13 @@ class MixtureLayout(BoxLayout):
             if len(smiles_list) == 2:
                 # Check for binary data availability
                 try:
-                    rho_data, bubble_data = retrieve_available_data_binary(smiles_list)
+                    rho_data, bubble_data, lle_data = retrieve_available_data_binary(
+                        smiles_list
+                    )
 
-                    if (rho_data is not None and len(rho_data) > 0) or (
-                        bubble_data is not None and len(bubble_data) > 0
+                    if any(
+                        (exp_data is not None and len(exp_data) > 0)
+                        for exp_data in [rho_data, bubble_data, lle_data]
                     ):
                         self.predicted_parameters.add_widget(
                             Label(
@@ -253,6 +257,38 @@ class MixtureLayout(BoxLayout):
                             background_color=(0.1, 0.5, 0.8, 1),
                         )
                         main_button.bind(on_release=dropdown_bp.open)  # type: ignore pylint: disable=no-member
+                        self.predicted_parameters.add_widget(main_button)
+
+                    # LLE Data
+                    if lle_data is not None and len(lle_data) > 0:
+                        dropdown_lle = DropDown()
+                        for row in lle_data:
+                            # [P_kPa, T_min, T_max]
+                            # Display T range for P
+                            btn = Button(
+                                text=f"P={row[0]:.5g} kPa: {row[1]:.2f}-{row[2]:.2f} K",
+                                size_hint_y=None,
+                                height=44,
+                            )
+                            btn.bind(  # type: ignore pylint: disable=no-member
+                                on_release=lambda btn, r=row: (
+                                    self._fill_inputs_binary(
+                                        pressure=r[0], t_min=r[1], t_max=r[2]
+                                    ),
+                                    dropdown_lle.dismiss(),
+                                )
+                            )
+                            dropdown_lle.add_widget(btn)
+
+                        main_button = Button(
+                            text="Select LLE Data",
+                            size_hint_y=None,
+                            height=44,
+                            size_hint_x=0.4,
+                            pos_hint={"center_x": 0.5},
+                            background_color=(0.1, 0.5, 0.8, 1),
+                        )
+                        main_button.bind(on_release=dropdown_lle.open)  # type: ignore pylint: disable=no-member
                         self.predicted_parameters.add_widget(main_button)
 
                     # Density Data
@@ -508,6 +544,17 @@ class MixtureLayout(BoxLayout):
                 p_val = float(self.pressure.text)
             except ValueError as e:
                 raise ValueError("Pressure must be a numeric value") from e
+
+            # Retrieve Experimental Data
+            exp_data = None
+            try:
+                lle_arr = retrieve_lle_binary_data(smiles_list, p_val / 1000.0)
+                if lle_arr is not None and len(lle_arr) > 0:
+                    # lle_arr: [T, x_c1]
+                    exp_data = (lle_arr[:, 1], lle_arr[:, 0], "Exp. data")
+            except (ValueError, RuntimeError):
+                pass
+
             output = mix_lle(smiles_list, fractions, kij_matrix, t_min, p_val)
             self._generate_plot(
                 [output["x0"], output["y0"]],
@@ -516,6 +563,7 @@ class MixtureLayout(BoxLayout):
                 "x,x",
                 "Temperature (K)",
                 legends=["Phase 1", "Phase 2"],
+                exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
