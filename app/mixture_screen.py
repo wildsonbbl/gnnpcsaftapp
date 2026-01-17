@@ -261,7 +261,7 @@ class MixtureLayout(BoxLayout):
                         for row in rho_data:
                             # [P_kPa, x_c1, T_min, T_max]
                             btn = Button(
-                                text=f"P={row[0]:.4f} kPa, x={row[1]:.2f}",
+                                text=f"P={row[0]:.5g} kPa, x={row[1]:.2f}",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -341,7 +341,7 @@ class MixtureLayout(BoxLayout):
                     table.add_widget(param_label)
 
                     param_label_value = Label(
-                        text=f"{para:.4f}", color="#212529", halign="right"
+                        text=f"{para:.5g}", color="#212529", halign="right"
                     )
                     param_label_value.bind(size=param_label_value.setter("text_size"))  # type: ignore pylint: disable=no-member
                     table.add_widget(param_label_value)
