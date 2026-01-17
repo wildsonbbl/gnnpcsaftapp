@@ -159,10 +159,49 @@ def retrieve_bubble_pressure_data(smiles_list: list, x1: float):
     return filtered.select("T_K", "bubble_point_kPa").sort("T_K").to_numpy()
 
 
+def retrieve_lle_binary_data(smiles_list: list, pressure: float):
+    "retrieve binary LLE data (T-x-x)"
+    if len(smiles_list) != 2:
+        return None
+
+    path = osp.join(application_path, "_data", "lle_binary.parquet")
+    if not osp.exists(path):
+        return None
+
+    df = pl.read_parquet(path)
+    i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
+
+    # Filter
+    filtered = df.filter(
+        ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
+        | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
+    ).filter(pl.col("P_kPa") == pressure)
+
+    if filtered.height == 0:
+        return None
+
+    # Normalize x1 to strictly match input order
+    # If file has (i1, i2) -> use mole_fraction_c1
+    # If file has (i2, i1) -> use mole_fraction_c2
+
+    data = (
+        filtered.with_columns(
+            pl.when(pl.col("inchi1") == i1)
+            .then(pl.col("mole_fraction_c1"))
+            .otherwise(pl.col("mole_fraction_c2"))
+            .alias("x_c1"),
+        )
+        .select("T_K", "x_c1")
+        .sort("T_K")
+    )
+
+    return data.to_numpy()
+
+
 def retrieve_available_data_binary(smiles_list: list):
     "retrieve available binary data"
     if len(smiles_list) != 2:
-        return None, None
+        return None, None, None
 
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
@@ -213,4 +252,22 @@ def retrieve_available_data_binary(smiles_list: list):
     else:
         bubble_data = None
 
-    return rho_data, bubble_data
+    # LLE checking
+    lle_data = None
+    path_lle = osp.join(application_path, "_data", "lle_binary.parquet")
+    if osp.exists(path_lle):
+        df_lle = pl.read_parquet(path_lle)
+        # Filter
+        lf = _filter_norm(df_lle, "mole_fraction_c1", "mole_fraction_c2")
+        if lf.height > 0:
+            lle_data = (
+                lf.group_by("P_kPa")
+                .agg(
+                    pl.col("T_K").min().alias("T_min"),
+                    pl.col("T_K").max().alias("T_max"),
+                )
+                .sort("P_kPa")
+                .to_numpy()
+            )
+
+    return rho_data, bubble_data, lle_data
