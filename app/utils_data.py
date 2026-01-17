@@ -271,3 +271,145 @@ def retrieve_available_data_binary(smiles_list: list):
             )
 
     return rho_data, bubble_data, lle_data
+
+
+def retrieve_available_data_ternary(smiles_list: list):
+    "retrieve available ternary data"
+    if len(smiles_list) != 3:
+        return None
+
+    path_rho = osp.join(application_path, "_data", "rho_ternary.parquet")
+    if not osp.exists(path_rho):
+        return None
+
+    i1, i2, i3 = (
+        smilestoinchi(smiles_list[0]),
+        smilestoinchi(smiles_list[1]),
+        smilestoinchi(smiles_list[2]),
+    )
+
+    df = pl.read_parquet(path_rho)
+    target_set = [i1, i2, i3]
+
+    # Filter for components (exact set match)
+    filter_expr = (
+        pl.col("inchi1").is_in(target_set)
+        & pl.col("inchi2").is_in(target_set)
+        & pl.col("inchi3").is_in(target_set)
+    )
+
+    filtered = df.filter(filter_expr)
+
+    if filtered.height == 0:
+        return None
+
+    # Map mole fractions to input order
+    data = (
+        filtered.with_columns(
+            [
+                pl.when(pl.col("inchi1") == i1)
+                .then(pl.col("mole_fraction_c1"))
+                .otherwise(
+                    pl.when(pl.col("inchi2") == i1)
+                    .then(pl.col("mole_fraction_c2"))
+                    .otherwise(pl.col("mole_fraction_c3"))
+                )
+                .alias("x_mapped_1"),
+                pl.when(pl.col("inchi1") == i2)
+                .then(pl.col("mole_fraction_c1"))
+                .otherwise(
+                    pl.when(pl.col("inchi2") == i2)
+                    .then(pl.col("mole_fraction_c2"))
+                    .otherwise(pl.col("mole_fraction_c3"))
+                )
+                .alias("x_mapped_2"),
+            ]
+        )
+        .group_by(["P_kPa", "x_mapped_1", "x_mapped_2"])
+        .agg(
+            pl.col("T_K").min().alias("T_min"),
+            pl.col("T_K").max().alias("T_max"),
+        )
+        .sort(["P_kPa", "x_mapped_1", "x_mapped_2"])
+    )
+
+    if data.height == 0:
+        return None
+
+    return data.to_numpy()
+
+
+def retrieve_rho_ternary_data(smiles_list: list, pressure: float, x1: float, x2: float):
+    "retrieve ternary density data"
+    if len(smiles_list) != 3:
+        return None
+
+    path_rho = osp.join(application_path, "_data", "rho_ternary.parquet")
+    if not osp.exists(path_rho):
+        return None
+
+    i1, i2, i3 = (
+        smilestoinchi(smiles_list[0]),
+        smilestoinchi(smiles_list[1]),
+        smilestoinchi(smiles_list[2]),
+    )
+
+    df = pl.read_parquet(path_rho)
+    target_set = [i1, i2, i3]
+
+    # Function to map column X based on inchi match
+    def get_col_map(target_inchi, col_prefix):
+        return (
+            pl.when(pl.col("inchi1") == target_inchi)
+            .then(pl.col(f"{col_prefix}1"))
+            .otherwise(
+                pl.when(pl.col("inchi2") == target_inchi)
+                .then(pl.col(f"{col_prefix}2"))
+                .otherwise(pl.col(f"{col_prefix}3"))
+            )
+        )
+
+    # Tolerance
+    tol_x = 0.01
+
+    filtered = (
+        df.filter(
+            pl.col("inchi1").is_in(target_set)
+            & pl.col("inchi2").is_in(target_set)
+            & pl.col("inchi3").is_in(target_set)
+        )
+        .with_columns(
+            [
+                get_col_map(i1, "mole_fraction_c").alias("x_m1"),
+                get_col_map(i2, "mole_fraction_c").alias("x_m2"),
+                get_col_map(i3, "mole_fraction_c").alias("x_m3"),
+                get_col_map(i1, "molweight").alias("mw_m1"),
+                get_col_map(i2, "molweight").alias("mw_m2"),
+                get_col_map(i3, "molweight").alias("mw_m3"),
+            ]
+        )
+        .filter(
+            (pl.col("P_kPa") == pressure)
+            & (pl.col("x_m1").is_between(x1 - tol_x, x1 + tol_x))
+            & (pl.col("x_m2").is_between(x2 - tol_x, x2 + tol_x))
+        )
+    )
+
+    if filtered.height == 0:
+        return None
+
+    # molar density = mass_rho * 1000 / avg_mw
+    return (
+        filtered.select(
+            pl.col("T_K"),
+            pl.col("rho")
+            * 1000.0
+            / (
+                pl.col("x_m1") * pl.col("mw_m1")
+                + pl.col("x_m2") * pl.col("mw_m2")
+                + pl.col("x_m3") * pl.col("mw_m3")
+            ),
+        )
+        .sort("T_K")
+        .to_numpy()
+    )
