@@ -3,7 +3,10 @@
 from copy import copy
 
 from gnnepcsaft.epcsaft.epcsaft_feos import critical_points_feos
+from kivy.core.window import Window
+from kivy.graphics import Color, Rectangle
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
+from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
@@ -28,6 +31,51 @@ from gnnepcsaft_mcp_server.utils import predict_epcsaft_parameters
 
 class PureScreen(Screen):
     "Pure component screen"
+
+
+class ActionLabelCustom(ButtonBehavior, Label):
+    "Label that acts as a button with hover effect"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.color = "#0d6efd"  # Default link color (Bootstrap Primary)
+        self.background_color_normal = (1, 1, 1, 0)  # Transparent
+        self.background_color_hover = (0.9, 0.9, 0.9, 1)  # Light Gray
+
+        # Determine initial background logic
+        with self.canvas.before:
+            self.bg_color = Color(*self.background_color_normal)
+            self.rect = Rectangle(size=self.size, pos=self.pos)
+
+        self.bind(size=self._update_rect, pos=self._update_rect)
+
+        # Bind mouse position for hover effect
+        Window.bind(mouse_pos=self.on_mouse_pos)
+
+    def _update_rect(self, instance, value):
+        self.rect.pos = instance.pos
+        self.rect.size = instance.size
+
+    def on_mouse_pos(self, window, pos):
+        "function for mouse hover effect"
+        if not self.get_root_window():
+            return
+
+        if self.collide_point(*self.to_widget(*pos)):
+            # Hover state
+            self.bg_color.rgba = self.background_color_hover
+            self.color = "#0a58ca"  # Darker blue
+        else:
+            # Normal state
+            self.bg_color.rgba = self.background_color_normal
+            self.color = "#0d6efd"
+
+    def on_press(self):
+        self.bg_color.rgba = (0.8, 0.8, 0.8, 1)  # Darker gray on click
+
+    def on_release(self):
+        # Return to hover state color since mouse is likely still over it
+        self.bg_color.rgba = self.background_color_hover
 
 
 class PureLayout(BoxLayout):
@@ -74,6 +122,16 @@ class PureLayout(BoxLayout):
         error_message.color = "#dc3545"
         self.predicted_parameters.clear_widgets()
         self.predicted_parameters.add_widget(error_message)
+
+    def _fill_inputs(self, pressure=None, t_min=None, t_max=None):
+        "Helper to populate inputs with clicked values"
+        if pressure is not None:
+            # Data is in kPa, Input expects Pa. Convert: * 1000
+            self.pressure.text = str(pressure * 1000.0)
+        if t_min is not None:
+            self.temp_min.text = str(t_min)
+        if t_max is not None:
+            self.temp_max.text = str(t_max)
 
     def on_plot_density(self):
         "plot density vs temperature"
@@ -219,7 +277,7 @@ class PureLayout(BoxLayout):
 
                 self.predicted_parameters.add_widget(
                     Label(
-                        text="Experimental Data Availability",
+                        text="Experimental Data Availability (tap to fill)",
                         size_hint_y=None,
                         height=40,
                         color="#0d6efd",
@@ -230,14 +288,18 @@ class PureLayout(BoxLayout):
 
                 # Vapor Pressure
                 if vp_range[0] is not None:
-                    self.predicted_parameters.add_widget(
-                        Label(
-                            text=f"Vapor Pressure: {vp_range[0]:.2f} - {vp_range[1]:.2f} K",
-                            size_hint_y=None,
-                            height=30,
-                            color="#212529",
-                        )
+                    vp_btn = ActionLabelCustom(
+                        text=f"Vapor Pressure: {vp_range[0]:.2f} - {vp_range[1]:.2f} K",
+                        size_hint_y=None,
+                        height=30,
                     )
+                    # Use closure defaults to capture values
+                    vp_btn.bind(
+                        on_release=lambda x, t1=vp_range[0], t2=vp_range[
+                            1
+                        ]: self._fill_inputs(t_min=t1, t_max=t2)
+                    )
+                    self.predicted_parameters.add_widget(vp_btn)
                 else:
                     self.predicted_parameters.add_widget(
                         Label(
@@ -262,7 +324,12 @@ class PureLayout(BoxLayout):
                     )
 
                     # Use ScrollView to show all exact ranges without taking up too much space
-                    scroll = ScrollView(size_hint_y=None, height=200)
+                    scroll = ScrollView(
+                        size_hint_y=None,
+                        height=200,
+                        size_hint_x=0.8,
+                        pos_hint={"center_x": 0.5},
+                    )
 
                     # Changed cols to 2 to use width efficiently and added spacing
                     list_layout = GridLayout(
@@ -272,14 +339,18 @@ class PureLayout(BoxLayout):
 
                     for row in rho_data:
                         # row: [Pressure (kPa), T_min, T_max]
-                        list_layout.add_widget(
-                            Label(
-                                text=f"P={row[0]:.1f} kPa: {row[1]:.1f} - {row[2]:.1f} K",
-                                size_hint_y=None,
-                                height=25,
-                                color="#212529",
-                            )
+                        # Using ActionLabel and increasing precision to .4g to show differences
+                        rho_btn = ActionLabelCustom(
+                            text=f"P={row[0]:.4g} kPa: {row[1]:.1f} - {row[2]:.1f} K",
+                            size_hint_y=None,
+                            height=25,
                         )
+                        rho_btn.bind(
+                            on_release=lambda x, p=row[0], t1=row[1], t2=row[
+                                2
+                            ]: self._fill_inputs(pressure=p, t_min=t1, t_max=t2)
+                        )
+                        list_layout.add_widget(rho_btn)
 
                     scroll.add_widget(list_layout)
                     self.predicted_parameters.add_widget(scroll)
