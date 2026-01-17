@@ -323,7 +323,7 @@ class PureLayout(BoxLayout):
                     for row in rho_data:
                         # row: [Pressure (kPa), T_min, T_max]
                         btn = Button(
-                            text=f"P={row[0]:.4g} kPa: {row[1]:.1f} - {row[2]:.1f} K",
+                            text=f"P={row[0]:.4f} kPa: {row[1]:.2f} - {row[2]:.2f} K",
                             size_hint_y=None,
                             height=44,
                         )

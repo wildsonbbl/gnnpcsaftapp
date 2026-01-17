@@ -230,7 +230,7 @@ class MixtureLayout(BoxLayout):
                         for row in bubble_data:
                             # [x_approx, T_min, T_max]
                             btn = Button(
-                                text=f"x={row[0]:.2f}: {row[1]:.1f}-{row[2]:.1f} K",
+                                text=f"x={row[0]:.2f}: {row[1]:.2f}-{row[2]:.2f} K",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -261,7 +261,7 @@ class MixtureLayout(BoxLayout):
                         for row in rho_data:
                             # [P_kPa, x_c1, T_min, T_max]
                             btn = Button(
-                                text=f"P={row[0]:.4g} kPa, x={row[1]:.2f}",
+                                text=f"P={row[0]:.4f} kPa, x={row[1]:.2f}",
                                 size_hint_y=None,
                                 height=44,
                             )
