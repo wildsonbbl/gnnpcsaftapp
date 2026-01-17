@@ -276,67 +276,87 @@ def retrieve_available_data_binary(smiles_list: list):
 def retrieve_available_data_ternary(smiles_list: list):
     "retrieve available ternary data"
     if len(smiles_list) != 3:
-        return None
-
-    path_rho = osp.join(application_path, "_data", "rho_ternary.parquet")
-    if not osp.exists(path_rho):
-        return None
+        return None, None
 
     i1, i2, i3 = (
         smilestoinchi(smiles_list[0]),
         smilestoinchi(smiles_list[1]),
         smilestoinchi(smiles_list[2]),
     )
-
-    df = pl.read_parquet(path_rho)
     target_set = [i1, i2, i3]
 
-    # Filter for components (exact set match)
-    filter_expr = (
-        pl.col("inchi1").is_in(target_set)
-        & pl.col("inchi2").is_in(target_set)
-        & pl.col("inchi3").is_in(target_set)
-    )
+    # --- RHO Data ---
+    rho_data = None
+    path_rho = osp.join(application_path, "_data", "rho_ternary.parquet")
+    if osp.exists(path_rho):
 
-    filtered = df.filter(filter_expr)
+        df = pl.read_parquet(path_rho)
 
-    if filtered.height == 0:
-        return None
-
-    # Map mole fractions to input order
-    data = (
-        filtered.with_columns(
-            [
-                pl.when(pl.col("inchi1") == i1)
-                .then(pl.col("mole_fraction_c1"))
-                .otherwise(
-                    pl.when(pl.col("inchi2") == i1)
-                    .then(pl.col("mole_fraction_c2"))
-                    .otherwise(pl.col("mole_fraction_c3"))
-                )
-                .alias("x_mapped_1"),
-                pl.when(pl.col("inchi1") == i2)
-                .then(pl.col("mole_fraction_c1"))
-                .otherwise(
-                    pl.when(pl.col("inchi2") == i2)
-                    .then(pl.col("mole_fraction_c2"))
-                    .otherwise(pl.col("mole_fraction_c3"))
-                )
-                .alias("x_mapped_2"),
-            ]
+        # Filter for components (exact set match)
+        filter_expr = (
+            pl.col("inchi1").is_in(target_set)
+            & pl.col("inchi2").is_in(target_set)
+            & pl.col("inchi3").is_in(target_set)
         )
-        .group_by(["P_kPa", "x_mapped_1", "x_mapped_2"])
-        .agg(
-            pl.col("T_K").min().alias("T_min"),
-            pl.col("T_K").max().alias("T_max"),
+
+        filtered = df.filter(filter_expr)
+
+        if filtered.height > 0:
+            # Map mole fractions to input order
+            data = (
+                filtered.with_columns(
+                    [
+                        pl.when(pl.col("inchi1") == i1)
+                        .then(pl.col("mole_fraction_c1"))
+                        .otherwise(
+                            pl.when(pl.col("inchi2") == i1)
+                            .then(pl.col("mole_fraction_c2"))
+                            .otherwise(pl.col("mole_fraction_c3"))
+                        )
+                        .alias("x_mapped_1"),
+                        pl.when(pl.col("inchi1") == i2)
+                        .then(pl.col("mole_fraction_c1"))
+                        .otherwise(
+                            pl.when(pl.col("inchi2") == i2)
+                            .then(pl.col("mole_fraction_c2"))
+                            .otherwise(pl.col("mole_fraction_c3"))
+                        )
+                        .alias("x_mapped_2"),
+                    ]
+                )
+                .group_by(["P_kPa", "x_mapped_1", "x_mapped_2"])
+                .agg(
+                    pl.col("T_K").min().alias("T_min"),
+                    pl.col("T_K").max().alias("T_max"),
+                )
+                .sort(["P_kPa", "x_mapped_1", "x_mapped_2"])
+            )
+
+            if data.height > 0:
+                rho_data = data.to_numpy()
+
+    # --- LLE Data ---
+    lle_data = None
+    path_lle = osp.join(application_path, "_data", "lle_ternary.parquet")
+    if osp.exists(path_lle):
+        df_lle = pl.read_parquet(path_lle)
+        filter_expr_lle = (
+            pl.col("inchi1").is_in(target_set)
+            & pl.col("inchi2").is_in(target_set)
+            & pl.col("inchi3").is_in(target_set)
         )
-        .sort(["P_kPa", "x_mapped_1", "x_mapped_2"])
-    )
+        filtered_lle = df_lle.filter(filter_expr_lle)
 
-    if data.height == 0:
-        return None
+        if filtered_lle.height > 0:
+            # Group by P and T to find available isotherms/isobars
+            lle_data = (
+                filtered_lle.select("P_kPa", "T_K")
+                .unique()
+                .sort(["P_kPa", "T_K"])
+                .to_numpy()
+            )
 
-    return data.to_numpy()
+    return rho_data, lle_data
 
 
 def retrieve_rho_ternary_data(smiles_list: list, pressure: float, x1: float, x2: float):
@@ -411,5 +431,57 @@ def retrieve_rho_ternary_data(smiles_list: list, pressure: float, x1: float, x2:
             ),
         )
         .sort("T_K")
+        .to_numpy()
+    )
+
+
+def retrieve_lle_ternary_data(smiles_list: list, pressure: float, temperature: float):
+    "retrieve ternary lle data (tie lines/binodal points)"
+    if len(smiles_list) != 3:
+        return None
+
+    path_lle = osp.join(application_path, "_data", "lle_ternary.parquet")
+    if not osp.exists(path_lle):
+        return None
+
+    i1, i2, i3 = (
+        smilestoinchi(smiles_list[0]),
+        smilestoinchi(smiles_list[1]),
+        smilestoinchi(smiles_list[2]),
+    )
+    target_set = [i1, i2, i3]
+
+    df = pl.read_parquet(path_lle)
+
+    # Function to map column X based on inchi match
+    def get_col_map(target_inchi, col_prefix):
+        return (
+            pl.when(pl.col("inchi1") == target_inchi)
+            .then(pl.col(f"{col_prefix}1"))
+            .otherwise(
+                pl.when(pl.col("inchi2") == target_inchi)
+                .then(pl.col(f"{col_prefix}2"))
+                .otherwise(pl.col(f"{col_prefix}3"))
+            )
+        )
+
+    tol = 0.01
+    return (
+        df.filter(
+            pl.col("inchi1").is_in(target_set)
+            & pl.col("inchi2").is_in(target_set)
+            & pl.col("inchi3").is_in(target_set)
+        )
+        .filter(
+            (pl.col("P_kPa").is_between(pressure - tol, pressure + tol))
+            & (pl.col("T_K").is_between(temperature - tol, temperature + tol))
+        )
+        .with_columns(
+            [
+                get_col_map(i1, "mole_fraction_c").alias("x_m1"),
+                get_col_map(i2, "mole_fraction_c").alias("x_m2"),
+            ]
+        )
+        .select("x_m1", "x_m2")
         .to_numpy()
     )
