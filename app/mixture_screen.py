@@ -112,9 +112,11 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
-    def _generate_ternary_plot(self, a, b, title, a_label, b_label, exp_data=None):
+    def _generate_ternary_plot(
+        self, a, b, title, a_label, b_label, legends=None, exp_data=None
+    ):
         try:
-            generate_ternary_plot(a, b, title, a_label, b_label, exp_data)
+            generate_ternary_plot(a, b, title, a_label, b_label, legends, exp_data)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -724,6 +726,7 @@ class MixtureLayout(BoxLayout):
                 title=f"LLE at {p_val} Pa, {t_min} K",
                 a_label=smiles_list[0],
                 b_label=smiles_list[1],
+                legends=["Phase 1", "Phase 2"],
                 exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:
