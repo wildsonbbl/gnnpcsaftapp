@@ -54,7 +54,7 @@ def pure_surface_tension(
     "Calculate pure-component surface tension using PC-SAFT EOS"
     parameters = predict_epcsaft_parameters(smiles)
 
-    temperatures, surface_tensions = pure_surface_tension_feos(parameters, [min_temp])
+    surface_tensions, temperatures = pure_surface_tension_feos(parameters, [min_temp])
 
     return temperatures.tolist(), surface_tensions.tolist()
 
