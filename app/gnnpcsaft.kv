@@ -48,6 +48,7 @@ WindowManager:
     PureScreen:
     MixtureScreen:
     PlotScreen:
+    AboutScreen:
 
 <MenuButton@Button>:
     background_color: color_primary_rgba
@@ -73,6 +74,11 @@ WindowManager:
             app.root.current = "mixture_screen"
             app.root.transition.direction = "right"
     
+    MenuButton:
+        text: "About"
+        on_release:
+            app.root.current = "about_screen"
+            app.root.transition.direction = "left"
 
 <PureScreen>:
     name: "pure_screen"
@@ -81,6 +87,10 @@ WindowManager:
 <MixtureScreen>:
     name: "mixture_screen"
     MixtureLayout:
+
+<AboutScreen>:
+    name: "about_screen"
+    AboutLayout:
 
 <PlotScreen>:
     name: "plot_screen"
@@ -341,5 +351,74 @@ WindowManager:
     MatplotFigure:
         id: mat_plot_figure
         interactive_axis: True
+
+<AboutLayout>:
+    orientation:'vertical'
+    size_hint: 1,1
+    spacing: 10
+    padding: [10, 10, 10, 10]
+
+    NavBar:
+
+    Label:
+        text: "About GNNPCSAFT App"
+        font_size: 24
+        bold: True
+        size_hint_y: None
+        height: 50
+        color: color_primary_rgba
+
+    ScrollView:
+        do_scroll_x: False
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: None
+            height: self.minimum_height
+            padding: 20
+            spacing: 10
+
+            Label:
+                text: "Version: 1.0.0"
+                font_size: 16
+                color: color_secondary_rgba
+                size_hint_y: None
+                height: 30
+                halign: "left"
+                text_size: self.width, None
+
+            Label:
+                text: "Developer: Wildson B. B. Lima"
+                font_size: 16
+                color: color_text_rgba
+                size_hint_y: None
+                height: 30
+                halign: "left"
+                text_size: self.width, None
+
+            Label:
+                text: 
+                    "The GNNPCSAFT app is an implementation of our project that focuses on using Graph Neural Networks (GNN) to estimate the pure-component parameters of the Equation of State PC-SAFT. " + \
+                    "We developed this app so the scientific community can access the model's results easily.\n\n" + \
+                    "In this app, the estimated pure-component parameters can be used to calculate thermodynamic properties and compare them with experimental data from the ThermoML Archive.\n\n" + \
+                    "[b]More Information (click to open page):[/b] \n" + \
+                    "[ref=https://github.com/wildsonbbl/gnnepcsaft]GNNPCSAFT Project (GitHub)[/ref]\n" + \
+                    "[ref=https://github.com/wildsonbbl/gnnpcsaftapp]This App (GitHub)[/ref]\n" + \
+                    "[ref=https://sourceforge.net/projects/gnnepcsaft/]Downloads at SourceForge[/ref]\n" + \
+                    "[ref=https://doi.org/10.18434/mds2-2422]ThermoML Archive[/ref]\n\n" + \
+                    "Experimental data correlation powered by PC-SAFT and GNN models."
+                markup: True
+                font_size: 16
+                color: color_text_rgba
+                size_hint_y: None
+                height: self.texture_size[1]
+                halign: "left"
+                valign: "top"
+                text_size: self.width, None
+                on_ref_press: root.open_link(args[0], args[1])
+
+            Widget: 
+                # Spacer to push content up if needed
+                size_hint_y: None
+                height: 50
 
 

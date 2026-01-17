@@ -4,6 +4,7 @@ import os
 
 import kivy
 import kivy_matplotlib_widget  # pylint: disable=unused-import
+from about_screen import AboutLayout, AboutScreen  # pylint: disable=unused-import
 from kivy.app import App
 from kivy.properties import (  # pylint: disable=no-name-in-module
     ObjectProperty,
