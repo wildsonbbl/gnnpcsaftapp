@@ -21,9 +21,11 @@ from utils import (
 )
 from utils_data import (
     retrieve_available_data_binary,
+    retrieve_available_data_ternary,
     retrieve_bubble_pressure_data,
     retrieve_lle_binary_data,
     retrieve_rho_binary_data,
+    retrieve_rho_ternary_data,
 )
 from utils_mix import mix_den, mix_lle, mix_ternary_lle, mix_vle, mix_vp
 
@@ -193,6 +195,20 @@ class MixtureLayout(BoxLayout):
         if x1 is not None:
             self.fractions_input.text = f"{x1:.2f} {1.0 - x1:.2f}"
 
+    def _fill_inputs_ternary(
+        self, pressure=None, t_min=None, t_max=None, x1=None, x2=None
+    ):
+        "Helper to populate inputs with clicked values for ternary"
+        if pressure is not None:
+            self.pressure.text = str(pressure * 1000.0)
+        if t_min is not None:
+            self.temp_min.text = str(t_min)
+        if t_max is not None:
+            self.temp_max.text = str(t_max)
+        if x1 is not None and x2 is not None:
+            x3 = max(0.0, 1.0 - x1 - x2)
+            self.fractions_input.text = f"{x1:.2f} {x2:.2f} {x3:.2f}"
+
     def on_submit(self):
         "handle submit button for mixture parameters"
         self.predicted_parameters.clear_widgets()
@@ -325,6 +341,58 @@ class MixtureLayout(BoxLayout):
                 except (ValueError, RuntimeError):
                     pass
 
+            elif len(smiles_list) == 3:
+                # Check for ternary data availability
+                try:
+                    rho_data_t = retrieve_available_data_ternary(smiles_list)
+                    if rho_data_t is not None and len(rho_data_t) > 0:
+                        self.predicted_parameters.add_widget(
+                            Label(
+                                text="Experimental Data Availability",
+                                size_hint_y=None,
+                                height=40,
+                                color="#0d6efd",
+                                font_size=20,
+                                bold=True,
+                            )
+                        )
+
+                        dropdown_t = DropDown()
+                        for row in rho_data_t:
+                            # [P_kPa, x1, x2, T_min, T_max]
+                            btn = Button(
+                                text=f"P={row[0]:.5g} kPa, x=[{row[1]:.2f}, {row[2]:.2f}]",
+                                size_hint_y=None,
+                                height=44,
+                            )
+                            btn.bind(  # type: ignore pylint: disable=no-member
+                                on_release=lambda btn, r=row: (
+                                    self._fill_inputs_ternary(
+                                        pressure=r[0],
+                                        x1=r[1],
+                                        x2=r[2],
+                                        t_min=r[3],
+                                        t_max=r[4],
+                                    ),
+                                    dropdown_t.dismiss(),
+                                )
+                            )
+                            dropdown_t.add_widget(btn)
+
+                        main_button = Button(
+                            text="Select Ternary Density Data",
+                            size_hint_y=None,
+                            height=44,
+                            size_hint_x=0.4,
+                            pos_hint={"center_x": 0.5},
+                            background_color=(0.1, 0.5, 0.8, 1),
+                        )
+                        main_button.bind(on_release=dropdown_t.open)  # type: ignore pylint: disable=no-member
+                        self.predicted_parameters.add_widget(main_button)
+
+                except (ValueError, RuntimeError):
+                    pass
+
             self.predicted_parameters.add_widget(Label(size_hint_y=None, height=10))
 
             for smile in smiles_list:
@@ -418,6 +486,18 @@ class MixtureLayout(BoxLayout):
                     )
                     if exp_array is not None and len(exp_array) > 0:
                         exp_data = (exp_array[:, 0], exp_array[:, 1], "Exp. Data")
+                except (ValueError, RuntimeError):
+                    pass
+
+            elif len(smiles_list) == 3:
+                try:
+                    # fractions[0]=x1, fractions[1]=x2
+                    if len(fractions) >= 2:
+                        exp_array = retrieve_rho_ternary_data(
+                            smiles_list, p_val / 1000.0, fractions[0], fractions[1]
+                        )
+                        if exp_array is not None and len(exp_array) > 0:
+                            exp_data = (exp_array[:, 0], exp_array[:, 1], "Exp. Data")
                 except (ValueError, RuntimeError):
                     pass
 
