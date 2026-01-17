@@ -3,16 +3,25 @@
 from copy import copy
 
 from gnnepcsaft.epcsaft.epcsaft_feos import critical_points_feos
+from kivy.core.window import Window
+from kivy.graphics import Color, Rectangle
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
+from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
+from kivy.uix.scrollview import ScrollView
 from utils import (
     available_params,
     generate_plot,
     generate_ternary_plot,
     get_smiles_from_input,
+)
+from utils_data import (
+    retrieve_available_data_binary,
+    retrieve_bubble_pressure_data,
+    retrieve_rho_binary_data,
 )
 from utils_mix import mix_den, mix_lle, mix_ternary_lle, mix_vle, mix_vp
 
@@ -21,6 +30,51 @@ from gnnepcsaft_mcp_server.utils import predict_epcsaft_parameters
 
 class MixtureScreen(Screen):
     "Mixture screen"
+
+
+class ActionLabelCustom(ButtonBehavior, Label):  # type: ignore
+    "Label that acts as a button with hover effect"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.color = "#0d6efd"  # Default link color (Bootstrap Primary)
+        self.background_color_normal = (1, 1, 1, 0)  # Transparent
+        self.background_color_hover = (0.9, 0.9, 0.9, 1)  # Light Gray
+
+        # Determine initial background logic
+        with self.canvas.before:  # type: ignore
+            self.bg_color = Color(*self.background_color_normal)
+            self.rect = Rectangle(size=self.size, pos=self.pos)
+
+        self.bind(size=self._update_rect, pos=self._update_rect)  # type: ignore pylint: disable=no-member
+
+        # Bind mouse position for hover effect
+        Window.bind(mouse_pos=self.on_mouse_pos)
+
+    def _update_rect(self, instance, value):  # pylint: disable=unused-argument
+        self.rect.pos = instance.pos
+        self.rect.size = instance.size
+
+    def on_mouse_pos(self, window, pos):  # pylint: disable=unused-argument
+        "function for mouse hover effect"
+        if not self.get_root_window():
+            return
+
+        if self.collide_point(*self.to_widget(*pos)):
+            # Hover state
+            self.bg_color.rgba = self.background_color_hover
+            self.color = "#0a58ca"  # Darker blue
+        else:
+            # Normal state
+            self.bg_color.rgba = self.background_color_normal
+            self.color = "#0d6efd"
+
+    def on_press(self):
+        self.bg_color.rgba = (0.8, 0.8, 0.8, 1)  # Darker gray on click
+
+    def on_release(self):
+        # Return to hover state color since mouse is likely still over it
+        self.bg_color.rgba = self.background_color_hover
 
 
 class MixtureLayout(BoxLayout):
@@ -45,9 +99,11 @@ class MixtureLayout(BoxLayout):
         self.predicted_parameters.clear_widgets()
         self.predicted_parameters.add_widget(error_message)
 
-    def _generate_plot(self, x_data, y_datas, title, x_label, y_label, legends=None):
+    def _generate_plot(
+        self, x_data, y_datas, title, x_label, y_label, legends=None, exp_data=None
+    ):
         try:
-            generate_plot(x_data, y_datas, title, x_label, y_label, legends)
+            generate_plot(x_data, y_datas, title, x_label, y_label, legends, exp_data)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -124,6 +180,17 @@ class MixtureLayout(BoxLayout):
                         kij_matrix[j][i] = k_vals[k_idx]
                         k_idx += 1
 
+    def _fill_inputs_binary(self, pressure=None, t_min=None, t_max=None, x1=None):
+        "Helper to populate inputs with clicked values"
+        if pressure is not None:
+            self.pressure.text = str(pressure * 1000.0)  # kPa to Pa
+        if t_min is not None:
+            self.temp_min.text = str(t_min)
+        if t_max is not None:
+            self.temp_max.text = str(t_max)
+        if x1 is not None:
+            self.fractions_input.text = f"{x1:.2f}; {1.0 - x1:.2f}"
+
     def on_submit(self):
         "handle submit button for mixture parameters"
         self.predicted_parameters.clear_widgets()
@@ -136,6 +203,106 @@ class MixtureLayout(BoxLayout):
 
             if not smiles_list:
                 return
+
+            if len(smiles_list) == 2:
+                # Check for binary data availability
+                try:
+                    rho_data, bubble_data = retrieve_available_data_binary(smiles_list)
+
+                    if (rho_data is not None and len(rho_data) > 0) or (
+                        bubble_data is not None and len(bubble_data) > 0
+                    ):
+                        self.predicted_parameters.add_widget(
+                            Label(
+                                text="Experimental Data Availability (tap to fill)",
+                                size_hint_y=None,
+                                height=40,
+                                color="#0d6efd",
+                                font_size=20,
+                                bold=True,
+                            )
+                        )
+
+                    # Bubble Point Data (P-T Envelopes)
+                    if bubble_data is not None:
+                        self.predicted_parameters.add_widget(
+                            Label(
+                                text="Bubble Pt. Press. (Isopleths):",
+                                size_hint_y=None,
+                                height=30,
+                                color="#212529",
+                                bold=True,
+                            )
+                        )
+                        vle_scroll = ScrollView(
+                            size_hint_y=None,
+                            height=150,
+                            size_hint_x=0.9,
+                            pos_hint={"center_x": 0.5},
+                        )
+                        vle_grid = GridLayout(
+                            cols=2, size_hint_y=None, spacing=[10, 5], padding=[5, 5]
+                        )
+                        vle_grid.bind(minimum_height=vle_grid.setter("height"))  # type: ignore pylint: disable=no-member
+
+                        for row in bubble_data:
+                            # [x_approx, T_min, T_max]
+                            vle_btn = ActionLabelCustom(
+                                text=f"x={row[0]:.2f}: {row[1]:.1f}-{row[2]:.1f} K",
+                                size_hint_y=None,
+                                height=25,
+                            )
+                            vle_btn.bind(  # type: ignore pylint: disable=no-member
+                                on_release=lambda x, x1=row[0], t1=row[1], t2=row[
+                                    2
+                                ]: self._fill_inputs_binary(t_min=t1, t_max=t2, x1=x1)
+                            )
+                            vle_grid.add_widget(vle_btn)
+                        vle_scroll.add_widget(vle_grid)
+                        self.predicted_parameters.add_widget(vle_scroll)
+
+                    # Density Data
+                    if rho_data is not None and len(rho_data) > 0:
+                        self.predicted_parameters.add_widget(
+                            Label(
+                                text="Liquid Density Data:",
+                                size_hint_y=None,
+                                height=30,
+                                color="#212529",
+                                bold=True,
+                            )
+                        )
+                        rho_scroll = ScrollView(
+                            size_hint_y=None,
+                            height=150,
+                            size_hint_x=0.9,
+                            pos_hint={"center_x": 0.5},
+                        )
+                        rho_grid = GridLayout(
+                            cols=2, size_hint_y=None, spacing=[10, 5], padding=[5, 5]
+                        )
+                        rho_grid.bind(minimum_height=rho_grid.setter("height"))  # type: ignore pylint: disable=no-member
+
+                        for row in rho_data:
+                            # [P_kPa, x_c1, T_min, T_max]
+                            rho_btn = ActionLabelCustom(
+                                text=f"P={row[0]:.4g} kPa, x={row[1]:.2f}",
+                                size_hint_y=None,
+                                height=25,
+                            )
+                            rho_btn.bind(  # type: ignore pylint: disable=no-member
+                                on_release=lambda x, p=row[0], x1=row[1], t1=row[
+                                    2
+                                ], t2=row[3]: self._fill_inputs_binary(
+                                    pressure=p, t_min=t1, t_max=t2, x1=x1
+                                )
+                            )
+                            rho_grid.add_widget(rho_btn)
+                        rho_scroll.add_widget(rho_grid)
+                        self.predicted_parameters.add_widget(rho_scroll)
+
+                except (ValueError, RuntimeError):
+                    pass
 
             for smile in smiles_list:
                 pred = predict_epcsaft_parameters(smile)
@@ -217,6 +384,20 @@ class MixtureLayout(BoxLayout):
                 p_val = float(self.pressure.text)
             except ValueError as e:
                 raise ValueError("Pressure must be a numeric value") from e
+
+            # Fetch Experimental Data
+            exp_data = None
+            if len(smiles_list) == 2:
+                try:
+                    # fractions[0] corresponds to x1 relative to smiles_list order
+                    exp_array = retrieve_rho_binary_data(
+                        smiles_list, p_val / 1000.0, fractions[0]
+                    )
+                    if exp_array is not None and len(exp_array) > 0:
+                        exp_data = (exp_array[:, 0], exp_array[:, 1], "Exp. Data")
+                except (ValueError, RuntimeError):
+                    pass
+
             temperatures, densities = mix_den(
                 smiles_list, fractions, kij_matrix, t_min, t_max, p_val
             )
@@ -226,6 +407,7 @@ class MixtureLayout(BoxLayout):
                 "Mixture Density vs Temperature",
                 "Temperature (K)",
                 "Density (mol/m³)",
+                exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
@@ -235,6 +417,23 @@ class MixtureLayout(BoxLayout):
         smiles_list, fractions, kij_matrix, t_min, t_max = self._get_inputs()
         if not smiles_list or not fractions or not kij_matrix or not t_min or not t_max:
             return
+
+        # Fetch Experimental Bubble Point Data (P vs T for constant x)
+        exp_data = None
+        try:
+            if len(smiles_list) == 2:
+                # Retrieve data for x1 = fractions[0]
+                exp_bp = retrieve_bubble_pressure_data(smiles_list, fractions[0])
+                if exp_bp is not None and len(exp_bp) > 0:
+                    # exp_bp: [T, P_kPa] -> Convert kPa to Pa
+                    exp_data = (
+                        exp_bp[:, 0],
+                        exp_bp[:, 1] * 1000.0,
+                        "Exp. Bubble P",
+                    )
+        except (ValueError, RuntimeError):
+            pass
+
         try:
             temperatures, bubbles, dews = mix_vp(
                 smiles_list, fractions, kij_matrix, t_min, t_max
@@ -246,6 +445,7 @@ class MixtureLayout(BoxLayout):
                 "Temperature (K)",
                 "Pressure (Pa)",
                 legends=["Bubble Point", "Dew Point"],
+                exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
