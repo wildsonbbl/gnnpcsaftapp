@@ -87,17 +87,43 @@ def generate_plot(
 
     # Plot Experimental Data if available
     if exp_data:
-        exp_x, exp_y, exp_lbl = exp_data
-        plt.scatter(
-            exp_x,
-            exp_y,
-            color="black",
-            marker="x",
-            s=30,
-            linewidths=1,
-            label=exp_lbl,
-            zorder=3,
-        )
+        # Check if exp_data is a list of datasets (multiple series)
+        # Structure: [(x1, y1, 'label1'), (x2, y2, 'label2')]
+        if (
+            isinstance(exp_data, list)
+            and len(exp_data) > 0
+            and isinstance(exp_data[0], (list, tuple))
+            and len(exp_data[0]) == 3
+            and not isinstance(exp_data[0][0], (int, float))
+        ):
+            # Defined colors/markers for multiple exp sets if needed, or cycle
+            exp_markers = ["x", "+", "1", "2"]
+            for idx, dataset in enumerate(exp_data):
+                ex, ey, el = dataset
+                marker = exp_markers[idx % len(exp_markers)]
+                plt.scatter(
+                    ex,
+                    ey,
+                    color="black",
+                    marker=marker,
+                    s=30,
+                    linewidths=1,
+                    label=el,
+                    zorder=3,
+                )
+        else:
+            # Single dataset case
+            exp_x, exp_y, exp_lbl = exp_data
+            plt.scatter(
+                exp_x,
+                exp_y,
+                color="black",
+                marker="x",
+                s=30,
+                linewidths=1,
+                label=exp_lbl,
+                zorder=3,
+            )
         plt.legend(fontsize=8)
 
     plt.title(title, fontsize=10, pad=10)
