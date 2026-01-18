@@ -1,0 +1,8 @@
+gnnepcsaft-mcp-server
+gnnepcsaft
+numpy
+kivy
+kivy-matplotlib-widget
+matplotlib
+polars
+pyinstaller
