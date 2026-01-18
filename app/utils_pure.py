@@ -10,7 +10,6 @@ from gnnepcsaft.epcsaft.epcsaft_feos import (
     pure_surface_tension_feos,
     pure_vp_feos,
 )
-
 from gnnepcsaft_mcp_server.utils import predict_epcsaft_parameters
 
 

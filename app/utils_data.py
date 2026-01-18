@@ -3,7 +3,6 @@
 import os.path as osp
 
 import polars as pl
-
 from gnnepcsaft_mcp_server.utils import smilestoinchi
 
 application_path = osp.dirname(osp.abspath(__file__))

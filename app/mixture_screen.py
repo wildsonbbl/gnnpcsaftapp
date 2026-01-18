@@ -3,6 +3,7 @@
 from copy import copy
 
 from gnnepcsaft.epcsaft.epcsaft_feos import critical_points_feos
+from gnnepcsaft_mcp_server.utils import predict_epcsaft_parameters
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
@@ -29,8 +30,6 @@ from utils_data import (
     retrieve_rho_ternary_data,
 )
 from utils_mix import mix_den, mix_lle, mix_ternary_lle, mix_vle, mix_vp
-
-from gnnepcsaft_mcp_server.utils import predict_epcsaft_parameters
 
 
 class MixtureScreen(Screen):

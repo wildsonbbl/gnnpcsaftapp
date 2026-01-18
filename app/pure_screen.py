@@ -3,6 +3,7 @@
 from copy import copy
 
 from gnnepcsaft.epcsaft.epcsaft_feos import critical_points_feos
+from gnnepcsaft_mcp_server.utils import predict_epcsaft_parameters
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
@@ -26,8 +27,6 @@ from utils_pure import (
     pure_surface_tension,
     pure_vp,
 )
-
-from gnnepcsaft_mcp_server.utils import predict_epcsaft_parameters
 
 
 class PureScreen(Screen):

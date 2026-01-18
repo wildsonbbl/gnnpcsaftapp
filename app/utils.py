@@ -3,9 +3,8 @@
 import re
 
 import matplotlib.pyplot as plt
-from kivy.app import App
-
 from gnnepcsaft_mcp_server.utils import inchitosmiles, smilestoinchi
+from kivy.app import App
 
 available_params = [
     "Segment number",
