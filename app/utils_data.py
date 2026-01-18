@@ -224,12 +224,13 @@ def retrieve_available_data_binary(smiles_list: list):
     rf = _filter_norm(rho_bin, "mole_fraction_c1", "mole_fraction_c2")
     if rf.height > 0:
         rho_data = (
-            rf.group_by(["P_kPa", "x_c1"])
+            rf.with_columns((pl.col("x_c1").round(2)).alias("x_approx"))
+            .group_by(["P_kPa", "x_approx"])
             .agg(
                 pl.col("T_K").min().alias("T_min"),
                 pl.col("T_K").max().alias("T_max"),
             )
-            .sort(["P_kPa", "x_c1"])
+            .sort(["P_kPa", "x_approx"])
             .to_numpy()
         )
     else:
@@ -324,12 +325,18 @@ def retrieve_available_data_ternary(smiles_list: list):
                         .alias("x_mapped_2"),
                     ]
                 )
-                .group_by(["P_kPa", "x_mapped_1", "x_mapped_2"])
+                .with_columns(
+                    [
+                        pl.col("x_mapped_1").round(2).alias("x_approx_1"),
+                        pl.col("x_mapped_2").round(2).alias("x_approx_2"),
+                    ]
+                )
+                .group_by(["P_kPa", "x_approx_1", "x_approx_2"])
                 .agg(
                     pl.col("T_K").min().alias("T_min"),
                     pl.col("T_K").max().alias("T_max"),
                 )
-                .sort(["P_kPa", "x_mapped_1", "x_mapped_2"])
+                .sort(["P_kPa", "x_approx_1", "x_approx_2"])
             )
 
             if data.height > 0:
