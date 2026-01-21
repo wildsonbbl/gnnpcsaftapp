@@ -11,3 +11,11 @@ A CLI to use a model can be found at [GNNePCSAFT CLI](https://github.com/wildson
 ```bash
 pipx install gnnepcsaftcli
 ```
+
+---
+
+## Installation
+
+---
+
+To install the GNNPCSAFT app, download the appropriate latest release from the [Releases](https://github.com/wildsonbbl/gnnpcsaftapp/releases), unzip the file, and run the executable for your operating system (Linux or Windows).
