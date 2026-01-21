@@ -18,6 +18,7 @@ from utils import available_params, generate_plot, get_smiles_from_input
 from utils_data import (
     retrieve_available_data_pure,
     retrieve_rho_pure_data,
+    retrieve_st_pure_data,
     retrieve_vp_pure_data,
 )
 from utils_pure import (
@@ -216,6 +217,16 @@ class PureLayout(BoxLayout):
         if not smiles or not t_min or not t_max:
             return
         try:
+            # Fetch experimental data
+            exp_data = None
+            try:
+                exp_array = retrieve_st_pure_data(smiles, t_min, t_max)
+                if exp_array is not None and len(exp_array) > 0:
+                    # Convert N/m to mN/m for plotting
+                    exp_data = (exp_array[:, 0], exp_array[:, 1] * 1e3, "Exp. Data")
+            except (ValueError, RuntimeError):
+                pass
+
             temperatures, st = pure_surface_tension(smiles, t_min)
             self._generate_plot(
                 temperatures,
@@ -223,6 +234,7 @@ class PureLayout(BoxLayout):
                 f"Surface Tension vs Temperature\n({smiles})",
                 "Temperature (K)",
                 "Surface Tension (mN/m)",
+                exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
@@ -273,10 +285,10 @@ class PureLayout(BoxLayout):
 
             # Display Available Data
             try:
-                rho_data, vp_range = retrieve_available_data_pure(smiles)
+                rho_data, vp_range, st_range = retrieve_available_data_pure(smiles)
 
                 if (rho_data is not None and len(rho_data) > 0) or (
-                    vp_range[0] is not None
+                    vp_range[0] is not None or st_range[0] is not None
                 ):
                     self.predicted_parameters.add_widget(
                         Label(
@@ -288,6 +300,33 @@ class PureLayout(BoxLayout):
                             bold=True,
                         )
                     )
+
+                # Surface Tension
+                if st_range[0] is not None:
+                    dropdown_st = DropDown()
+                    btn = Button(
+                        text=f"ST: {st_range[0]:.2f} - {st_range[1]:.2f} K",
+                        size_hint_y=None,
+                        height=44,
+                    )
+                    btn.bind(  # type: ignore pylint: disable=no-member
+                        on_release=lambda btn: (
+                            self._fill_inputs(t_min=st_range[0], t_max=st_range[1]),
+                            dropdown_st.dismiss(),
+                        )
+                    )
+                    dropdown_st.add_widget(btn)
+
+                    main_button = Button(
+                        text="Select Surface Tension Data",
+                        size_hint_y=None,
+                        height=44,
+                        size_hint_x=0.4,
+                        pos_hint={"center_x": 0.5},
+                        background_color=(0.1, 0.5, 0.8, 1),
+                    )
+                    main_button.bind(on_release=dropdown_st.open)  # type: ignore pylint: disable=no-member
+                    self.predicted_parameters.add_widget(main_button)
 
                 # Vapor Pressure
                 if vp_range[0] is not None:
