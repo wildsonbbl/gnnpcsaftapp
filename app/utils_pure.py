@@ -50,7 +50,7 @@ def pure_surface_tension(
     smiles: str,
     min_temp: float,
 ) -> Tuple[List[float], List[float]]:
-    "Calculate pure-component surface tension using PC-SAFT EOS"
+    "Calculate pure-component surface tension (mN/m) using PC-SAFT EOS"
     parameters = predict_epcsaft_parameters(smiles)
 
     surface_tensions, temperatures = pure_surface_tension_feos(parameters, [min_temp])
