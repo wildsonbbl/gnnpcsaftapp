@@ -155,7 +155,7 @@ def retrieve_bubble_pressure_data(smiles_list: list, x1: float):
         return None
 
     # Return T and P_kPa
-    return filtered.select("T_K", "bubble_point_kPa").sort("T_K").to_numpy()
+    return filtered.select("T_K", "BP_kPa").sort("T_K").to_numpy()
 
 
 def retrieve_lle_binary_data(smiles_list: list, pressure: float):
