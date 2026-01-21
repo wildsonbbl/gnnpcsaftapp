@@ -41,16 +41,33 @@ def retrieve_vp_pure_data(smiles: str, temp_min: float, temp_max: float):
     )
 
 
+def retrieve_st_pure_data(smiles: str, temp_min: float, temp_max: float):
+    "retrieve surface tension (N/m) data for plots"
+
+    df = pl.read_parquet(osp.join(application_path, "_data", "st_pure.parquet"))
+
+    return (
+        df.filter(
+            pl.col("inchi1") == smilestoinchi(smiles),
+            pl.col("T_K") >= temp_min,
+            pl.col("T_K") <= temp_max,
+        )
+        .select("T_K", "st")
+        .to_numpy()
+    )
+
+
 def retrieve_available_data_pure(smiles: str):
     "retrieve available pure data for smiles"
 
     rho_pure = pl.read_parquet(osp.join(application_path, "_data", "rho_pure.parquet"))
     vp_pure = pl.read_parquet(osp.join(application_path, "_data", "vp_pure.parquet"))
+    st_pure = pl.read_parquet(osp.join(application_path, "_data", "st_pure.parquet"))
 
     try:
         inchi = smilestoinchi(smiles)
     except ValueError:
-        return None, (None, None)
+        return None, (None, None), (None, None)
 
     rho_filtered = rho_pure.filter(pl.col("inchi1") == inchi)
     if rho_filtered.height > 0:
@@ -74,7 +91,14 @@ def retrieve_available_data_pure(smiles: str):
     else:
         vp_range = (None, None)
 
-    return pure_data, vp_range
+    st_filtered = st_pure.filter(pl.col("inchi1") == inchi)
+    if st_filtered.height > 0:
+        st_data = st_filtered.select("T_K").to_numpy()
+        st_range = (st_data.min(), st_data.max())
+    else:
+        st_range = (None, None)
+
+    return pure_data, vp_range, st_range
 
 
 def retrieve_rho_binary_data(smiles_list: list, pressure: float, x1: float):
