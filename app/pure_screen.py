@@ -2,8 +2,8 @@
 
 from copy import copy
 
-from gnnepcsaft.epcsaft.epcsaft_feos import critical_points_feos
-from gnnepcsaft_mcp_server.utils import predict_epcsaft_parameters
+from gnnepcsaft.pcsaft.pcsaft_feos import critical_points_feos
+from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
@@ -390,7 +390,7 @@ class PureLayout(BoxLayout):
             except (ValueError, RuntimeError):
                 pass  # Fail silently if data retrieval errors, proceed to prediction
 
-            pred = predict_epcsaft_parameters(smiles)
+            pred = predict_pcsaft_parameters(smiles)
             pred += critical_points_feos(copy(pred))
 
             # Title

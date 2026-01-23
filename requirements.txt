@@ -1,5 +1,5 @@
-gnnepcsaft-mcp-server
-gnnepcsaft
+gnnepcsaft-mcp-server>=0.4
+gnnepcsaft>=0.3
 numpy
 kivy
 kivy-matplotlib-widget

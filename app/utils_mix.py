@@ -3,14 +3,14 @@
 from typing import Dict, List, Tuple
 
 import numpy as np
-from gnnepcsaft.epcsaft.epcsaft_feos import (
+from gnnepcsaft.pcsaft.pcsaft_feos import (
     mix_den_feos,
     mix_lle_diagram_feos,
     mix_lle_feos,
     mix_vle_diagram_feos,
     mix_vp_feos,
 )
-from gnnepcsaft_mcp_server.utils import predict_epcsaft_parameters
+from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
 
 
 def mix_den(
@@ -22,7 +22,7 @@ def mix_den(
     pressure: float,
 ) -> Tuple[List[float], List[float]]:
     "Calculate mixture density using PC-SAFT EOS"
-    parameters_list = [predict_epcsaft_parameters(smiles) for smiles in smiles_list]
+    parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
     temperatures = np.linspace(min_temp, max_temp, num=10).tolist()
 
     densities = [
@@ -44,7 +44,7 @@ def mix_vp(
     max_temp: float,
 ) -> Tuple[List[float], List[float], List[float]]:
     "Calculate mixture vapor pressure using PC-SAFT EOS"
-    parameters_list = [predict_epcsaft_parameters(smiles) for smiles in smiles_list]
+    parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
     temperatures = np.linspace(min_temp, max_temp, num=10).tolist()
 
     buble_points = []
@@ -66,7 +66,7 @@ def mix_vle(
     pressure: float,
 ) -> Dict[str, List[float]]:
     "Calculate mixture VLE using PC-SAFT EOS"
-    parameters_list = [predict_epcsaft_parameters(smiles) for smiles in smiles_list]
+    parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
 
     return mix_vle_diagram_feos(
         parameters=parameters_list, state=[pressure], kij_matrix=kij_matrix
@@ -81,7 +81,7 @@ def mix_lle(
     pressure: float,
 ) -> Dict[str, List[float]]:
     "Calculate mixture LLE using PC-SAFT EOS"
-    parameters_list = [predict_epcsaft_parameters(smiles) for smiles in smiles_list]
+    parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
 
     return mix_lle_diagram_feos(
         parameters=parameters_list,
@@ -135,7 +135,7 @@ def mix_ternary_lle(
     pressure: float,
 ) -> Dict[str, List[float]]:
     "Calculate ternary LLE using PC-SAFT EOS"
-    parameters_list = [predict_epcsaft_parameters(smiles) for smiles in smiles_list]
+    parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
 
     return _get_ternary_lle_data(
         params=parameters_list,

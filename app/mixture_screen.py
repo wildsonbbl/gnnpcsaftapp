@@ -2,8 +2,8 @@
 
 from copy import copy
 
-from gnnepcsaft.epcsaft.epcsaft_feos import critical_points_feos
-from gnnepcsaft_mcp_server.utils import predict_epcsaft_parameters
+from gnnepcsaft.pcsaft.pcsaft_feos import critical_points_feos
+from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
@@ -438,7 +438,7 @@ class MixtureLayout(BoxLayout):
             self.predicted_parameters.add_widget(Label(size_hint_y=None, height=10))
 
             for smile in smiles_list:
-                pred = predict_epcsaft_parameters(smile)
+                pred = predict_pcsaft_parameters(smile)
                 pred += critical_points_feos(copy(pred))
 
                 # Header for this component
