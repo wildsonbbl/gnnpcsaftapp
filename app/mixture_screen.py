@@ -28,6 +28,7 @@ from utils_data import (
     retrieve_lle_ternary_data,
     retrieve_rho_binary_data,
     retrieve_rho_ternary_data,
+    retrieve_vle_binary_data,
 )
 from utils_mix import mix_den, mix_lle, mix_ternary_lle, mix_vle, mix_vp
 
@@ -233,13 +234,13 @@ class MixtureLayout(BoxLayout):
             if len(smiles_list) == 2:
                 # Check for binary data availability
                 try:
-                    rho_data, bubble_data, lle_data = retrieve_available_data_binary(
-                        smiles_list
+                    rho_data, bubble_data, lle_data, vle_data = (
+                        retrieve_available_data_binary(smiles_list)
                     )
 
                     if any(
                         (exp_data is not None and len(exp_data) > 0)
-                        for exp_data in [rho_data, bubble_data, lle_data]
+                        for exp_data in [rho_data, bubble_data, lle_data, vle_data]
                     ):
                         self.predicted_parameters.add_widget(
                             Label(
@@ -281,6 +282,38 @@ class MixtureLayout(BoxLayout):
                             background_color=(0.1, 0.5, 0.8, 1),
                         )
                         main_button.bind(on_release=dropdown_bp.open)  # type: ignore pylint: disable=no-member
+                        self.predicted_parameters.add_widget(main_button)
+
+                    # VLE Data
+                    if vle_data is not None and len(vle_data) > 0:
+                        dropdown_vle = DropDown()
+                        for row in vle_data:
+                            # [P_kPa, T_min, T_max]
+                            # Display T range for P
+                            btn = Button(
+                                text=f"P={row[0]:.5g} kPa: {row[1]:.2f}-{row[2]:.2f} K",
+                                size_hint_y=None,
+                                height=44,
+                            )
+                            btn.bind(  # type: ignore pylint: disable=no-member
+                                on_release=lambda btn, r=row: (
+                                    self._fill_inputs_binary(
+                                        pressure=r[0], t_min=r[1], t_max=r[2]
+                                    ),
+                                    dropdown_vle.dismiss(),
+                                )
+                            )
+                            dropdown_vle.add_widget(btn)
+
+                        main_button = Button(
+                            text="Select VLE Data",
+                            size_hint_y=None,
+                            height=44,
+                            size_hint_x=0.4,
+                            pos_hint={"center_x": 0.5},
+                            background_color=(0.1, 0.5, 0.8, 1),
+                        )
+                        main_button.bind(on_release=dropdown_vle.open)  # type: ignore pylint: disable=no-member
                         self.predicted_parameters.add_widget(main_button)
 
                     # LLE Data
@@ -615,6 +648,16 @@ class MixtureLayout(BoxLayout):
             kij_matrix = self._get_kij(n)
             p_val = self._get_pressure()
 
+            # Retrieve Experimental Data
+            exp_data = None
+            try:
+                vle_arr = retrieve_vle_binary_data(smiles_list, p_val / 1000.0)
+                if vle_arr is not None and len(vle_arr) > 0:
+                    # vle_arr: [T, x_c1]
+                    exp_data = (vle_arr[:, 1], vle_arr[:, 0], "Exp. data")
+            except (ValueError, RuntimeError):
+                pass
+
             output = mix_vle(smiles_list, kij_matrix, p_val)
             self._generate_plot(
                 [output["x0"], output["y0"]],
@@ -623,6 +666,7 @@ class MixtureLayout(BoxLayout):
                 "x,y",
                 "Temperature (K)",
                 legends=["Liquid", "Vapor"],
+                exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)

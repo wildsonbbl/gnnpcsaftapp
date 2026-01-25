@@ -182,6 +182,49 @@ def retrieve_bubble_pressure_data(smiles_list: list, x1: float):
     return filtered.select("T_K", "BP_kPa").sort("T_K").to_numpy()
 
 
+def retrieve_vle_binary_data(smiles_list: list, pressure: float):
+    """
+    retrieve binary VLE data (T-x-y). Currently, only for mixtures with CO2 for
+    mole fractions on the liquid phase (p2)
+
+    """
+    if len(smiles_list) != 2:
+        return None
+
+    path = osp.join(application_path, "_data", "co2_binary.parquet")
+    if not osp.exists(path):
+        return None
+
+    df = pl.read_parquet(path)
+    i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
+
+    # Filter
+    filtered = df.filter(
+        ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
+        | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
+    ).filter(pl.col("P_kPa") == pressure)
+
+    if filtered.height == 0:
+        return None
+
+    # Normalize x1 to strictly match input order
+    # If file has (i1, i2) -> use mole_fraction_c1p2
+    # If file has (i2, i1) -> use mole_fraction_c2p2
+
+    data = (
+        filtered.with_columns(
+            pl.when(pl.col("inchi1") == i1)
+            .then(pl.col("mole_fraction_c1p2"))
+            .otherwise(pl.col("mole_fraction_c2p2"))
+            .alias("x_c1"),
+        )
+        .select("T_K", "x_c1")
+        .sort("T_K")
+    )
+
+    return data.to_numpy()
+
+
 def retrieve_lle_binary_data(smiles_list: list, pressure: float):
     "retrieve binary LLE data (T-x-x)"
     if len(smiles_list) != 2:
@@ -224,7 +267,7 @@ def retrieve_lle_binary_data(smiles_list: list, pressure: float):
 def retrieve_available_data_binary(smiles_list: list):
     "retrieve available binary data"
     if len(smiles_list) != 2:
-        return None, None, None
+        return None, None, None, None
 
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
@@ -294,7 +337,25 @@ def retrieve_available_data_binary(smiles_list: list):
                 .to_numpy()
             )
 
-    return rho_data, bubble_data, lle_data
+    # LLE checking
+    vle_data = None
+    path_vle = osp.join(application_path, "_data", "co2_binary.parquet")
+    if osp.exists(path_vle):
+        df_vle = pl.read_parquet(path_vle)
+        # Filter
+        vf = _filter_norm(df_vle, "mole_fraction_c1p2", "mole_fraction_c2p2")
+        if vf.height > 0:
+            vle_data = (
+                vf.group_by("P_kPa")
+                .agg(
+                    pl.col("T_K").min().alias("T_min"),
+                    pl.col("T_K").max().alias("T_max"),
+                )
+                .sort("P_kPa")
+                .to_numpy()
+            )
+
+    return rho_data, bubble_data, lle_data, vle_data
 
 
 def retrieve_available_data_ternary(smiles_list: list):
