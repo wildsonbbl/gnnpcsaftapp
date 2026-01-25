@@ -1,4 +1,4 @@
-version=v1.0.0
+version=v1.1.0
 platform=ubuntu
 
 ## create tag and release
