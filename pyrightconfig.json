@@ -1,0 +1,6 @@
+{
+  "include": ["app"],
+  "exclude": ["**/app_pkg", "**/.venv"],
+  "typeCheckingMode": "standard",
+  "reportMissingTypeStubs": "none"
+}
