@@ -119,43 +119,49 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
-    def _get_inputs(self):
+    def _get_smiles(self):
+        raw_smiles = self.smiles_or_inchi_input.text.split(" ")
+        smiles_list = [
+            get_smiles_from_input(s.strip()) for s in raw_smiles if s.strip()
+        ]
+        if not smiles_list:
+            raise ValueError("Please provide at least one component")
+        return smiles_list
+
+    def _get_fractions(self, n):
+        raw_fracs = self.fractions_input.text.split(" ")
         try:
-            raw_smiles = self.smiles_or_inchi_input.text.split(" ")
-            smiles_list = [
-                get_smiles_from_input(s.strip()) for s in raw_smiles if s.strip()
-            ]
+            fractions = [float(f.strip()) for f in raw_fracs if f.strip()]
+        except ValueError as e:
+            raise ValueError(
+                "Fractions must be numeric values separated by empty space"
+            ) from e
 
-            raw_fracs = self.fractions_input.text.split(" ")
-            try:
-                fractions = [float(f.strip()) for f in raw_fracs if f.strip()]
-            except ValueError as e:
-                raise ValueError(
-                    "Fractions must be numeric values separated by empty space"
-                ) from e
+        if len(fractions) != n:
+            raise ValueError("Number of components and fractions must match")
+        return fractions
 
-            if len(smiles_list) != len(fractions):
-                raise ValueError("Number of components and fractions must match")
-
-            try:
-                t_min = float(self.temp_min.text)
+    def _get_temperatures(self, require_max=True):
+        try:
+            t_min = float(self.temp_min.text)
+            t_max = 0.0
+            if require_max:
                 t_max = float(self.temp_max.text)
-            except ValueError as e:
-                raise ValueError(
-                    "Temperature min and max must be numeric values"
-                ) from e
+            return t_min, t_max
+        except ValueError as e:
+            raise ValueError("Temperature values must be numeric") from e
 
-            kij_txt = self.kij_input.text.strip()
-            n = len(smiles_list)
-            kij_matrix = [[0.0] * n for _ in range(n)]
+    def _get_pressure(self):
+        try:
+            return float(self.pressure.text)
+        except ValueError as e:
+            raise ValueError("Pressure must be a numeric value") from e
 
-            self._set_kij_values(kij_txt, n, kij_matrix)
-
-            return smiles_list, fractions, kij_matrix, t_min, t_max
-
-        except (ValueError, RuntimeError) as e:
-            self._show_error_alert(e)
-            return None, None, None, None, None
+    def _get_kij(self, n):
+        kij_txt = self.kij_input.text.strip()
+        kij_matrix = [[0.0] * n for _ in range(n)]
+        self._set_kij_values(kij_txt, n, kij_matrix)
+        return kij_matrix
 
     def _set_kij_values(self, kij_txt, n, kij_matrix):
         if kij_txt:
@@ -509,14 +515,13 @@ class MixtureLayout(BoxLayout):
 
     def on_plot_density(self):
         "plot mixture density vs temperature"
-        smiles_list, fractions, kij_matrix, t_min, t_max = self._get_inputs()
-        if not smiles_list or not fractions or not kij_matrix or not t_min or not t_max:
-            return
         try:
-            try:
-                p_val = float(self.pressure.text)
-            except ValueError as e:
-                raise ValueError("Pressure must be a numeric value") from e
+            smiles_list = self._get_smiles()
+            n = len(smiles_list)
+            fractions = self._get_fractions(n)
+            kij_matrix = self._get_kij(n)
+            t_min, t_max = self._get_temperatures(require_max=True)
+            p_val = self._get_pressure()
 
             # Fetch Experimental Data
             exp_data = None
@@ -559,27 +564,29 @@ class MixtureLayout(BoxLayout):
 
     def on_plot_vp(self):
         "plot mixture vapor pressure vs temperature"
-        smiles_list, fractions, kij_matrix, t_min, t_max = self._get_inputs()
-        if not smiles_list or not fractions or not kij_matrix or not t_min or not t_max:
-            return
-
-        # Fetch Experimental Bubble Point Data (P vs T for constant x)
-        exp_data = None
         try:
-            if len(smiles_list) == 2:
-                # Retrieve data for x1 = fractions[0]
-                exp_bp = retrieve_bubble_pressure_data(smiles_list, fractions[0])
-                if exp_bp is not None and len(exp_bp) > 0:
-                    # exp_bp: [T, P_kPa] -> Convert kPa to Pa
-                    exp_data = (
-                        exp_bp[:, 0],
-                        exp_bp[:, 1] * 1000.0,
-                        "Exp. Bubble P",
-                    )
-        except (ValueError, RuntimeError):
-            pass
+            smiles_list = self._get_smiles()
+            n = len(smiles_list)
+            fractions = self._get_fractions(n)
+            kij_matrix = self._get_kij(n)
+            t_min, t_max = self._get_temperatures(require_max=True)
 
-        try:
+            # Fetch Experimental Bubble Point Data (P vs T for constant x)
+            exp_data = None
+            try:
+                if len(smiles_list) == 2:
+                    # Retrieve data for x1 = fractions[0]
+                    exp_bp = retrieve_bubble_pressure_data(smiles_list, fractions[0])
+                    if exp_bp is not None and len(exp_bp) > 0:
+                        # exp_bp: [T, P_kPa] -> Convert kPa to Pa
+                        exp_data = (
+                            exp_bp[:, 0],
+                            exp_bp[:, 1] * 1000.0,
+                            "Exp. Bubble P",
+                        )
+            except (ValueError, RuntimeError):
+                pass
+
             temperatures, bubbles, dews = mix_vp(
                 smiles_list, fractions, kij_matrix, t_min, t_max
             )
@@ -597,20 +604,17 @@ class MixtureLayout(BoxLayout):
 
     def on_plot_binary_vle_txy(self):
         "plot binary VLE T-x-y"
-
-        smiles_list, fractions, kij_matrix, t_min, t_max = self._get_inputs()
-        if not smiles_list or not fractions or not kij_matrix or not t_min or not t_max:
-            return
-
         try:
+            smiles_list = self._get_smiles()
             if len(smiles_list) != 2:
                 raise ValueError(
                     f"VLE for binary mixture, got {len(smiles_list)} components instead"
                 )
-            try:
-                p_val = float(self.pressure.text)
-            except ValueError as e:
-                raise ValueError("Pressure must be a numeric value") from e
+
+            n = len(smiles_list)
+            kij_matrix = self._get_kij(n)
+            p_val = self._get_pressure()
+
             output = mix_vle(smiles_list, kij_matrix, p_val)
             self._generate_plot(
                 [output["x0"], output["y0"]],
@@ -625,20 +629,17 @@ class MixtureLayout(BoxLayout):
 
     def on_plot_binary_vle_xy(self):
         "plot binary VLE x-y"
-
-        smiles_list, fractions, kij_matrix, t_min, t_max = self._get_inputs()
-        if not smiles_list or not fractions or not kij_matrix or not t_min or not t_max:
-            return
-
         try:
+            smiles_list = self._get_smiles()
             if len(smiles_list) != 2:
                 raise ValueError(
                     f"VLE for binary mixture, got {len(smiles_list)} components instead"
                 )
-            try:
-                p_val = float(self.pressure.text)
-            except ValueError as e:
-                raise ValueError("Pressure must be a numeric value") from e
+
+            n = len(smiles_list)
+            kij_matrix = self._get_kij(n)
+            p_val = self._get_pressure()
+
             output = mix_vle(smiles_list, kij_matrix, p_val)
             self._generate_plot(
                 output["x0"],
@@ -652,20 +653,18 @@ class MixtureLayout(BoxLayout):
 
     def on_plot_binary_lle_txx(self):
         "plot binary LLE T-x-x"
-
-        smiles_list, fractions, kij_matrix, t_min, t_max = self._get_inputs()
-        if not smiles_list or not fractions or not kij_matrix or not t_min or not t_max:
-            return
-
         try:
+            smiles_list = self._get_smiles()
             if len(smiles_list) != 2:
                 raise ValueError(
                     f"LLE for binary mixture, got {len(smiles_list)} components instead"
                 )
-            try:
-                p_val = float(self.pressure.text)
-            except ValueError as e:
-                raise ValueError("Pressure must be a numeric value") from e
+
+            n = len(smiles_list)
+            fractions = self._get_fractions(n)
+            kij_matrix = self._get_kij(n)
+            t_min, _ = self._get_temperatures(require_max=False)
+            p_val = self._get_pressure()
 
             # Retrieve Experimental Data
             exp_data = None
@@ -692,20 +691,17 @@ class MixtureLayout(BoxLayout):
 
     def on_plot_ternary_lle(self):
         "plot ternary LLE"
-
-        smiles_list, fractions, kij_matrix, t_min, t_max = self._get_inputs()
-        if not smiles_list or not fractions or not kij_matrix or not t_min or not t_max:
-            return
-
         try:
+            smiles_list = self._get_smiles()
             if len(smiles_list) != 3:
                 raise ValueError(
                     f"LLE for ternary mixture, got {len(smiles_list)} components instead"
                 )
-            try:
-                p_val = float(self.pressure.text)
-            except ValueError as e:
-                raise ValueError("Pressure must be a numeric value") from e
+
+            n = len(smiles_list)
+            kij_matrix = self._get_kij(n)
+            t_min, _ = self._get_temperatures(require_max=False)
+            p_val = self._get_pressure()
 
             # Fetch Experimental Data
             exp_data = None

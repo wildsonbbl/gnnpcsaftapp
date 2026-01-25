@@ -97,21 +97,27 @@ class PureLayout(BoxLayout):
         except (RuntimeError, AssertionError) as e:
             self._show_error_alert(e)
 
-    def _get_common_inputs(self):
+    def _get_smiles(self):
         smiles_input = self.smiles_or_inchi_input.text
+        if not smiles_input:
+            raise ValueError("No component provided")
+        return get_smiles_from_input(smiles_input)
+
+    def _get_temperatures(self, require_max=True):
         try:
-            try:
-                t_min = float(self.temp_min.text)
+            t_min = float(self.temp_min.text)
+            t_max = 0.0
+            if require_max:
                 t_max = float(self.temp_max.text)
-            except ValueError as e:
-                raise ValueError(
-                    "Temperature min and max must be numeric values"
-                ) from e
-            smiles = get_smiles_from_input(smiles_input)
-            return smiles, t_min, t_max
-        except (ValueError, TypeError) as e:
-            self._show_error_alert(e)
-            return None, None, None
+            return t_min, t_max
+        except ValueError as e:
+            raise ValueError("Temperature inputs must be numeric values") from e
+
+    def _get_pressure(self):
+        try:
+            return float(self.pressure.text)
+        except ValueError as e:
+            raise ValueError("Pressure must be a numeric value") from e
 
     def _show_error_alert(self, e):
         error_message = Label(
@@ -136,14 +142,10 @@ class PureLayout(BoxLayout):
 
     def on_plot_density(self):
         "plot density vs temperature"
-        smiles, t_min, t_max = self._get_common_inputs()
-        if not smiles or not t_min or not t_max:
-            return
         try:
-            try:
-                p_val = float(self.pressure.text)
-            except ValueError as e:
-                raise ValueError("Pressure must be a numeric value") from e
+            smiles = self._get_smiles()
+            t_min, t_max = self._get_temperatures(require_max=True)
+            p_val = self._get_pressure()
 
             # Fetch experimental data (convert Pa to kPa for DB lookup)
             exp_data = None
@@ -168,10 +170,10 @@ class PureLayout(BoxLayout):
 
     def on_plot_vp(self):
         "plot vapor pressure vs temperature"
-        smiles, t_min, t_max = self._get_common_inputs()
-        if not smiles or not t_min or not t_max:
-            return
         try:
+            smiles = self._get_smiles()
+            t_min, t_max = self._get_temperatures(require_max=True)
+
             # Fetch experimental data
             exp_data = None
             try:
@@ -196,10 +198,10 @@ class PureLayout(BoxLayout):
 
     def on_plot_hlv(self):
         "plot enthalpy of vaporization vs temperature"
-        smiles, t_min, t_max = self._get_common_inputs()
-        if not smiles or not t_min or not t_max:
-            return
         try:
+            smiles = self._get_smiles()
+            t_min, t_max = self._get_temperatures(require_max=True)
+
             temperatures, hlvs = pure_h_lv(smiles, t_min, t_max)
             self._generate_plot(
                 temperatures,
@@ -213,14 +215,16 @@ class PureLayout(BoxLayout):
 
     def on_plot_surface_tension(self):
         "plot surface tension vs temperature"
-        smiles, t_min, t_max = self._get_common_inputs()
-        if not smiles or not t_min or not t_max:
-            return
         try:
+            smiles = self._get_smiles()
+            t_min, _ = self._get_temperatures(require_max=False)
+
             # Fetch experimental data
             exp_data = None
             try:
-                exp_array = retrieve_st_pure_data(smiles, t_min, t_max)
+                # We attempt to get t_max to finding exp data in range
+                _, t_max_exp = self._get_temperatures(require_max=True)
+                exp_array = retrieve_st_pure_data(smiles, t_min, t_max_exp)
                 if exp_array is not None and len(exp_array) > 0:
                     # Convert N/m to mN/m for plotting
                     exp_data = (exp_array[:, 0], exp_array[:, 1] * 1e3, "Exp. Data")
@@ -241,10 +245,10 @@ class PureLayout(BoxLayout):
 
     def on_plot_phase_diagram_t_rho(self):
         "plot phase diagram for temperature vs density"
-        smiles, t_min, t_max = self._get_common_inputs()
-        if not smiles or not t_min or not t_max:
-            return
         try:
+            smiles = self._get_smiles()
+            t_min, _ = self._get_temperatures(require_max=False)
+
             temperatures, _, rho_liq, rho_vap = pure_phase_diagram(smiles, t_min)
             self._generate_plot(
                 [rho_liq, rho_vap],
@@ -259,10 +263,10 @@ class PureLayout(BoxLayout):
 
     def on_plot_phase_diagram_p_rho(self):
         "plot phase diagram for pressure vs density"
-        smiles, t_min, t_max = self._get_common_inputs()
-        if not smiles or not t_min or not t_max:
-            return
         try:
+            smiles = self._get_smiles()
+            t_min, _ = self._get_temperatures(require_max=False)
+
             _, pressures, rho_liq, rho_vap = pure_phase_diagram(smiles, t_min)
             self._generate_plot(
                 [rho_liq, rho_vap],
