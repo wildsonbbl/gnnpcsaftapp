@@ -361,7 +361,7 @@ def retrieve_available_data_binary(smiles_list: list):
 def retrieve_available_data_ternary(smiles_list: list):
     "retrieve available ternary data"
     if len(smiles_list) != 3:
-        return None, None
+        return None, None, None
 
     i1, i2, i3 = (
         smilestoinchi(smiles_list[0]),
@@ -447,7 +447,28 @@ def retrieve_available_data_ternary(smiles_list: list):
                 .to_numpy()
             )
 
-    return rho_data, lle_data
+    # --- VLE Data ---
+    vle_data = None
+    path_vle = osp.join(application_path, "_data", "co2_ternary.parquet")
+    if osp.exists(path_vle):
+        df_vle = pl.read_parquet(path_vle)
+        filter_expr_vle = (
+            pl.col("inchi1").is_in(target_set)
+            & pl.col("inchi2").is_in(target_set)
+            & pl.col("inchi3").is_in(target_set)
+        )
+        filtered_vle = df_vle.filter(filter_expr_vle)
+
+        if filtered_vle.height > 0:
+            # Group by P and T
+            vle_data = (
+                filtered_vle.select("P_kPa", "T_K")
+                .unique()
+                .sort(["P_kPa", "T_K"])
+                .to_numpy()
+            )
+
+    return rho_data, lle_data, vle_data
 
 
 def retrieve_rho_ternary_data(smiles_list: list, pressure: float, x1: float, x2: float):
@@ -571,6 +592,61 @@ def retrieve_lle_ternary_data(smiles_list: list, pressure: float, temperature: f
             [
                 get_col_map(i1, "mole_fraction_c").alias("x_m1"),
                 get_col_map(i2, "mole_fraction_c").alias("x_m2"),
+            ]
+        )
+        .select("x_m1", "x_m2")
+        .to_numpy()
+    )
+
+
+def retrieve_vle_ternary_data(smiles_list: list, pressure: float, temperature: float):
+    "retrieve ternary vle data (liquid phase composition points)"
+    if len(smiles_list) != 3:
+        return None
+
+    path_vle = osp.join(application_path, "_data", "co2_ternary.parquet")
+    if not osp.exists(path_vle):
+        return None
+
+    i1, i2, i3 = (
+        smilestoinchi(smiles_list[0]),
+        smilestoinchi(smiles_list[1]),
+        smilestoinchi(smiles_list[2]),
+    )
+    target_set = [i1, i2, i3]
+
+    df = pl.read_parquet(path_vle)
+
+    # Function to map column based on inchi match, using p2 for phase 2 (liquid)
+    def get_col_map_p2(target_inchi, col_prefix):
+        return (
+            pl.when(pl.col("inchi1") == target_inchi)
+            .then(pl.col(f"{col_prefix}1p2"))
+            .otherwise(
+                pl.when(pl.col("inchi2") == target_inchi)
+                .then(pl.col(f"{col_prefix}2p2"))
+                .otherwise(pl.col(f"{col_prefix}3p2"))
+            )
+        )
+
+    tol = 0.01
+    # VLE points might be scatter points, not necessarily
+    # tie lines with both phases in this file context,
+    # but we plot the liquid composition.
+    return (
+        df.filter(
+            pl.col("inchi1").is_in(target_set)
+            & pl.col("inchi2").is_in(target_set)
+            & pl.col("inchi3").is_in(target_set)
+        )
+        .filter(
+            (pl.col("P_kPa").is_between(pressure - tol, pressure + tol))
+            & (pl.col("T_K").is_between(temperature - tol, temperature + tol))
+        )
+        .with_columns(
+            [
+                get_col_map_p2(i1, "mole_fraction_c").alias("x_m1"),
+                get_col_map_p2(i2, "mole_fraction_c").alias("x_m2"),
             ]
         )
         .select("x_m1", "x_m2")

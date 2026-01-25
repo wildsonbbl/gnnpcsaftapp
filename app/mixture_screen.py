@@ -29,6 +29,7 @@ from utils_data import (
     retrieve_rho_binary_data,
     retrieve_rho_ternary_data,
     retrieve_vle_binary_data,
+    retrieve_vle_ternary_data,
 )
 from utils_mix import mix_den, mix_lle, mix_ternary_lle, mix_vle, mix_vp
 
@@ -385,12 +386,13 @@ class MixtureLayout(BoxLayout):
             elif len(smiles_list) == 3:
                 # Check for ternary data availability
                 try:
-                    rho_data_t, lle_data_t = retrieve_available_data_ternary(
-                        smiles_list
+                    rho_data_t, lle_data_t, vle_data_t = (
+                        retrieve_available_data_ternary(smiles_list)
                     )
 
-                    if (rho_data_t is not None and len(rho_data_t) > 0) or (
-                        lle_data_t is not None and len(lle_data_t) > 0
+                    if any(
+                        (exp_data is not None and len(exp_data) > 0)
+                        for exp_data in [rho_data_t, lle_data_t, vle_data_t]
                     ):
                         self.predicted_parameters.add_widget(
                             Label(
@@ -444,7 +446,7 @@ class MixtureLayout(BoxLayout):
                         for row in lle_data_t:
                             # [P_kPa, T_K]
                             btn = Button(
-                                text=f"P={row[0]:.5g} kPa, T={row[1]:.2f} K",
+                                text=f"LLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -469,6 +471,39 @@ class MixtureLayout(BoxLayout):
                             background_color=(0.1, 0.5, 0.8, 1),
                         )
                         main_button.bind(on_release=dropdown_llet.open)  # type: ignore pylint: disable=no-member
+                        self.predicted_parameters.add_widget(main_button)
+
+                    # VLE Data (Ternary)
+                    if vle_data_t is not None and len(vle_data_t) > 0:
+                        dropdown_vlet = DropDown()
+                        for row in vle_data_t:
+                            # [P_kPa, T_K]
+                            btn = Button(
+                                text=f"VLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K",
+                                size_hint_y=None,
+                                height=44,
+                            )
+                            btn.bind(  # type: ignore pylint: disable=no-member
+                                on_release=lambda btn, r=row: (
+                                    self._fill_inputs_ternary(
+                                        pressure=r[0],
+                                        t_min=r[1],
+                                        t_max=r[1],  # Set fixed T
+                                    ),
+                                    dropdown_vlet.dismiss(),
+                                )
+                            )
+                            dropdown_vlet.add_widget(btn)
+
+                        main_button = Button(
+                            text="Select Ternary VLE Data",
+                            size_hint_y=None,
+                            height=44,
+                            size_hint_x=0.4,
+                            pos_hint={"center_x": 0.5},
+                            background_color=(0.1, 0.5, 0.8, 1),
+                        )
+                        main_button.bind(on_release=dropdown_vlet.open)  # type: ignore pylint: disable=no-member
                         self.predicted_parameters.add_widget(main_button)
 
                 except (ValueError, RuntimeError):
@@ -733,13 +768,13 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
-    def on_plot_ternary_lle(self):
-        "plot ternary LLE"
+    def on_plot_ternary_vle_lle(self):
+        "plot ternary VLE/LLE"
         try:
             smiles_list = self._get_smiles()
             if len(smiles_list) != 3:
                 raise ValueError(
-                    f"LLE for ternary mixture, got {len(smiles_list)} components instead"
+                    f"VLE/LLE for ternary mixture, got {len(smiles_list)} components instead"
                 )
 
             n = len(smiles_list)
@@ -747,13 +782,20 @@ class MixtureLayout(BoxLayout):
             t_min, _ = self._get_temperatures(require_max=False)
             p_val = self._get_pressure()
 
-            # Fetch Experimental Data
+            # Fetch Experimental Data (Try LLE then VLE)
             exp_data = None
             try:
-                # Use t_min as the calculation temperature
+                # Try LLE first
                 exp_arr = retrieve_lle_ternary_data(smiles_list, p_val / 1000.0, t_min)
                 if exp_arr is not None and len(exp_arr) > 0:
                     exp_data = (exp_arr[:, 0], exp_arr[:, 1])
+                else:
+                    # Try VLE
+                    exp_arr_vle = retrieve_vle_ternary_data(
+                        smiles_list, p_val / 1000.0, t_min
+                    )
+                    if exp_arr_vle is not None and len(exp_arr_vle) > 0:
+                        exp_data = (exp_arr_vle[:, 0], exp_arr_vle[:, 1])
             except (ValueError, RuntimeError):
                 pass
 
@@ -762,7 +804,7 @@ class MixtureLayout(BoxLayout):
             self._generate_ternary_plot(
                 [output["x0"], output["y0"]],
                 [output["x1"], output["y1"]],
-                title=f"LLE at {p_val} Pa, {t_min} K",
+                title=f"VLE/LLE at {p_val} Pa, {t_min} K",
                 a_label=smiles_list[0],
                 b_label=smiles_list[1],
                 legends=["Phase 1", "Phase 2"],

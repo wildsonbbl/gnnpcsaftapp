@@ -134,7 +134,7 @@ def mix_ternary_lle(
     temperature: float,
     pressure: float,
 ) -> Dict[str, List[float]]:
-    "Calculate ternary LLE using PC-SAFT EOS"
+    "Calculate ternary LLE/VLE using PC-SAFT EOS"
     parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
 
     return _get_ternary_lle_data(
