@@ -8,6 +8,7 @@ from gnnepcsaft.pcsaft.pcsaft_feos import (
     mix_lle_diagram_feos,
     mix_lle_feos,
     mix_vle_diagram_feos,
+    mix_vle_pxy_diagram_feos,
     mix_vp_feos,
 )
 from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
@@ -65,11 +66,24 @@ def mix_vle(
     kij_matrix: List[List[float]],
     pressure: float,
 ) -> Dict[str, List[float]]:
-    "Calculate mixture VLE using PC-SAFT EOS"
+    "Calculate mixture VLE (T-x-y) using PC-SAFT EOS"
     parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
 
     return mix_vle_diagram_feos(
         parameters=parameters_list, state=[pressure], kij_matrix=kij_matrix
+    )
+
+
+def mix_vle_pxy(
+    smiles_list: List[str],
+    kij_matrix: List[List[float]],
+    temperature: float,
+) -> Dict[str, List[float]]:
+    "Calculate mixture VLE (P-x-y) using PC-SAFT EOS"
+    parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
+
+    return mix_vle_pxy_diagram_feos(
+        parameters=parameters_list, temperature=temperature, kij_matrix=kij_matrix
     )
 
 

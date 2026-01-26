@@ -29,9 +29,10 @@ from utils_data import (
     retrieve_rho_binary_data,
     retrieve_rho_ternary_data,
     retrieve_vle_binary_data,
+    retrieve_vle_pxy_binary_data,
     retrieve_vle_ternary_data,
 )
-from utils_mix import mix_den, mix_lle, mix_ternary_lle, mix_vle, mix_vp
+from utils_mix import mix_den, mix_lle, mix_ternary_lle, mix_vle, mix_vle_pxy, mix_vp
 
 
 class MixtureScreen(Screen):
@@ -235,13 +236,19 @@ class MixtureLayout(BoxLayout):
             if len(smiles_list) == 2:
                 # Check for binary data availability
                 try:
-                    rho_data, bubble_data, lle_data, vle_data = (
+                    rho_data, bubble_data, lle_data, vle_data, vle_pxy_data = (
                         retrieve_available_data_binary(smiles_list)
                     )
 
                     if any(
                         (exp_data is not None and len(exp_data) > 0)
-                        for exp_data in [rho_data, bubble_data, lle_data, vle_data]
+                        for exp_data in [
+                            rho_data,
+                            bubble_data,
+                            lle_data,
+                            vle_data,
+                            vle_pxy_data,
+                        ]
                     ):
                         self.predicted_parameters.add_widget(
                             Label(
@@ -292,7 +299,7 @@ class MixtureLayout(BoxLayout):
                             # [P_kPa, T_min, T_max]
                             # Display T range for P
                             btn = Button(
-                                text=f"P={row[0]:.5g} kPa: {row[1]:.2f}-{row[2]:.2f} K",
+                                text=f"Isobar: P={row[0]:.5g} kPa: {row[1]:.2f}-{row[2]:.2f} K",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -307,7 +314,7 @@ class MixtureLayout(BoxLayout):
                             dropdown_vle.add_widget(btn)
 
                         main_button = Button(
-                            text="Select VLE Data",
+                            text="Select Isobaric VLE Data",
                             size_hint_y=None,
                             height=44,
                             size_hint_x=0.4,
@@ -315,6 +322,35 @@ class MixtureLayout(BoxLayout):
                             background_color=(0.1, 0.5, 0.8, 1),
                         )
                         main_button.bind(on_release=dropdown_vle.open)  # type: ignore pylint: disable=no-member
+                        self.predicted_parameters.add_widget(main_button)
+
+                    # VLE Data (Isothermal P-x-y)
+                    if vle_pxy_data is not None and len(vle_pxy_data) > 0:
+                        dropdown_vle_pxy = DropDown()
+                        for row in vle_pxy_data:
+                            # [T_approx, P_min, P_max]
+                            btn = Button(
+                                text=f"Isotherm: T={row[0]:.2f} K: {row[1]:.0f}-{row[2]:.0f} kPa",
+                                size_hint_y=None,
+                                height=44,
+                            )
+                            btn.bind(  # type: ignore pylint: disable=no-member
+                                on_release=lambda btn, r=row: (
+                                    self._fill_inputs_binary(t_min=r[0], t_max=r[0]),
+                                    dropdown_vle_pxy.dismiss(),
+                                )
+                            )
+                            dropdown_vle_pxy.add_widget(btn)
+
+                        main_button = Button(
+                            text="Select Isothermal VLE Data",
+                            size_hint_y=None,
+                            height=44,
+                            size_hint_x=0.4,
+                            pos_hint={"center_x": 0.5},
+                            background_color=(0.1, 0.5, 0.8, 1),
+                        )
+                        main_button.bind(on_release=dropdown_vle_pxy.open)  # type: ignore pylint: disable=no-member
                         self.predicted_parameters.add_widget(main_button)
 
                     # LLE Data
@@ -711,6 +747,53 @@ class MixtureLayout(BoxLayout):
                 f"VLE T-x-y for {smiles_list[0]} at {p_val} Pa",
                 "x,y",
                 "Temperature (K)",
+                legends=["Liquid", "Vapor"],
+                exp_data=exp_data,
+            )
+        except (ValueError, RuntimeError) as e:
+            self._show_error_alert(e)
+
+    def on_plot_binary_vle_pxy(self):
+        "plot binary VLE P-x-y"
+        try:
+            smiles_list = self._get_smiles()
+            if len(smiles_list) != 2:
+                raise ValueError(
+                    f"VLE for binary mixture, got {len(smiles_list)} components instead"
+                )
+
+            n = len(smiles_list)
+            kij_matrix = self._get_kij(n)
+            t_min, _ = self._get_temperatures(require_max=False)
+
+            # Retrieve Experimental Data
+            exp_data = None
+            try:
+                # Returns [P_kPa, x_c1]
+                vle_arr = retrieve_vle_pxy_binary_data(smiles_list, t_min)
+                if vle_arr is not None and len(vle_arr) > 0:
+                    exp_data = (vle_arr[:, 1], vle_arr[:, 0] * 1000.0, "Exp. data")
+            except (ValueError, RuntimeError):
+                pass
+
+            output = mix_vle_pxy(smiles_list, kij_matrix, t_min)
+
+            # Check density for correct phase assignment
+            dens_l = output["density liquid"]
+            dens_v = output["density vapor"]
+            # For P-x-y, higher pressure usually liquid
+            is_normal = sum(l > v for l, v in zip(dens_l, dens_v)) > len(dens_l) / 2
+
+            self._generate_plot(
+                list(
+                    (output["x0"], output["y0"])
+                    if is_normal
+                    else (output["y0"], output["x0"])
+                ),
+                output["pressure"],
+                f"VLE P-x-y for {smiles_list[0]} at {t_min} K",
+                "x,y",
+                "Pressure (Pa)",
                 legends=["Liquid", "Vapor"],
                 exp_data=exp_data,
             )

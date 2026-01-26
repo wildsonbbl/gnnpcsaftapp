@@ -225,6 +225,48 @@ def retrieve_vle_binary_data(smiles_list: list, pressure: float):
     return data.to_numpy()
 
 
+def retrieve_vle_pxy_binary_data(smiles_list: list, temperature: float):
+    """
+    retrieve binary VLE data (P-x-y) at constant T.
+    """
+    if len(smiles_list) != 2:
+        return None
+
+    path = osp.join(application_path, "_data", "co2_binary.parquet")
+    if not osp.exists(path):
+        return None
+
+    df = pl.read_parquet(path)
+    i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
+
+    tol_t = 0.5  # Tolerance for temperature
+
+    # Filter
+    filtered = df.filter(
+        ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
+        | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
+    ).filter(
+        (pl.col("T_K") > temperature - tol_t) & (pl.col("T_K") < temperature + tol_t)
+    )
+
+    if filtered.height == 0:
+        return None
+
+    # Normalize x1 to strictly match input order
+    data = (
+        filtered.with_columns(
+            pl.when(pl.col("inchi1") == i1)
+            .then(pl.col("mole_fraction_c1p2"))
+            .otherwise(pl.col("mole_fraction_c2p2"))
+            .alias("x_c1"),
+        )
+        .select("P_kPa", "x_c1")
+        .sort("P_kPa")
+    )
+
+    return data.to_numpy()
+
+
 def retrieve_lle_binary_data(smiles_list: list, pressure: float):
     "retrieve binary LLE data (T-x-x)"
     if len(smiles_list) != 2:
@@ -267,7 +309,7 @@ def retrieve_lle_binary_data(smiles_list: list, pressure: float):
 def retrieve_available_data_binary(smiles_list: list):
     "retrieve available binary data"
     if len(smiles_list) != 2:
-        return None, None, None, None
+        return None, None, None, None, None
 
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
@@ -339,6 +381,7 @@ def retrieve_available_data_binary(smiles_list: list):
 
     # LLE checking
     vle_data = None
+    vle_pxy_data = None
     path_vle = osp.join(application_path, "_data", "co2_binary.parquet")
     if osp.exists(path_vle):
         df_vle = pl.read_parquet(path_vle)
@@ -355,7 +398,19 @@ def retrieve_available_data_binary(smiles_list: list):
                 .to_numpy()
             )
 
-    return rho_data, bubble_data, lle_data, vle_data
+            # Isothermal P-x-y data
+            vle_pxy_data = (
+                vf.with_columns(pl.col("T_K").round(1).alias("T_approx"))
+                .group_by("T_approx")
+                .agg(
+                    pl.col("P_kPa").min().alias("P_min"),
+                    pl.col("P_kPa").max().alias("P_max"),
+                )
+                .sort("T_approx")
+                .to_numpy()
+            )
+
+    return rho_data, bubble_data, lle_data, vle_data, vle_pxy_data
 
 
 def retrieve_available_data_ternary(smiles_list: list):
