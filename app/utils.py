@@ -181,6 +181,8 @@ def generate_ternary_plot(a, b, title, a_label, b_label, legends=None, exp_data=
             label="Exp. Data",
             zorder=3,
         )
+
+    if legends or exp_data:
         plt.legend(fontsize=8)
 
     plt.title(title, fontsize=10, pad=10)
@@ -201,7 +203,7 @@ def generate_ternary_plot(a, b, title, a_label, b_label, legends=None, exp_data=
     plot_layout = plot_screen.ids.plot_layout
 
     mat_plot_figure = plot_layout.ids.mat_plot_figure
-    mat_plot_figure.figure = fig.figure
+    mat_plot_figure.figure = fig
 
     plot_layout.previous_screen = app.root.current  # type: ignore
 
