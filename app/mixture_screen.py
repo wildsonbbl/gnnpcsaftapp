@@ -694,8 +694,19 @@ class MixtureLayout(BoxLayout):
                 pass
 
             output = mix_vle(smiles_list, kij_matrix, p_val)
+
+            # Check density for correct phase assignment (Liquid > Vapor)
+            # to fix high-pressure inversions
+            dens_l = output["density liquid"]
+            dens_v = output["density vapor"]
+            is_normal = sum(l > v for l, v in zip(dens_l, dens_v)) > len(dens_l) / 2
+
             self._generate_plot(
-                [output["x0"], output["y0"]],
+                list(
+                    (output["x0"], output["y0"])
+                    if is_normal
+                    else (output["y0"], output["x0"])
+                ),
                 output["temperature"],
                 f"VLE T-x-y for {smiles_list[0]} at {p_val} Pa",
                 "x,y",
@@ -720,9 +731,17 @@ class MixtureLayout(BoxLayout):
             p_val = self._get_pressure()
 
             output = mix_vle(smiles_list, kij_matrix, p_val)
+
+            dens_l = output["density liquid"]
+            dens_v = output["density vapor"]
+            is_normal = sum(l > v for l, v in zip(dens_l, dens_v)) > len(dens_l) / 2
+
             self._generate_plot(
-                output["x0"],
-                output["y0"],
+                *(
+                    (output["x0"], output["y0"])
+                    if is_normal
+                    else (output["y0"], output["x0"])
+                ),
                 f"VLE x-y for {smiles_list[0]} at {p_val} Pa",
                 "x",
                 "y",
