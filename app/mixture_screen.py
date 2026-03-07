@@ -127,8 +127,8 @@ class MixtureLayout(BoxLayout):
         smiles_list = [
             get_smiles_from_input(s.strip()) for s in raw_smiles if s.strip()
         ]
-        if not smiles_list:
-            raise ValueError("Please provide at least one component")
+        if not smiles_list or len(smiles_list) < 2:
+            raise ValueError("Please provide at least two components")
         return smiles_list
 
     def _get_fractions(self, n):
@@ -145,6 +145,10 @@ class MixtureLayout(BoxLayout):
         return fractions
 
     def _get_temperatures(self, require_max=True):
+        if not self.temp_min.text:
+            raise ValueError("Min temperature required")
+        if require_max and not self.temp_max.text:
+            raise ValueError("Max temperature required")
         try:
             t_min = float(self.temp_min.text)
             t_max = 0.0
@@ -155,6 +159,8 @@ class MixtureLayout(BoxLayout):
             raise ValueError("Temperature values must be numeric") from e
 
     def _get_pressure(self):
+        if not self.pressure.text:
+            raise ValueError("Pressure required")
         try:
             return float(self.pressure.text)
         except ValueError as e:
@@ -225,13 +231,7 @@ class MixtureLayout(BoxLayout):
         self.predicted_parameters.clear_widgets()
 
         try:
-            raw_smiles = self.smiles_or_inchi_input.text.split(" ")
-            smiles_list = [
-                get_smiles_from_input(s.strip()) for s in raw_smiles if s.strip()
-            ]
-
-            if not smiles_list:
-                return
+            smiles_list = self._get_smiles()
 
             if len(smiles_list) == 2:
                 # Check for binary data availability
