@@ -104,6 +104,10 @@ class PureLayout(BoxLayout):
         return get_smiles_from_input(smiles_input)
 
     def _get_temperatures(self, require_max=True):
+        if not self.temp_min.text:
+            raise ValueError("Min temperature required")
+        if require_max and not self.temp_max.text:
+            raise ValueError("Max temperature required")
         try:
             t_min = float(self.temp_min.text)
             t_max = 0.0
@@ -114,6 +118,8 @@ class PureLayout(BoxLayout):
             raise ValueError("Temperature inputs must be numeric values") from e
 
     def _get_pressure(self):
+        if not self.pressure.text:
+            raise ValueError("Pressure required")
         try:
             return float(self.pressure.text)
         except ValueError as e:
