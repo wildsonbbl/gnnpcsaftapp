@@ -7,6 +7,7 @@ git push origin $version
 gh release create -d --generate-notes --latest --verify-tag $version
 
 ## create package
+uv pip install -r requirements.txt
 uv run pyinstaller --distpath ./app_pkg/dist --workpath ./app_pkg/build --noconfirm --clean ./gnnpcsaft.spec
 cd ./app_pkg/dist/gnnpcsaft
 zip -r gnnpcsaft-$version-$platform.zip ./*
