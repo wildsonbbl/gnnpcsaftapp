@@ -69,7 +69,7 @@ def pure_phase_diagram(
 
     return (
         output["temperature"],
-        output["pressure"],
+        output.get("pressure", output.get("pressure vapor", [0])),
         output["density liquid"],
         output["density vapor"],
     )
