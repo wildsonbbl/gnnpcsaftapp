@@ -790,7 +790,7 @@ class MixtureLayout(BoxLayout):
                     if is_normal
                     else (output["y0"], output["x0"])
                 ),
-                output["pressure"],
+                output.get("pressure", output.get("pressure vapor", [0])),
                 f"VLE P-x-y for {smiles_list[0]} at {t_min} K",
                 "x,y",
                 "Pressure (Pa)",
