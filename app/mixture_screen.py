@@ -265,9 +265,9 @@ class MixtureLayout(BoxLayout):
                     if bubble_data is not None and len(bubble_data) > 0:
                         dropdown_bp = DropDown()
                         for row in bubble_data:
-                            # [x_approx, T_min, T_max]
+                            # [x_approx, T_min, T_max, count]
                             btn = Button(
-                                text=f"x={row[0]:.2f}: {row[1]:.2f}-{row[2]:.2f} K",
+                                text=f"x={row[0]:.2f}: {row[1]:.2f}-{row[2]:.2f} K ({row[3]} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -296,10 +296,10 @@ class MixtureLayout(BoxLayout):
                     if vle_data is not None and len(vle_data) > 0:
                         dropdown_vle = DropDown()
                         for row in vle_data:
-                            # [P_kPa, T_min, T_max]
+                            # [P_kPa, T_min, T_max, count]
                             # Display T range for P
                             btn = Button(
-                                text=f"Isobar: P={row[0]:.5g} kPa: {row[1]:.2f}-{row[2]:.2f} K",
+                                text=f"Isobar: P={row[0]:.5g} kPa: {row[1]:.2f}-{row[2]:.2f} K ({row[3]} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -328,9 +328,9 @@ class MixtureLayout(BoxLayout):
                     if vle_pxy_data is not None and len(vle_pxy_data) > 0:
                         dropdown_vle_pxy = DropDown()
                         for row in vle_pxy_data:
-                            # [T_approx, P_min, P_max]
+                            # [T_approx, P_min, P_max, count]
                             btn = Button(
-                                text=f"Isotherm: T={row[0]:.2f} K: {row[1]:.0f}-{row[2]:.0f} kPa",
+                                text=f"Isotherm: T={row[0]:.2f} K: {row[1]:.0f}-{row[2]:.0f} kPa ({row[3]} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -357,10 +357,10 @@ class MixtureLayout(BoxLayout):
                     if lle_data is not None and len(lle_data) > 0:
                         dropdown_lle = DropDown()
                         for row in lle_data:
-                            # [P_kPa, T_min, T_max]
+                            # [P_kPa, T_min, T_max, count]
                             # Display T range for P
                             btn = Button(
-                                text=f"P={row[0]:.5g} kPa: {row[1]:.2f}-{row[2]:.2f} K",
+                                text=f"P={row[0]:.5g} kPa: {row[1]:.2f}-{row[2]:.2f} K ({row[3]} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -389,9 +389,9 @@ class MixtureLayout(BoxLayout):
                     if rho_data is not None and len(rho_data) > 0:
                         dropdown = DropDown()
                         for row in rho_data:
-                            # [P_kPa, x_c1, T_min, T_max]
+                            # [P_kPa, x_c1, T_min, T_max, count]
                             btn = Button(
-                                text=f"P={row[0]:.5g} kPa, x={row[1]:.2f}",
+                                text=f"P={row[0]:.5g} kPa, x={row[1]:.2f} ({row[4]} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -445,9 +445,9 @@ class MixtureLayout(BoxLayout):
                     if rho_data_t is not None and len(rho_data_t) > 0:
                         dropdown_t = DropDown()
                         for row in rho_data_t:
-                            # [P_kPa, x1, x2, T_min, T_max]
+                            # [P_kPa, x1, x2, T_min, T_max, count]
                             btn = Button(
-                                text=f"P={row[0]:.5g} kPa, x=[{row[1]:.2f}, {row[2]:.2f}]",
+                                text=f"P={row[0]:.5g} kPa, x=[{row[1]:.2f}, {row[2]:.2f}] ({row[5]} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -480,9 +480,9 @@ class MixtureLayout(BoxLayout):
                     if lle_data_t is not None and len(lle_data_t) > 0:
                         dropdown_llet = DropDown()
                         for row in lle_data_t:
-                            # [P_kPa, T_K]
+                            # [P_kPa, T_K, count]
                             btn = Button(
-                                text=f"LLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K",
+                                text=f"LLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K ({row[2]} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -513,9 +513,9 @@ class MixtureLayout(BoxLayout):
                     if vle_data_t is not None and len(vle_data_t) > 0:
                         dropdown_vlet = DropDown()
                         for row in vle_data_t:
-                            # [P_kPa, T_K]
+                            # [P_kPa, T_K, count]
                             btn = Button(
-                                text=f"VLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K",
+                                text=f"VLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K ({row[2]} points)",
                                 size_hint_y=None,
                                 height=44,
                             )

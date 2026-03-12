@@ -77,6 +77,7 @@ def retrieve_available_data_pure(smiles: str):
             .agg(
                 pl.col("T_K").min().alias("T_min"),
                 pl.col("T_K").max().alias("T_max"),
+                pl.len().alias("count"),
             )
             .sort(pl.col("P_kPa"))
             .to_numpy()
@@ -87,16 +88,16 @@ def retrieve_available_data_pure(smiles: str):
     vp_filtered = vp_pure.filter(pl.col("inchi1") == inchi)
     if vp_filtered.height > 0:
         vp_data = vp_filtered.select("T_K").to_numpy()
-        vp_range = (vp_data.min(), vp_data.max())
+        vp_range = (vp_data.min(), vp_data.max(), vp_filtered.height)
     else:
-        vp_range = (None, None)
+        vp_range = (None, None, 0)
 
     st_filtered = st_pure.filter(pl.col("inchi1") == inchi)
     if st_filtered.height > 0:
         st_data = st_filtered.select("T_K").to_numpy()
-        st_range = (st_data.min(), st_data.max())
+        st_range = (st_data.min(), st_data.max(), st_filtered.height)
     else:
-        st_range = (None, None)
+        st_range = (None, None, 0)
 
     return pure_data, vp_range, st_range
 
@@ -337,6 +338,7 @@ def retrieve_available_data_binary(smiles_list: list):
             .agg(
                 pl.col("T_K").min().alias("T_min"),
                 pl.col("T_K").max().alias("T_max"),
+                pl.len().alias("count"),
             )
             .sort(["P_kPa", "x_approx"])
             .to_numpy()
@@ -354,6 +356,7 @@ def retrieve_available_data_binary(smiles_list: list):
             .agg(
                 pl.col("T_K").min().alias("T_min"),
                 pl.col("T_K").max().alias("T_max"),
+                pl.len().alias("count"),
             )
             .sort("x_approx")
             .to_numpy()
@@ -374,6 +377,7 @@ def retrieve_available_data_binary(smiles_list: list):
                 .agg(
                     pl.col("T_K").min().alias("T_min"),
                     pl.col("T_K").max().alias("T_max"),
+                    pl.len().alias("count"),
                 )
                 .sort("P_kPa")
                 .to_numpy()
@@ -393,6 +397,7 @@ def retrieve_available_data_binary(smiles_list: list):
                 .agg(
                     pl.col("T_K").min().alias("T_min"),
                     pl.col("T_K").max().alias("T_max"),
+                    pl.len().alias("count"),
                 )
                 .sort("P_kPa")
                 .to_numpy()
@@ -405,6 +410,7 @@ def retrieve_available_data_binary(smiles_list: list):
                 .agg(
                     pl.col("P_kPa").min().alias("P_min"),
                     pl.col("P_kPa").max().alias("P_max"),
+                    pl.len().alias("count"),
                 )
                 .sort("T_approx")
                 .to_numpy()
@@ -474,6 +480,7 @@ def retrieve_available_data_ternary(smiles_list: list):
                 .agg(
                     pl.col("T_K").min().alias("T_min"),
                     pl.col("T_K").max().alias("T_max"),
+                    pl.len().alias("count"),
                 )
                 .sort(["P_kPa", "x_approx_1", "x_approx_2"])
             )
@@ -496,8 +503,8 @@ def retrieve_available_data_ternary(smiles_list: list):
         if filtered_lle.height > 0:
             # Group by P and T to find available isotherms/isobars
             lle_data = (
-                filtered_lle.select("P_kPa", "T_K")
-                .unique()
+                filtered_lle.group_by(["P_kPa", "T_K"])
+                .agg(pl.len().alias("count"))
                 .sort(["P_kPa", "T_K"])
                 .to_numpy()
             )
@@ -517,8 +524,8 @@ def retrieve_available_data_ternary(smiles_list: list):
         if filtered_vle.height > 0:
             # Group by P and T
             vle_data = (
-                filtered_vle.select("P_kPa", "T_K")
-                .unique()
+                filtered_vle.group_by(["P_kPa", "T_K"])
+                .agg(pl.len().alias("count"))
                 .sort(["P_kPa", "T_K"])
                 .to_numpy()
             )

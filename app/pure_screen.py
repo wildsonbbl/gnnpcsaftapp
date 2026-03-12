@@ -315,7 +315,7 @@ class PureLayout(BoxLayout):
                 if st_range[0] is not None:
                     dropdown_st = DropDown()
                     btn = Button(
-                        text=f"ST: {st_range[0]:.2f} - {st_range[1]:.2f} K",
+                        text=f"ST: {st_range[0]:.2f} - {st_range[1]:.2f} K ({st_range[2]} points)",
                         size_hint_y=None,
                         height=44,
                     )
@@ -342,7 +342,7 @@ class PureLayout(BoxLayout):
                 if vp_range[0] is not None:
                     dropdown_vp = DropDown()
                     btn = Button(
-                        text=f"VP: {vp_range[0]:.2f} - {vp_range[1]:.2f} K",
+                        text=f"VP: {vp_range[0]:.2f} - {vp_range[1]:.2f} K ({vp_range[2]} points)",
                         size_hint_y=None,
                         height=44,
                     )
@@ -369,9 +369,9 @@ class PureLayout(BoxLayout):
                 if rho_data is not None and len(rho_data) > 0:
                     dropdown = DropDown()
                     for row in rho_data:
-                        # row: [Pressure (kPa), T_min, T_max]
+                        # row: [Pressure (kPa), T_min, T_max, count]
                         btn = Button(
-                            text=f"P={row[0]:.5g} kPa: {row[1]:.2f} - {row[2]:.2f} K",
+                            text=f"P={row[0]:.5g} kPa: {row[1]:.2f} - {row[2]:.2f} K ({row[3]} points)",
                             size_hint_y=None,
                             height=44,
                         )
