@@ -315,15 +315,12 @@ class PureLayout(BoxLayout):
                 if st_range[0] is not None:
                     dropdown_st = DropDown()
                     btn = Button(
-                        text=f"ST: {st_range[0]:.2f} - {st_range[1]:.2f} K ({st_range[2]} points)",
+                        text=f"ST data ({int(st_range[2])} points, T is variable)",
                         size_hint_y=None,
                         height=44,
                     )
                     btn.bind(  # type: ignore pylint: disable=no-member
-                        on_release=lambda btn: (
-                            self._fill_inputs(t_min=st_range[0], t_max=st_range[1]),
-                            dropdown_st.dismiss(),
-                        )
+                        on_release=lambda btn: (dropdown_st.dismiss(),)
                     )
                     dropdown_st.add_widget(btn)
 
@@ -342,15 +339,12 @@ class PureLayout(BoxLayout):
                 if vp_range[0] is not None:
                     dropdown_vp = DropDown()
                     btn = Button(
-                        text=f"VP: {vp_range[0]:.2f} - {vp_range[1]:.2f} K ({vp_range[2]} points)",
+                        text=f"VP data ({int(vp_range[2])} points, T is variable)",
                         size_hint_y=None,
                         height=44,
                     )
                     btn.bind(  # type: ignore pylint: disable=no-member
-                        on_release=lambda btn: (
-                            self._fill_inputs(t_min=vp_range[0], t_max=vp_range[1]),
-                            dropdown_vp.dismiss(),
-                        )
+                        on_release=lambda btn: (dropdown_vp.dismiss(),)
                     )
                     dropdown_vp.add_widget(btn)
 
@@ -371,15 +365,13 @@ class PureLayout(BoxLayout):
                     for row in rho_data:
                         # row: [Pressure (kPa), T_min, T_max, count]
                         btn = Button(
-                            text=f"P={row[0]:.5g} kPa: {row[1]:.2f} - {row[2]:.2f} K ({row[3]} points)",
+                            text=f"P={row[0]:.5g} kPa ({int(row[3])} points)",
                             size_hint_y=None,
                             height=44,
                         )
                         btn.bind(  # type: ignore pylint: disable=no-member
                             on_release=lambda btn, r=row: (
-                                self._fill_inputs(
-                                    pressure=r[0], t_min=r[1], t_max=r[2]
-                                ),
+                                self._fill_inputs(pressure=r[0]),
                                 dropdown.dismiss(),
                             )
                         )

@@ -267,15 +267,13 @@ class MixtureLayout(BoxLayout):
                         for row in bubble_data:
                             # [x_approx, T_min, T_max, count]
                             btn = Button(
-                                text=f"x={row[0]:.2f}: {row[1]:.2f}-{row[2]:.2f} K ({row[3]} points)",
+                                text=f"x={row[0]:.2f} ({int(row[3])} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
                             btn.bind(  # type: ignore pylint: disable=no-member
                                 on_release=lambda btn, r=row: (
-                                    self._fill_inputs_binary(
-                                        t_min=r[1], t_max=r[2], x1=r[0]
-                                    ),
+                                    self._fill_inputs_binary(x1=r[0]),
                                     dropdown_bp.dismiss(),
                                 )
                             )
@@ -299,15 +297,13 @@ class MixtureLayout(BoxLayout):
                             # [P_kPa, T_min, T_max, count]
                             # Display T range for P
                             btn = Button(
-                                text=f"Isobar: P={row[0]:.5g} kPa: {row[1]:.2f}-{row[2]:.2f} K ({row[3]} points)",
+                                text=f"Isobar: P={row[0]:.5g} kPa ({int(row[3])} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
                             btn.bind(  # type: ignore pylint: disable=no-member
                                 on_release=lambda btn, r=row: (
-                                    self._fill_inputs_binary(
-                                        pressure=r[0], t_min=r[1], t_max=r[2]
-                                    ),
+                                    self._fill_inputs_binary(pressure=r[0]),
                                     dropdown_vle.dismiss(),
                                 )
                             )
@@ -330,13 +326,13 @@ class MixtureLayout(BoxLayout):
                         for row in vle_pxy_data:
                             # [T_approx, P_min, P_max, count]
                             btn = Button(
-                                text=f"Isotherm: T={row[0]:.2f} K: {row[1]:.0f}-{row[2]:.0f} kPa ({row[3]} points)",
+                                text=f"Isotherm: T={row[0]:.2f} K ({int(row[3])} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
                             btn.bind(  # type: ignore pylint: disable=no-member
                                 on_release=lambda btn, r=row: (
-                                    self._fill_inputs_binary(t_min=r[0], t_max=r[0]),
+                                    self._fill_inputs_binary(t_min=r[0]),
                                     dropdown_vle_pxy.dismiss(),
                                 )
                             )
@@ -360,15 +356,13 @@ class MixtureLayout(BoxLayout):
                             # [P_kPa, T_min, T_max, count]
                             # Display T range for P
                             btn = Button(
-                                text=f"P={row[0]:.5g} kPa: {row[1]:.2f}-{row[2]:.2f} K ({row[3]} points)",
+                                text=f"P={row[0]:.5g} kPa ({int(row[3])} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
                             btn.bind(  # type: ignore pylint: disable=no-member
                                 on_release=lambda btn, r=row: (
-                                    self._fill_inputs_binary(
-                                        pressure=r[0], t_min=r[1], t_max=r[2]
-                                    ),
+                                    self._fill_inputs_binary(pressure=r[0]),
                                     dropdown_lle.dismiss(),
                                 )
                             )
@@ -391,15 +385,13 @@ class MixtureLayout(BoxLayout):
                         for row in rho_data:
                             # [P_kPa, x_c1, T_min, T_max, count]
                             btn = Button(
-                                text=f"P={row[0]:.5g} kPa, x={row[1]:.2f} ({row[4]} points)",
+                                text=f"P={row[0]:.5g} kPa, x={row[1]:.2f} ({int(row[4])} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
                             btn.bind(  # type: ignore pylint: disable=no-member
                                 on_release=lambda btn, r=row: (
-                                    self._fill_inputs_binary(
-                                        pressure=r[0], t_min=r[2], t_max=r[3], x1=r[1]
-                                    ),
+                                    self._fill_inputs_binary(pressure=r[0], x1=r[1]),
                                     dropdown.dismiss(),
                                 )
                             )
@@ -447,7 +439,7 @@ class MixtureLayout(BoxLayout):
                         for row in rho_data_t:
                             # [P_kPa, x1, x2, T_min, T_max, count]
                             btn = Button(
-                                text=f"P={row[0]:.5g} kPa, x=[{row[1]:.2f}, {row[2]:.2f}] ({row[5]} points)",
+                                text=f"P={row[0]:.5g} kPa, x=[{row[1]:.2f}, {row[2]:.2f}] ({int(row[5])} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -457,8 +449,6 @@ class MixtureLayout(BoxLayout):
                                         pressure=r[0],
                                         x1=r[1],
                                         x2=r[2],
-                                        t_min=r[3],
-                                        t_max=r[4],
                                     ),
                                     dropdown_t.dismiss(),
                                 )
@@ -482,7 +472,7 @@ class MixtureLayout(BoxLayout):
                         for row in lle_data_t:
                             # [P_kPa, T_K, count]
                             btn = Button(
-                                text=f"LLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K ({row[2]} points)",
+                                text=f"LLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K ({int(row[2])} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -491,7 +481,6 @@ class MixtureLayout(BoxLayout):
                                     self._fill_inputs_ternary(
                                         pressure=r[0],
                                         t_min=r[1],
-                                        t_max=r[1],  # Set fixed T
                                     ),
                                     dropdown_llet.dismiss(),
                                 )
@@ -515,7 +504,7 @@ class MixtureLayout(BoxLayout):
                         for row in vle_data_t:
                             # [P_kPa, T_K, count]
                             btn = Button(
-                                text=f"VLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K ({row[2]} points)",
+                                text=f"VLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K ({int(row[2])} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -524,7 +513,6 @@ class MixtureLayout(BoxLayout):
                                     self._fill_inputs_ternary(
                                         pressure=r[0],
                                         t_min=r[1],
-                                        t_max=r[1],  # Set fixed T
                                     ),
                                     dropdown_vlet.dismiss(),
                                 )
