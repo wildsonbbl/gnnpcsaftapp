@@ -164,27 +164,27 @@ WindowManager:
             on_press: root.on_submit()
         
         Button:
-            text: 'Density'
+            text: 'Density (rho-T)'
             on_press: root.on_plot_density()
 
         Button:
-            text: 'Vap. Pres.'
+            text: 'Vap. Pres. (P-T)'
             on_press: root.on_plot_vp()
 
         Button:
-            text: 'Enthalpy of Vap.'
+            text: 'Enthalpy of Vap. (Hvap-T)'
             on_press: root.on_plot_hlv()
 
         Button:
-            text: 'Surface Tension'
+            text: 'Surface Tension (sigma-T)'
             on_press: root.on_plot_surface_tension()
 
         Button:
-            text: 'Phase Diag. - T vs rho'
+            text: 'Phase Diag. (T-rho)'
             on_press: root.on_plot_phase_diagram_t_rho()
         
         Button:
-            text: 'Phase Diag. - P vs rho'
+            text: 'Phase Diag. (P-rho)'
             on_press: root.on_plot_phase_diagram_p_rho()
 
     ScrollView:
@@ -290,11 +290,11 @@ WindowManager:
             on_press: root.on_submit()
 
         Button:
-            text: 'Density'
+            text: 'Density (rho-T)'
             on_press: root.on_plot_density()
 
         Button:
-            text: 'Bubble/Dew Cur.'
+            text: 'Bubble/Dew Cur. (P-T)'
             on_press: root.on_plot_vp()
 
         Button:
@@ -306,7 +306,7 @@ WindowManager:
             on_press: root.on_plot_binary_vle_pxy()
 
         Button:
-            text: 'Binary VLE x-y, at P'
+            text: 'Binary VLE x-y (at P)'
             on_press: root.on_plot_binary_vle_xy()
 
         Button:
@@ -314,7 +314,7 @@ WindowManager:
             on_press: root.on_plot_binary_lle_txx()
 
         Button:
-            text: 'Ternary VLE/LLE'
+            text: 'Ternary VLE/LLE (x1-x2)'
             on_press: root.on_plot_ternary_vle_lle()
 
     ScrollView:
