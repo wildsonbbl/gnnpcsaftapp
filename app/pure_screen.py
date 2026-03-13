@@ -183,7 +183,7 @@ class PureLayout(BoxLayout):
             # Fetch experimental data
             exp_data = None
             try:
-                exp_array = retrieve_vp_pure_data(smiles, t_min, t_max)
+                exp_array = retrieve_vp_pure_data(smiles)
                 if exp_array is not None and len(exp_array) > 0:
                     # Convert kPa to Pa for plotting
                     exp_data = (exp_array[:, 0], exp_array[:, 1] * 1000.0, "Exp. Data")
@@ -228,9 +228,7 @@ class PureLayout(BoxLayout):
             # Fetch experimental data
             exp_data = None
             try:
-                # We attempt to get t_max to finding exp data in range
-                _, t_max_exp = self._get_temperatures(require_max=True)
-                exp_array = retrieve_st_pure_data(smiles, t_min, t_max_exp)
+                exp_array = retrieve_st_pure_data(smiles)
                 if exp_array is not None and len(exp_array) > 0:
                     # Convert N/m to mN/m for plotting
                     exp_data = (exp_array[:, 0], exp_array[:, 1] * 1e3, "Exp. Data")

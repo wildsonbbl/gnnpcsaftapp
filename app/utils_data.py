@@ -25,34 +25,28 @@ def retrieve_rho_pure_data(smiles: str, pressure: float):
     )
 
 
-def retrieve_vp_pure_data(smiles: str, temp_min: float, temp_max: float):
+def retrieve_vp_pure_data(smiles: str):
     "retrieve vapor pressure data for plots"
 
     df = pl.read_parquet(osp.join(application_path, "_data", "vp_pure.parquet"))
 
     return (
-        df.filter(
-            pl.col("inchi1") == smilestoinchi(smiles),
-            pl.col("T_K") >= temp_min,
-            pl.col("T_K") <= temp_max,
-        )
+        df.filter(pl.col("inchi1") == smilestoinchi(smiles))
         .select("T_K", "VP_kPa")
+        .sort("T_K")
         .to_numpy()
     )
 
 
-def retrieve_st_pure_data(smiles: str, temp_min: float, temp_max: float):
+def retrieve_st_pure_data(smiles: str):
     "retrieve surface tension (N/m) data for plots"
 
     df = pl.read_parquet(osp.join(application_path, "_data", "st_pure.parquet"))
 
     return (
-        df.filter(
-            pl.col("inchi1") == smilestoinchi(smiles),
-            pl.col("T_K") >= temp_min,
-            pl.col("T_K") <= temp_max,
-        )
+        df.filter(pl.col("inchi1") == smilestoinchi(smiles))
         .select("T_K", "st")
+        .sort("T_K")
         .to_numpy()
     )
 
