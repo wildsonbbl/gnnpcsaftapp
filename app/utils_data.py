@@ -525,41 +525,27 @@ def retrieve_available_data_ternary(smiles_list: list):
                 .to_numpy()
             )
 
-            # Group by T and mapped liquid compositions (p2): useful for T+x fixed options
+            # Group by T and solvent ratio
             vle_tx = (
                 filtered_vle.with_columns(
                     [
-                        pl.when(pl.col("inchi1") == i1)
-                        .then(pl.col("mole_fraction_c1p2"))
-                        .otherwise(
-                            pl.when(pl.col("inchi2") == i1)
-                            .then(pl.col("mole_fraction_c2p2"))
-                            .otherwise(pl.col("mole_fraction_c3p2"))
-                        )
-                        .alias("x_mapped_1"),
-                        pl.when(pl.col("inchi1") == i2)
-                        .then(pl.col("mole_fraction_c1p2"))
-                        .otherwise(
-                            pl.when(pl.col("inchi2") == i2)
-                            .then(pl.col("mole_fraction_c2p2"))
-                            .otherwise(pl.col("mole_fraction_c3p2"))
-                        )
-                        .alias("x_mapped_2"),
+                        _get_col_map_p2(i1, "mole_fraction_c").alias("x_m1"),
+                        _get_col_map_p2(i2, "mole_fraction_c").alias("x_m2"),
+                        _get_col_map_p2(i3, "mole_fraction_c").alias("x_m3"),
                     ]
                 )
                 .with_columns(
-                    [
-                        pl.col("x_mapped_1").round(2).alias("x_approx_1"),
-                        pl.col("x_mapped_2").round(2).alias("x_approx_2"),
-                    ]
+                    (pl.col("x_m2") / (pl.col("x_m2") + pl.col("x_m3")))
+                    .alias("solvent_ratio")
+                    .round(2)
                 )
-                .group_by(["T_K", "x_approx_1", "x_approx_2"])
+                .group_by(["T_K", "solvent_ratio"])
                 .agg(
                     pl.col("P_kPa").min().alias("P_min"),
                     pl.col("P_kPa").max().alias("P_max"),
                     pl.len().alias("count"),
                 )
-                .sort(["T_K", "x_approx_1", "x_approx_2"])
+                .sort(["T_K", "solvent_ratio"])
             )
 
             if vle_tx.height > 0:
@@ -714,18 +700,6 @@ def retrieve_vle_ternary_data(smiles_list: list, pressure: float, temperature: f
 
     df = pl.read_parquet(path_vle)
 
-    # Function to map column based on inchi match, using p2 for phase 2 (liquid)
-    def get_col_map_p2(target_inchi, col_prefix):
-        return (
-            pl.when(pl.col("inchi1") == target_inchi)
-            .then(pl.col(f"{col_prefix}1p2"))
-            .otherwise(
-                pl.when(pl.col("inchi2") == target_inchi)
-                .then(pl.col(f"{col_prefix}2p2"))
-                .otherwise(pl.col(f"{col_prefix}3p2"))
-            )
-        )
-
     tol = 0.01
     # VLE points might be scatter points, not necessarily
     # tie lines with both phases in this file context,
@@ -742,8 +716,8 @@ def retrieve_vle_ternary_data(smiles_list: list, pressure: float, temperature: f
         )
         .with_columns(
             [
-                get_col_map_p2(i1, "mole_fraction_c").alias("x_m1"),
-                get_col_map_p2(i2, "mole_fraction_c").alias("x_m2"),
+                _get_col_map_p2(i1, "mole_fraction_c").alias("x_m1"),
+                _get_col_map_p2(i2, "mole_fraction_c").alias("x_m2"),
             ]
         )
         .select("x_m1", "x_m2")
@@ -775,20 +749,8 @@ def retrieve_vle_ternary_tx_fixed_data(
 
     df = pl.read_parquet(path_vle)
 
-    # Function to map liquid phase composition (p2) based on inchi match
-    def get_col_map_p2(target_inchi, col_prefix):
-        return (
-            pl.when(pl.col("inchi1") == target_inchi)
-            .then(pl.col(f"{col_prefix}1p2"))
-            .otherwise(
-                pl.when(pl.col("inchi2") == target_inchi)
-                .then(pl.col(f"{col_prefix}2p2"))
-                .otherwise(pl.col(f"{col_prefix}3p2"))
-            )
-        )
-
     tol_t = 0.5
-    tol_ratio = 0.03
+    tol_ratio = 0.01
     return (
         df.filter(
             pl.col("inchi1").is_in(target_set)
@@ -797,9 +759,9 @@ def retrieve_vle_ternary_tx_fixed_data(
         )
         .with_columns(
             [
-                get_col_map_p2(i1, "mole_fraction_c").alias("x_m1"),
-                get_col_map_p2(i2, "mole_fraction_c").alias("x_m2"),
-                get_col_map_p2(i3, "mole_fraction_c").alias("x_m3"),
+                _get_col_map_p2(i1, "mole_fraction_c").alias("x_m1"),
+                _get_col_map_p2(i2, "mole_fraction_c").alias("x_m2"),
+                _get_col_map_p2(i3, "mole_fraction_c").alias("x_m3"),
             ]
         )
         .with_columns(
@@ -815,4 +777,17 @@ def retrieve_vle_ternary_tx_fixed_data(
         .select("x_m1", "P_kPa")
         .sort("x_m1")
         .to_numpy()
+    )
+
+
+# Function to map liquid phase composition (p2) based on inchi match
+def _get_col_map_p2(target_inchi, col_prefix):
+    return (
+        pl.when(pl.col("inchi1") == target_inchi)
+        .then(pl.col(f"{col_prefix}1p2"))
+        .otherwise(
+            pl.when(pl.col("inchi2") == target_inchi)
+            .then(pl.col(f"{col_prefix}2p2"))
+            .otherwise(pl.col(f"{col_prefix}3p2"))
+        )
     )

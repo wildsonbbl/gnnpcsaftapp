@@ -503,12 +503,12 @@ class MixtureLayout(BoxLayout):
                     if vle_tx_data_t is not None and len(vle_tx_data_t) > 0:
                         dropdown_vletx_t = DropDown()
                         for row in vle_tx_data_t:
-                            # [T_K, x1, x2, P_min, P_max, count]
+                            # [T_K, solvent_ratio, P_min, P_max, count]
                             btn = Button(
                                 text=(
                                     f"VLE P-x: T={row[0]:.2f} K, "
-                                    f"x=[{row[1]:.2f}, {row[2]:.2f}] "
-                                    f"({int(row[5])} points)"
+                                    f"x2/(x2+x3)={row[1]:.2f} "
+                                    f"({int(row[4])} points)"
                                 ),
                                 size_hint_y=None,
                                 height=44,
@@ -517,8 +517,8 @@ class MixtureLayout(BoxLayout):
                                 on_release=lambda btn, r=row: (
                                     self._fill_inputs_ternary(
                                         t_min=r[0],
-                                        x1=r[1],
-                                        x2=r[2],
+                                        x1=0.0,
+                                        x2=1.0 * r[1],
                                     ),
                                     dropdown_vletx_t.dismiss(),
                                 )
