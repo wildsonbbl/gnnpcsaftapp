@@ -156,3 +156,56 @@ def mix_ternary_lle(
         state=[temperature, pressure],
         kij_matrix=kij_matrix,
     )
+
+
+def mix_ternary_vle_tx_fixed(
+    smiles_list: List[str],
+    kij_matrix: List[List[float]],
+    temperature: float,
+    solvent_ratio: float,
+    n_points: int = 25,
+) -> Tuple[List[float], List[float], List[float]]:
+    """
+    Calculate ternary isothermal VLE curve (P-x) at fixed solvent ratio.
+
+    solvent_ratio = x2 / (x2 + x3). The first component is scanned in composition.
+    """
+    parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
+
+    if not 0.0 < solvent_ratio < 1.0:
+        raise ValueError("For ternary P-x, solvent ratio must be between 0 and 1")
+
+    x1_grid = np.linspace(1e-4, 0.98, num=n_points)
+
+    x1_values = []
+    bubble_pressures = []
+    dew_pressures = []
+
+    for x1 in x1_grid:
+        remaining = 1.0 - x1
+        x2 = remaining * solvent_ratio
+        x3 = remaining * (1.0 - solvent_ratio)
+
+        if x2 <= 0.0 or x3 <= 0.0:
+            continue
+
+        try:
+            bubble_p, dew_p = mix_vp_feos(
+                parameters=parameters_list,
+                state=[temperature, 0.0, float(x1), float(x2), float(x3)],
+                kij_matrix=kij_matrix,
+            )
+        except (RuntimeError, ValueError):
+            continue
+
+        if (
+            np.isfinite(bubble_p)
+            and np.isfinite(dew_p)
+            and bubble_p > 0.0
+            and dew_p > 0.0
+        ):
+            x1_values.append(float(x1))
+            bubble_pressures.append(float(bubble_p))
+            dew_pressures.append(float(dew_p))
+
+    return x1_values, bubble_pressures, dew_pressures

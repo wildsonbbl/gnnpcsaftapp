@@ -31,8 +31,17 @@ from utils_data import (
     retrieve_vle_binary_data,
     retrieve_vle_pxy_binary_data,
     retrieve_vle_ternary_data,
+    retrieve_vle_ternary_tx_fixed_data,
 )
-from utils_mix import mix_den, mix_lle, mix_ternary_lle, mix_vle, mix_vle_pxy, mix_vp
+from utils_mix import (
+    mix_den,
+    mix_lle,
+    mix_ternary_lle,
+    mix_ternary_vle_tx_fixed,
+    mix_vle,
+    mix_vle_pxy,
+    mix_vp,
+)
 
 
 class MixtureScreen(Screen):
@@ -414,13 +423,18 @@ class MixtureLayout(BoxLayout):
             elif len(smiles_list) == 3:
                 # Check for ternary data availability
                 try:
-                    rho_data_t, lle_data_t, vle_data_t = (
+                    rho_data_t, lle_data_t, vle_data_t, vle_tx_data_t = (
                         retrieve_available_data_ternary(smiles_list)
                     )
 
                     if any(
                         (exp_data is not None and len(exp_data) > 0)
-                        for exp_data in [rho_data_t, lle_data_t, vle_data_t]
+                        for exp_data in [
+                            rho_data_t,
+                            lle_data_t,
+                            vle_data_t,
+                            vle_tx_data_t,
+                        ]
                     ):
                         self.predicted_parameters.add_widget(
                             Label(
@@ -439,7 +453,8 @@ class MixtureLayout(BoxLayout):
                         for row in rho_data_t:
                             # [P_kPa, x1, x2, T_min, T_max, count]
                             btn = Button(
-                                text=f"P={row[0]:.5g} kPa, x=[{row[1]:.2f}, {row[2]:.2f}] ({int(row[5])} points)",
+                                text=f"P={row[0]:.5g} kPa, x=[{row[1]:.2f}, {row[2]:.2f}] "
+                                f"({int(row[5])} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -472,7 +487,8 @@ class MixtureLayout(BoxLayout):
                         for row in lle_data_t:
                             # [P_kPa, T_K, count]
                             btn = Button(
-                                text=f"LLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K ({int(row[2])} points)",
+                                text=f"LLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K "
+                                f"({int(row[2])} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -504,7 +520,8 @@ class MixtureLayout(BoxLayout):
                         for row in vle_data_t:
                             # [P_kPa, T_K, count]
                             btn = Button(
-                                text=f"VLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K ({int(row[2])} points)",
+                                text=f"VLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K "
+                                f"({int(row[2])} points)",
                                 size_hint_y=None,
                                 height=44,
                             )
@@ -528,6 +545,43 @@ class MixtureLayout(BoxLayout):
                             background_color=(0.1, 0.5, 0.8, 1),
                         )
                         main_button.bind(on_release=dropdown_vlet.open)  # type: ignore pylint: disable=no-member
+                        self.predicted_parameters.add_widget(main_button)
+
+                    # VLE Data (Ternary T+x fixed)
+                    if vle_tx_data_t is not None and len(vle_tx_data_t) > 0:
+                        dropdown_vletx_t = DropDown()
+                        for row in vle_tx_data_t:
+                            # [T_K, x1, x2, P_min, P_max, count]
+                            btn = Button(
+                                text=(
+                                    f"VLE P-x: T={row[0]:.2f} K, "
+                                    f"x=[{row[1]:.2f}, {row[2]:.2f}] "
+                                    f"({int(row[5])} points)"
+                                ),
+                                size_hint_y=None,
+                                height=44,
+                            )
+                            btn.bind(  # type: ignore pylint: disable=no-member
+                                on_release=lambda btn, r=row: (
+                                    self._fill_inputs_ternary(
+                                        t_min=r[0],
+                                        x1=r[1],
+                                        x2=r[2],
+                                    ),
+                                    dropdown_vletx_t.dismiss(),
+                                )
+                            )
+                            dropdown_vletx_t.add_widget(btn)
+
+                        main_button = Button(
+                            text="Select Ternary VLE P-x Data",
+                            size_hint_y=None,
+                            height=44,
+                            size_hint_x=0.4,
+                            pos_hint={"center_x": 0.5},
+                            background_color=(0.1, 0.5, 0.8, 1),
+                        )
+                        main_button.bind(on_release=dropdown_vletx_t.open)  # type: ignore pylint: disable=no-member
                         self.predicted_parameters.add_widget(main_button)
 
                 except (ValueError, RuntimeError):
@@ -898,6 +952,65 @@ class MixtureLayout(BoxLayout):
                 a_label=smiles_list[0],
                 b_label=smiles_list[1],
                 legends=["Phase 1", "Phase 2"],
+                exp_data=exp_data,
+            )
+        except (ValueError, RuntimeError) as e:
+            self._show_error_alert(e)
+
+    def on_plot_ternary_vle_tx_fixed(self):
+        "plot ternary VLE P-x at fixed T and fixed solvent ratio"
+        try:
+            smiles_list = self._get_smiles()
+            if len(smiles_list) != 3:
+                raise ValueError(
+                    f"Ternary VLE P-x, got {len(smiles_list)} components instead"
+                )
+
+            n = len(smiles_list)
+            fractions = self._get_fractions(n)
+            kij_matrix = self._get_kij(n)
+            t_min, _ = self._get_temperatures(require_max=False)
+
+            solvent_pool = fractions[1] + fractions[2]
+            if solvent_pool <= 0.0:
+                raise ValueError(
+                    "For ternary VLE P-x, fractions for components 2 and 3 must be > 0"
+                )
+            solvent_ratio = fractions[1] / solvent_pool
+
+            # Retrieve experimental data (isothermal, fixed solvent ratio)
+            exp_data = None
+            try:
+                exp_arr = retrieve_vle_ternary_tx_fixed_data(
+                    smiles_list, t_min, solvent_ratio
+                )
+                if exp_arr is not None and len(exp_arr) > 0:
+                    exp_data = (exp_arr[:, 0], exp_arr[:, 1] * 1000.0, "Exp. data")
+            except (ValueError, RuntimeError):
+                pass
+
+            x1_values, bubble_pressures, dew_pressures = mix_ternary_vle_tx_fixed(
+                smiles_list,
+                kij_matrix,
+                t_min,
+                solvent_ratio,
+            )
+
+            if not x1_values:
+                raise RuntimeError(
+                    "No valid VLE points found. Try adjusting temperature or composition"
+                )
+
+            self._generate_plot(
+                x1_values,
+                [bubble_pressures, dew_pressures],
+                (
+                    f"Ternary VLE P-x at {t_min} K\n"
+                    f"Fixed solvent ratio x2/(x2+x3)={solvent_ratio:.3f}"
+                ),
+                f"x({smiles_list[0]})",
+                "Pressure (Pa)",
+                legends=["Bubble Point", "Dew Point"],
                 exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:

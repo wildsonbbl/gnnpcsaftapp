@@ -281,7 +281,7 @@ WindowManager:
     GridLayout:
         cols: 4
         size_hint: 1, None
-        height: 40
+        height: 60
         pos_hint: {"center_x":0.5}
         spacing: 5
         
@@ -316,6 +316,10 @@ WindowManager:
         Button:
             text: 'Ternary VLE/LLE (x1-x2)'
             on_press: root.on_plot_ternary_vle_lle()
+
+        Button:
+            text: 'Ternary VLE P-x (T and x2/x3 fixed)'
+            on_press: root.on_plot_ternary_vle_tx_fixed()
 
     ScrollView:
         size_hint: 1, 1
