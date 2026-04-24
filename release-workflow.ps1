@@ -1,4 +1,13 @@
-$version='v1.4.0'
+$kvFile = Join-Path $PSScriptRoot 'app/gnnpcsaft.kv'
+$versionNumber = Select-String -Path $kvFile -Pattern 'text:\s*"Version:\s*([0-9]+\.[0-9]+\.[0-9]+)"' |
+	Select-Object -First 1 |
+	ForEach-Object { $_.Matches[0].Groups[1].Value }
+
+if (-not $versionNumber) {
+	throw "Could not find version in $kvFile"
+}
+
+$version = "v$versionNumber"
 $platform='windows'
 
 ## create tag and release

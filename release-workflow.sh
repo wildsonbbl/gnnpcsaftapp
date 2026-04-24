@@ -1,4 +1,13 @@
-version=v1.4.0
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+kv_file="$script_dir/app/gnnpcsaft.kv"
+version_number="$(sed -nE 's/^[[:space:]]*text:[[:space:]]*"Version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' "$kv_file" | head -n 1)"
+
+if [ -z "$version_number" ]; then
+	echo "Could not find version in $kv_file" >&2
+	exit 1
+fi
+
+version="v$version_number"
 platform=ubuntu
 
 ## create tag and release
