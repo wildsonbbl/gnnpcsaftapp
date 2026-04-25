@@ -9,6 +9,7 @@ if (-not $versionNumber) {
 
 $version = "v$versionNumber"
 $platform='windows'
+$installerName = "gnnpcsaft-$version-$platform.msi"
 
 ## create tag and release
 git tag $version
@@ -18,8 +19,35 @@ gh release create -d --generate-notes --latest --verify-tag $version
 ## create package
 uv pip install -r requirements.txt
 uv run pyinstaller --distpath ./app_pkg/dist --workpath ./app_pkg/build --noconfirm --clean ./gnnpcsaft.spec
-cd ./app_pkg/dist/gnnpcsaft
-zip -r gnnpcsaft-$version-$platform.zip ./*
+
+$distDir = Join-Path $PSScriptRoot 'app_pkg/dist/gnnpcsaft'
+if (-not (Test-Path $distDir)) {
+	throw "Could not find PyInstaller dist directory at $distDir"
+}
+
+$installerOutputDir = Join-Path $PSScriptRoot 'app_pkg/dist/installer'
+$wixWorkDir = Join-Path $PSScriptRoot 'app_pkg/dist/wix'
+$productWxs = Join-Path $PSScriptRoot 'gnnpcsaft-product.wxs'
+
+Remove-Item -Path $installerOutputDir -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $installerOutputDir -Force | Out-Null
+Remove-Item -Path $wixWorkDir -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $wixWorkDir -Force | Out-Null
+
+$installerArtifact = Join-Path $installerOutputDir $installerName
+$wixCommand = Get-Command wix.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+
+if ($wixCommand) {
+	$wixExe = if ($wixCommand.Source) { $wixCommand.Source } else { $wixCommand.Path }
+	& $wixExe build $productWxs -arch x64 -d "ProductVersion=$versionNumber" -d "SourceDir=$distDir" -o $installerArtifact
+	if ($LASTEXITCODE -ne 0) {
+		throw 'WiX build failed while generating MSI with wix.exe'
+	}
+}
+
+if (-not (Test-Path $installerArtifact)) {
+	throw "Could not find generated installer at $installerArtifact"
+}
 
 ## add artifact to release
-gh release upload $version gnnpcsaft-$version-$platform.zip
+gh release upload $version $installerArtifact
