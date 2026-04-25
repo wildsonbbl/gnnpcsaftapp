@@ -39,7 +39,7 @@ $wixCommand = Get-Command wix.exe -ErrorAction SilentlyContinue | Select-Object 
 
 if ($wixCommand) {
 	$wixExe = if ($wixCommand.Source) { $wixCommand.Source } else { $wixCommand.Path }
-	& $wixExe build $productWxs -arch x64 -d "ProductVersion=$versionNumber" -d "SourceDir=$distDir" -o $installerArtifact
+	& $wixExe build $productWxs -arch x64 -d "ProductVersion=$versionNumber" -d "SourceDir=$distDir" -d "ProjectDir=$PSScriptRoot" -o $installerArtifact
 	if ($LASTEXITCODE -ne 0) {
 		throw 'WiX build failed while generating MSI with wix.exe'
 	}
