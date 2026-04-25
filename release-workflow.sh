@@ -32,6 +32,8 @@ mkdir -p "$pkg_root/DEBIAN" "$pkg_root/opt/$package_name" "$pkg_root/usr/bin"
 cp -a "$dist_dir/." "$pkg_root/opt/$package_name/"
 ln -sf "/opt/$package_name/$package_name" "$pkg_root/usr/bin/$package_name"
 
+installed_size="$(du -sk "$pkg_root/opt/$package_name" | awk '{print $1}')"
+
 cat > "$pkg_root/DEBIAN/control" <<EOF
 Package: $package_name
 Version: $version_number
@@ -39,7 +41,10 @@ Section: utils
 Priority: optional
 Architecture: $arch
 Maintainer: Wildson B. B. Lima <wil_bbl@hotmail.com>
+Homepage: https://github.com/wildsonbbl/gnnpcsaftapp
+Installed-Size: $installed_size
 Description: GNNPCSAFT desktop application
+ Graph Neural Network + PC-SAFT desktop application for thermodynamic modeling.
 EOF
 
 dpkg-deb --build "$pkg_root" "$script_dir/app_pkg/dist/$deb_file"
