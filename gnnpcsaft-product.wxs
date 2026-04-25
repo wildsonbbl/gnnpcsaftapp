@@ -3,6 +3,8 @@
     Manufacturer="Wildson B. B. Lima" UpgradeCode="{C3A0E4D1-7C7C-4B7B-9C2B-4E6C6E18A9E4}">
     <MajorUpgrade DowngradeErrorMessage="A newer version of gnnpcsaft is already installed." />
     <MediaTemplate EmbedCab="yes" />
+    <Icon Id="AppIcon" SourceFile="app/icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
     <Property Id="ARPCONTACT" Value="wil_bbl@hotmail.com" />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/wildsonbbl/gnnpcsaftapp" />
     <Property Id="ARPHELPLINK" Value="https://github.com/wildsonbbl/gnnpcsaftapp/issues" />

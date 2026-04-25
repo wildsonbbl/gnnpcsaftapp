@@ -25,14 +25,36 @@ uv run pyinstaller --distpath ./app_pkg/dist --workpath ./app_pkg/build --noconf
 
 dist_dir="$script_dir/app_pkg/dist/gnnpcsaft"
 pkg_root="$script_dir/app_pkg/dist/deb_pkg"
+icon_src="$script_dir/app/512.png"
 
 rm -rf "$pkg_root"
-mkdir -p "$pkg_root/DEBIAN" "$pkg_root/opt/$package_name" "$pkg_root/usr/bin"
+mkdir -p \
+	"$pkg_root/DEBIAN" \
+	"$pkg_root/opt/$package_name" \
+	"$pkg_root/usr/bin" \
+	"$pkg_root/usr/share/applications" \
+	"$pkg_root/usr/share/icons/hicolor/512x512/apps"
 
 cp -a "$dist_dir/." "$pkg_root/opt/$package_name/"
 ln -sf "/opt/$package_name/$package_name" "$pkg_root/usr/bin/$package_name"
+cp "$icon_src" "$pkg_root/usr/share/icons/hicolor/512x512/apps/$package_name.png"
 
-installed_size="$(du -sk "$pkg_root/opt/$package_name" | awk '{print $1}')"
+cat > "$pkg_root/usr/share/applications/$package_name.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=gnnpcsaft
+Comment=GNNPCSAFT desktop application
+Exec=$package_name
+Icon=$package_name
+Terminal=false
+Categories=Science;Education;
+EOF
+
+chmod 644 \
+	"$pkg_root/usr/share/icons/hicolor/512x512/apps/$package_name.png" \
+	"$pkg_root/usr/share/applications/$package_name.desktop"
+
+installed_size="$(du -sk "$pkg_root" | awk '{print $1}')"
 
 cat > "$pkg_root/DEBIAN/control" <<EOF
 Package: $package_name
