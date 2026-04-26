@@ -49,3 +49,4 @@ jobs:
           files: app_pkg/dist/installer/*.msi
           fail_on_unmatched_files: true
           generate_release_notes: true
+          draft: true
