@@ -1,6 +1,7 @@
 name: Release Ubuntu DEB
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*.*.*"
