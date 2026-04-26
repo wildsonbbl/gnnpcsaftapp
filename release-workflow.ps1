@@ -1,3 +1,7 @@
+param(
+	[switch]$SkipUpload
+)
+
 $kvFile = Join-Path $PSScriptRoot 'app/gnnpcsaft.kv'
 $versionNumber = Select-String -Path $kvFile -Pattern 'text:\s*"Version:\s*([0-9]+\.[0-9]+\.[0-9]+)"' |
 	Select-Object -First 1 |
@@ -11,14 +15,14 @@ $version = "v$versionNumber"
 $platform='windows'
 $installerName = "gnnpcsaft-$version-$platform.msi"
 
-## create tag and release
-git tag $version
-git push origin $version
-gh release create -d --generate-notes --latest --verify-tag $version
+# ## create tag and release
+# git tag $version
+# git push origin $version
+# gh release create -d --generate-notes --latest --verify-tag $version
 
-## create package
-uv pip install -r requirements.txt
-uv run pyinstaller --distpath ./app_pkg/dist --workpath ./app_pkg/build --noconfirm --clean ./gnnpcsaft.spec
+# ## create package
+# uv pip install -r requirements.txt
+# uv run pyinstaller --distpath ./app_pkg/dist --workpath ./app_pkg/build --noconfirm --clean ./gnnpcsaft.spec
 
 $distDir = Join-Path $PSScriptRoot 'app_pkg/dist/gnnpcsaft'
 if (-not (Test-Path $distDir)) {
@@ -39,7 +43,7 @@ $wixCommand = Get-Command wix.exe -ErrorAction SilentlyContinue | Select-Object 
 
 if ($wixCommand) {
 	$wixExe = if ($wixCommand.Source) { $wixCommand.Source } else { $wixCommand.Path }
-	& $wixExe build $productWxs -arch x64 -d "ProductVersion=$versionNumber" -d "SourceDir=$distDir" -d "ProjectDir=$PSScriptRoot" -o $installerArtifact
+	& $wixExe build --acceptEula wix7 $productWxs -arch x64 -d "ProductVersion=$versionNumber" -d "SourceDir=$distDir" -d "ProjectDir=$PSScriptRoot" -o $installerArtifact
 	if ($LASTEXITCODE -ne 0) {
 		throw 'WiX build failed while generating MSI with wix.exe'
 	}
@@ -50,4 +54,6 @@ if (-not (Test-Path $installerArtifact)) {
 }
 
 ## add artifact to release
-gh release upload $version $installerArtifact
+if (-not $SkipUpload) {
+	gh release upload $version $installerArtifact
+}
