@@ -20,9 +20,9 @@ $installerName = "gnnpcsaft-$version-$platform.msi"
 # git push origin $version
 # gh release create -d --generate-notes --latest --verify-tag $version
 
-# ## create package
-# uv pip install -r requirements.txt
-# uv run pyinstaller --distpath ./app_pkg/dist --workpath ./app_pkg/build --noconfirm --clean ./gnnpcsaft.spec
+## create package
+uv pip install -r requirements.txt
+uv run pyinstaller --distpath ./app_pkg/dist --workpath ./app_pkg/build --noconfirm --clean ./gnnpcsaft.spec
 
 $distDir = Join-Path $PSScriptRoot 'app_pkg/dist/gnnpcsaft'
 if (-not (Test-Path $distDir)) {
