@@ -1,6 +1,11 @@
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 kv_file="$script_dir/app/gnnpcsaft.kv"
 version_number="$(sed -nE 's/^[[:space:]]*text:[[:space:]]*"Version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' "$kv_file" | head -n 1)"
+skip_upload=false
+
+if [ "${1:-}" = "--skip-upload" ]; then
+	skip_upload=true
+fi
 
 set -euo pipefail
 
@@ -72,4 +77,6 @@ EOF
 dpkg-deb --build "$pkg_root" "$script_dir/app_pkg/dist/$deb_file"
 
 ## add artifact to release
-gh release upload "$version" "$script_dir/app_pkg/dist/$deb_file"
+if [ "$skip_upload" != true ]; then
+	gh release upload "$version" "$script_dir/app_pkg/dist/$deb_file"
+fi
