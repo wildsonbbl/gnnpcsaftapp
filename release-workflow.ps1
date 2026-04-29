@@ -30,13 +30,10 @@ if (-not (Test-Path $distDir)) {
 }
 
 $installerOutputDir = Join-Path $PSScriptRoot 'app_pkg/dist/installer'
-$wixWorkDir = Join-Path $PSScriptRoot 'app_pkg/dist/wix'
 $productWxs = Join-Path $PSScriptRoot 'gnnpcsaft-product.wxs'
 
 Remove-Item -Path $installerOutputDir -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $installerOutputDir -Force | Out-Null
-Remove-Item -Path $wixWorkDir -Recurse -Force -ErrorAction SilentlyContinue
-New-Item -ItemType Directory -Path $wixWorkDir -Force | Out-Null
 
 $installerArtifact = Join-Path $installerOutputDir $installerName
 $wixCommand = Get-Command wix.exe -ErrorAction SilentlyContinue | Select-Object -First 1
