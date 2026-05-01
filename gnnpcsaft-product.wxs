@@ -1,5 +1,5 @@
 ﻿<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="gnnpcsaft" Language="1033" Version="$(var.ProductVersion)"
+  <Package Name="GNNPCSAFT" Language="1033" Version="$(var.ProductVersion)"
     Manufacturer="Wildson B. B. Lima" UpgradeCode="{C3A0E4D1-7C7C-4B7B-9C2B-4E6C6E18A9E4}">
     <MajorUpgrade DowngradeErrorMessage="A newer version of gnnpcsaft is already installed." />
     <MediaTemplate EmbedCab="yes" />
