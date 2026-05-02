@@ -17,4 +17,4 @@ Other implementations with GNNPCSAFT:
 
 ---
 
-To install the GNNPCSAFT app, download the appropriate latest release from the [Releases](https://github.com/wildsonbbl/gnnpcsaftapp/releases), unzip the file, and run the executable for your operating system (Linux or Windows).
+To install the GNNPCSAFT app, download the appropriate latest release from the [Releases](https://github.com/wildsonbbl/gnnpcsaftapp/releases).
