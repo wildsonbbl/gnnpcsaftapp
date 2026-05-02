@@ -56,8 +56,13 @@ def mix_vp(
             state=[temp, 0] + mole_fractions,
             kij_matrix=kij_matrix,
         )
-        buble_points.append(x_bubble)
-        dew_point.append(y_dew)
+        if x_bubble > y_dew:
+            buble_points.append(x_bubble)
+            dew_point.append(y_dew)
+        else:
+            buble_points.append(y_dew)
+            dew_point.append(x_bubble)
+
     return temperatures, buble_points, dew_point
 
 
