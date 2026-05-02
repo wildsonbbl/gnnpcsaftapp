@@ -68,10 +68,10 @@ class MixtureLayout(BoxLayout):
         self.predicted_parameters.add_widget(error_message)
 
     def _generate_plot(
-        self, x_data, y_datas, title, x_label, y_label, legends=None, exp_data=None
+        self, x_datas, y_datas, title, x_label, y_label, legends=None, exp_data=None
     ):
         try:
-            generate_plot(x_data, y_datas, title, x_label, y_label, legends, exp_data)
+            generate_plot(x_datas, y_datas, title, x_label, y_label, legends, exp_data)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
