@@ -130,12 +130,20 @@ def _get_ternary_lle_data(
             except (RuntimeError, ValueError):
                 continue
             # For LLE, y is one phase and x is the other phase
-            ternary_data["x0"].extend(lle["x0"])
-            ternary_data["x1"].extend(lle["x1"])
-            ternary_data["x2"].extend(lle["x2"])
-            ternary_data["y0"].extend(lle["y0"])
-            ternary_data["y1"].extend(lle["y1"])
-            ternary_data["y2"].extend(lle["y2"])
+            if lle["density liquid"][0] > lle["density vapor"][0]:
+                ternary_data["x0"].extend(lle["x0"])
+                ternary_data["x1"].extend(lle["x1"])
+                ternary_data["x2"].extend(lle["x2"])
+                ternary_data["y0"].extend(lle["y0"])
+                ternary_data["y1"].extend(lle["y1"])
+                ternary_data["y2"].extend(lle["y2"])
+            else:
+                ternary_data["x0"].extend(lle["y0"])
+                ternary_data["x1"].extend(lle["y1"])
+                ternary_data["x2"].extend(lle["y2"])
+                ternary_data["y0"].extend(lle["x0"])
+                ternary_data["y1"].extend(lle["x1"])
+                ternary_data["y2"].extend(lle["x2"])
         return ternary_data
 
     x1, x2, x3, mask = _grid()
