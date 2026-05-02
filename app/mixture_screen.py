@@ -770,21 +770,13 @@ class MixtureLayout(BoxLayout):
             except (ValueError, RuntimeError):
                 pass
 
-            output = mix_vle_pxy(smiles_list, kij_matrix, t_min)
-
-            # Check density for correct phase assignment
-            dens_l = output["density liquid"]
-            dens_v = output["density vapor"]
-            # For P-x-y, higher pressure usually liquid
-            is_normal = sum(l > v for l, v in zip(dens_l, dens_v)) > len(dens_l) / 2
+            x0s, bps, dps = mix_vle_pxy(
+                smiles_list, kij_matrix, t_min, exp_data and exp_data[0].tolist()
+            )
 
             self._generate_plot(
-                list(
-                    (output["x0"], output["y0"])
-                    if is_normal
-                    else (output["y0"], output["x0"])
-                ),
-                output.get("pressure", output.get("pressure vapor", [0])),
+                x0s,
+                [bps, dps],
                 f"VLE P-x-y for {smiles_list[0]} at {t_min} K",
                 "x,y",
                 "Pressure (Pa)",

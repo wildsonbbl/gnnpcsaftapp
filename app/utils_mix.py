@@ -1,6 +1,6 @@
 "Mixture screen utilities"
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from gnnepcsaft.pcsaft.pcsaft_feos import (
@@ -8,7 +8,6 @@ from gnnepcsaft.pcsaft.pcsaft_feos import (
     mix_lle_diagram_feos,
     mix_lle_feos,
     mix_vle_diagram_feos,
-    mix_vle_pxy_diagram_feos,
     mix_vp_feos,
 )
 from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
@@ -83,13 +82,40 @@ def mix_vle_pxy(
     smiles_list: List[str],
     kij_matrix: List[List[float]],
     temperature: float,
-) -> Dict[str, List[float]]:
+    mole_fractions: Optional[List[float]] = None,
+) -> Tuple[List[float], List[float], List[float]]:
     "Calculate mixture VLE (P-x-y) using PC-SAFT EOS"
     parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
+    x0s = np.linspace(0.0, 1.0, num=52, dtype=np.float64).tolist()
+    if mole_fractions:
+        x0s.extend(mole_fractions)
+        x0s = sorted(x0s)
 
-    return mix_vle_pxy_diagram_feos(
-        parameters=parameters_list, temperature=temperature, kij_matrix=kij_matrix
-    )
+    bps = []
+    dps = []
+    xs = []
+
+    for x0 in x0s:
+        try:
+            bp, dp = mix_vp_feos(
+                parameters=parameters_list,
+                state=[temperature, np.nan, x0, 1 - x0],
+                kij_matrix=kij_matrix,
+            )
+            if bp > dp:
+                bps.append(bp)
+                dps.append(dp)
+            else:
+                bps.append(dp)
+                dps.append(bp)
+            xs.append(x0)
+        except RuntimeError:
+            pass
+        except BaseException as e:  # pylint: disable=W0718
+            if e.__class__.__name__ != "PanicException":
+                raise
+
+    return xs, bps, dps
 
 
 def mix_lle(
