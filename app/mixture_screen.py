@@ -780,7 +780,7 @@ class MixtureLayout(BoxLayout):
                 f"VLE P-x-y for {smiles_list[0]} at {t_min} K",
                 "x,y",
                 "Pressure (Pa)",
-                legends=["Liquid", "Vapor"],
+                legends=["Bubble Point", "Dew Point"],
                 exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:
