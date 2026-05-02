@@ -213,7 +213,11 @@ def mix_ternary_vle_tx_fixed(
             and dew_p > 0.0
         ):
             x1_values.append(float(x1))
-            bubble_pressures.append(float(bubble_p))
-            dew_pressures.append(float(dew_p))
+            if bubble_p > dew_p:
+                bubble_pressures.append(float(bubble_p))
+                dew_pressures.append(float(dew_p))
+            else:
+                bubble_pressures.append(float(dew_p))
+                dew_pressures.append(float(bubble_p))
 
     return x1_values, bubble_pressures, dew_pressures
