@@ -101,25 +101,58 @@ def mix_vle_pxy(
     x0_tc, x0_pc, _ = critical_points_feos(parameters=parameters_list[0])
     x1_tc, x1_pc, _ = critical_points_feos(parameters=parameters_list[1])
 
-    if x0_tc > x1_tc:
-        raise ValueError(
-            f"More volatile component ({smiles_list[1]}) must be listed first in P-x-y calculation",
-        )
-
     if temperature >= x1_tc and temperature >= x0_tc:
         raise ValueError(
             f"Temperature {temperature} K is above the critical temperature "
-            f"of the components, which is {x0_tc:.2f} K and {x1_tc:.2f} K. "
+            f"of both components, which is {x0_tc:.2f} K and {x1_tc:.2f} K. "
             f"VLE calculation is not meaningful.",
+        )
+
+    vp0 = None
+    vp1 = None
+    try:
+        if temperature < x0_tc:
+            vp0 = pure_vp_feos(parameters=parameters_list[0], state=[temperature])
+    except RuntimeError:
+        vp0 = None
+    try:
+        if temperature < x1_tc:
+            vp1 = pure_vp_feos(parameters=parameters_list[1], state=[temperature])
+    except RuntimeError:
+        vp1 = None
+
+    if vp0 is None and vp1 is None:
+        raise ValueError(
+            f"Unable to compute pure vapor pressures at {temperature} K for either component; "
+            "VLE calculation is not meaningful.",
+        )
+
+    # Determina o componente mais volátil pelo valor
+    # da pressão de vapor ou pelo estado supercrítico (T > Tc)
+    more_volatile_is_first = True
+    if vp0 is not None and vp1 is not None:
+        if vp0 < vp1:
+            more_volatile_is_first = False
+    elif vp0 is None and vp1 is not None:
+        # Componente 0 está acima da Tc (não tem VP), logo é efetivamente um gás/mais volátil
+        more_volatile_is_first = True
+    elif vp1 is None and vp0 is not None:
+        # Componente 1 está acima da Tc (não tem VP), logo é efetivamente um gás/mais volátil
+        more_volatile_is_first = False
+
+    if not more_volatile_is_first:
+        raise ValueError(
+            f"More volatile component ({smiles_list[1]}) must be listed first in P-x-y calculation",
         )
 
     min_pc = min(x0_pc, x1_pc)
     max_pc = max(x0_pc, x1_pc)
 
-    xs.append(0.0)
-    pure_vp_x1 = pure_vp_feos(parameters=parameters_list[1], state=[temperature])
-    bps.append(pure_vp_x1)
-    dps.append(pure_vp_x1)
+    # Adicionar ponto puro em x0=0.0 apenas se for seguro calcular VP do componente 1
+    if temperature < x1_tc and vp1 is not None:
+        xs.append(0.0)
+        bps.append(vp1)
+        dps.append(vp1)
 
     for x0 in x0s:
         try:
