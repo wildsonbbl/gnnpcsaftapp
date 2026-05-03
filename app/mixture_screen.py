@@ -725,23 +725,28 @@ class MixtureLayout(BoxLayout):
 
             output = mix_vle(smiles_list, kij_matrix, p_val)
 
-            # Check density for correct phase assignment (Liquid > Vapor)
-            # to fix high-pressure inversions
+            # Check density for correct phase assignment point by point
             dens_l = output["density liquid"]
             dens_v = output["density vapor"]
-            is_normal = sum(l > v for l, v in zip(dens_l, dens_v)) > len(dens_l) / 2
+            x_liquid = []
+            y_vapor = []
+            for x_liq, y_vap, rho_liq, rho_vap in zip(
+                output["x0"], output["y0"], dens_l, dens_v
+            ):
+                if rho_liq > rho_vap:
+                    x_liquid.append(x_liq)
+                    y_vapor.append(y_vap)
+                else:
+                    x_liquid.append(y_vap)
+                    y_vapor.append(x_liq)
 
             self._generate_plot(
-                list(
-                    (output["x0"], output["y0"])
-                    if is_normal
-                    else (output["y0"], output["x0"])
-                ),
+                [x_liquid, y_vapor],
                 output["temperature"],
                 f"VLE T-x-y for {smiles_list[0]} at {p_val} Pa",
                 "x,y",
                 "Temperature (K)",
-                legends=["Liquid", "Vapor"],
+                legends=["Bubble Point", "Dew Point"],
                 exp_data=exp_data,
             )
         except (ValueError, RuntimeError) as e:
@@ -801,16 +806,24 @@ class MixtureLayout(BoxLayout):
 
             output = mix_vle(smiles_list, kij_matrix, p_val)
 
+            # Check density for correct phase assignment point by point
             dens_l = output["density liquid"]
             dens_v = output["density vapor"]
-            is_normal = sum(l > v for l, v in zip(dens_l, dens_v)) > len(dens_l) / 2
+            x_liquid = []
+            y_vapor = []
+            for x_liq, y_vap, rho_liq, rho_vap in zip(
+                output["x0"], output["y0"], dens_l, dens_v
+            ):
+                if rho_liq > rho_vap:
+                    x_liquid.append(x_liq)
+                    y_vapor.append(y_vap)
+                else:
+                    x_liquid.append(y_vap)
+                    y_vapor.append(x_liq)
 
             self._generate_plot(
-                *(
-                    (output["x0"], output["y0"])
-                    if is_normal
-                    else (output["y0"], output["x0"])
-                ),
+                x_liquid,
+                y_vapor,
                 f"VLE x-y for {smiles_list[0]} at {p_val} Pa",
                 "x",
                 "y",
