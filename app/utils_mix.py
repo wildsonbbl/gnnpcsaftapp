@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from gnnepcsaft.pcsaft.pcsaft_feos import (
+    critical_points_feos,
     mix_den_feos,
     mix_lle_diagram_feos,
     mix_lle_feos,
@@ -12,6 +13,7 @@ from gnnepcsaft.pcsaft.pcsaft_feos import (
     pure_vp_feos,
 )
 from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
+from kivy.logger import Logger
 
 
 def mix_den(
@@ -96,6 +98,24 @@ def mix_vle_pxy(
     dps = []
     xs = []
 
+    x0_tc, x0_pc, _ = critical_points_feos(parameters=parameters_list[0])
+    x1_tc, x1_pc, _ = critical_points_feos(parameters=parameters_list[1])
+
+    if x0_tc > x1_tc:
+        raise ValueError(
+            f"More volatile component ({smiles_list[1]}) must be listed first in P-x-y calculation",
+        )
+
+    if temperature >= x1_tc and temperature >= x0_tc:
+        raise ValueError(
+            f"Temperature {temperature} K is above the critical temperature "
+            f"of the components, which is {x0_tc:.2f} K and {x1_tc:.2f} K. "
+            f"VLE calculation is not meaningful.",
+        )
+
+    min_pc = min(x0_pc, x1_pc)
+    max_pc = max(x0_pc, x1_pc)
+
     xs.append(0.0)
     pure_vp_x1 = pure_vp_feos(parameters=parameters_list[1], state=[temperature])
     bps.append(pure_vp_x1)
@@ -108,6 +128,24 @@ def mix_vle_pxy(
                 state=[temperature, np.nan, x0, 1 - x0],
                 kij_matrix=kij_matrix,
             )
+            # Reject points whose pressures exceed both components' critical pressures
+            if bp > max_pc or dp > max_pc:
+                Logger.warning(
+                    "mix_vle_pxy: breaking from point beyond both Pc at x0=%.4f: bp=%.2f, dp=%.2f",
+                    x0,
+                    bp,
+                    dp,
+                )
+                break
+
+            # If pressure is between the smaller and larger Pc, keep point but warn
+            if bp > min_pc or dp > min_pc:
+                Logger.warning(
+                    "mix_vle_pxy: point above one component Pc at x0=%.4f: bp=%.2f, dp=%.2f",
+                    x0,
+                    bp,
+                    dp,
+                )
             if bp > dp:
                 bps.append(bp)
                 dps.append(dp)
@@ -115,15 +153,20 @@ def mix_vle_pxy(
                 bps.append(dp)
                 dps.append(bp)
             xs.append(x0)
-        except RuntimeError:
-            pass
+        except RuntimeError as e:
+            Logger.debug("mix_vle_pxy: Runtime error at x0=%.4f: %s", x0, e)
+            continue
         except BaseException as e:  # pylint: disable=W0718
-            if e.__class__.__name__ != "PanicException":
-                raise
-    xs.append(1.0)
-    pure_vp_x0 = pure_vp_feos(parameters=parameters_list[0], state=[temperature])
-    bps.append(pure_vp_x0)
-    dps.append(pure_vp_x0)
+            exception_type = type(e).__name__
+            if exception_type == "PanicException":
+                Logger.warning("mix_vle_pxy: PanicException at x0=%.4f: %s", x0, e)
+                continue
+            Logger.exception(
+                "mix_vle_pxy: unexpected %s at x0=%.4f",
+                exception_type,
+                x0,
+            )
+            raise
 
     return xs, bps, dps
 
