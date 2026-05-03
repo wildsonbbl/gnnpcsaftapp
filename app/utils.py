@@ -170,7 +170,7 @@ def generate_ternary_plot(a, b, title, a_label, b_label, legends=None, exp_data=
 
     # Plot Experimental Data
     if exp_data:
-        exp_a, exp_b = exp_data
+        exp_a, exp_b, exp_label = exp_data
         plt.scatter(
             exp_a,
             exp_b,
@@ -178,7 +178,7 @@ def generate_ternary_plot(a, b, title, a_label, b_label, legends=None, exp_data=
             marker="x",
             s=30,
             linewidths=1,
-            label="Exp. Data",
+            label=exp_label,
             zorder=3,
         )
 

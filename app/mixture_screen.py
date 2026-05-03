@@ -719,7 +719,7 @@ class MixtureLayout(BoxLayout):
                 vle_arr = retrieve_vle_binary_data(smiles_list, p_val / 1000.0)
                 if vle_arr is not None and len(vle_arr) > 0:
                     # vle_arr: [T, x_c1]
-                    exp_data = (vle_arr[:, 1], vle_arr[:, 0], "Exp. data")
+                    exp_data = (vle_arr[:, 1], vle_arr[:, 0], "Exp. Bubble P")
             except (ValueError, RuntimeError):
                 pass
 
@@ -771,7 +771,11 @@ class MixtureLayout(BoxLayout):
                 # Returns [P_kPa, x_c1]
                 vle_arr = retrieve_vle_pxy_binary_data(smiles_list, t_min)
                 if vle_arr is not None and len(vle_arr) > 0:
-                    exp_data = (vle_arr[:, 1], vle_arr[:, 0] * 1000.0, "Exp. data")
+                    exp_data = (
+                        vle_arr[:, 1],
+                        vle_arr[:, 0] * 1000.0,
+                        "Exp. Bubble P",
+                    )
             except (ValueError, RuntimeError):
                 pass
 
@@ -852,7 +856,7 @@ class MixtureLayout(BoxLayout):
                 lle_arr = retrieve_lle_binary_data(smiles_list, p_val / 1000.0)
                 if lle_arr is not None and len(lle_arr) > 0:
                     # lle_arr: [T, x_c1]
-                    exp_data = (lle_arr[:, 1], lle_arr[:, 0], "Exp. data")
+                    exp_data = (lle_arr[:, 1], lle_arr[:, 0], "Exp. LLE Data")
             except (ValueError, RuntimeError):
                 pass
 
@@ -889,14 +893,18 @@ class MixtureLayout(BoxLayout):
                 # Try LLE first
                 exp_arr = retrieve_lle_ternary_data(smiles_list, p_val / 1000.0, t_min)
                 if exp_arr is not None and len(exp_arr) > 0:
-                    exp_data = (exp_arr[:, 0], exp_arr[:, 1])
+                    exp_data = (exp_arr[:, 0], exp_arr[:, 1], "Exp. LLE Data")
                 else:
                     # Try VLE
                     exp_arr_vle = retrieve_vle_ternary_data(
                         smiles_list, p_val / 1000.0, t_min
                     )
                     if exp_arr_vle is not None and len(exp_arr_vle) > 0:
-                        exp_data = (exp_arr_vle[:, 0], exp_arr_vle[:, 1])
+                        exp_data = (
+                            exp_arr_vle[:, 0],
+                            exp_arr_vle[:, 1],
+                            "Exp. Bubble P",
+                        )
             except (ValueError, RuntimeError):
                 pass
 
@@ -942,7 +950,7 @@ class MixtureLayout(BoxLayout):
                     smiles_list, t_min, solvent_ratio
                 )
                 if exp_arr is not None and len(exp_arr) > 0:
-                    exp_data = (exp_arr[:, 0], exp_arr[:, 1] * 1000.0, "Exp. data")
+                    exp_data = (exp_arr[:, 0], exp_arr[:, 1] * 1000.0, "Exp. Bubble P")
             except (ValueError, RuntimeError):
                 pass
 
