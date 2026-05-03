@@ -1,10 +1,15 @@
 "General utility"
 
+import functools
 import re
+import threading
 
 import matplotlib.pyplot as plt
 from gnnepcsaft_mcp_server.utils import inchitosmiles, smilestoinchi
 from kivy.app import App
+from kivy.clock import mainthread
+from kivy.uix.label import Label
+from kivy.uix.popup import Popup
 
 available_params = [
     "Segment number",
@@ -23,6 +28,54 @@ available_params = [
 
 
 MARKERS = ("o", "v", "s", "<", ">", "*", "^", "p", "P", "D")
+
+
+def run_with_loading(func):
+    """
+    Decorator to run a function in a background thread while showing a loading popup.
+    """
+
+    @functools.wraps(func)
+    def wrapper(self, *args, **kwargs):
+        # Create the popup only once on main thread
+        popup = Popup(
+            title="Processing",
+            content=Label(
+                text="Calculating...\nThis may take a while.",
+                halign="center",
+                color=(0, 0, 0, 1),
+            ),
+            title_color=(0, 0, 0, 1),
+            background="",
+            background_color=(1, 1, 1, 1),
+            size_hint=(None, None),
+            size=(300, 200),
+            auto_dismiss=False,
+        )
+        popup.open()
+
+        def background_task():
+            try:
+                func(self, *args, **kwargs)
+            except (RuntimeError, ValueError) as exc:
+
+                @mainthread
+                def show_err(err=exc):
+                    if hasattr(self, "_show_error_alert"):
+                        self._show_error_alert(err)
+
+                show_err()
+            finally:
+
+                @mainthread
+                def dismiss():
+                    popup.dismiss()
+
+                dismiss()
+
+        threading.Thread(target=background_task, daemon=True).start()
+
+    return wrapper
 
 
 def get_smiles_from_input(input_text):

@@ -4,6 +4,7 @@ from copy import copy
 
 from gnnepcsaft.pcsaft.pcsaft_feos import critical_points_feos
 from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
+from kivy.clock import mainthread
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
@@ -11,7 +12,12 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
-from utils import available_params, generate_plot, get_smiles_from_input
+from utils import (
+    available_params,
+    generate_plot,
+    get_smiles_from_input,
+    run_with_loading,
+)
 from utils_data import (
     retrieve_available_data_pure,
     retrieve_rho_pure_data,
@@ -40,6 +46,7 @@ class PureLayout(BoxLayout):
     pressure = ObjectProperty(None)
     predicted_parameters = ObjectProperty(None)
 
+    @mainthread
     def _generate_plot(
         self, x_data, y_data, title, x_label, y_label, legends=None, exp_data=None
     ):
@@ -77,6 +84,7 @@ class PureLayout(BoxLayout):
         except ValueError as e:
             raise ValueError("Pressure must be a numeric value") from e
 
+    @mainthread
     def _show_error_alert(self, e):
         error_message = Label(
             text=f"Error: {str(e)}",
@@ -98,6 +106,7 @@ class PureLayout(BoxLayout):
         if t_max is not None:
             self.temp_max.text = str(t_max)
 
+    @run_with_loading
     def on_plot_density(self):
         "plot density vs temperature"
         try:
@@ -126,6 +135,7 @@ class PureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_vp(self):
         "plot vapor pressure vs temperature"
         try:
@@ -154,6 +164,7 @@ class PureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_hlv(self):
         "plot enthalpy of vaporization vs temperature"
         try:
@@ -171,6 +182,7 @@ class PureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_surface_tension(self):
         "plot surface tension vs temperature"
         try:
@@ -199,6 +211,7 @@ class PureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_phase_diagram_t_rho(self):
         "plot phase diagram for temperature vs density"
         try:
@@ -217,6 +230,7 @@ class PureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_phase_diagram_p_rho(self):
         "plot phase diagram for pressure vs density"
         try:
@@ -235,18 +249,34 @@ class PureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_submit(self):
         "handle submit button for pure component parameters"
         smiles_or_inchi_input = self.smiles_or_inchi_input.text
-        self.predicted_parameters.clear_widgets()
+
+        @mainthread
+        def clear_widgets():
+            self.predicted_parameters.clear_widgets()
+
+        clear_widgets()
 
         try:
             smiles = get_smiles_from_input(smiles_or_inchi_input)
 
             # Display Available Data
+            rho_data = []
+            vp_range = [None] * 5
+            st_range = [None] * 5
             try:
                 rho_data, vp_range, st_range = retrieve_available_data_pure(smiles)
+            except (ValueError, RuntimeError):
+                pass  # Fail silently if data retrieval errors, proceed to prediction
 
+            pred = predict_pcsaft_parameters(smiles)
+            pred += critical_points_feos(copy(pred))
+
+            @mainthread
+            def build_ui(rho_data, vp_range, st_range, pred):
                 if (rho_data is not None and len(rho_data) > 0) or (
                     vp_range[0] is not None or st_range[0] is not None
                 ):
@@ -339,73 +369,75 @@ class PureLayout(BoxLayout):
                     self.predicted_parameters.add_widget(main_button)
 
                 self.predicted_parameters.add_widget(Label(size_hint_y=None, height=20))
-            except (ValueError, RuntimeError):
-                pass  # Fail silently if data retrieval errors, proceed to prediction
 
-            pred = predict_pcsaft_parameters(smiles)
-            pred += critical_points_feos(copy(pred))
-
-            # Title
-            title = Label(
-                text="Estimated PC-SAFT parameters",
-                size_hint_y=None,  # changed
-                height=40,  # changed
-                color="#198754",  # Bootstrap text-success
-                font_size=20,
-                bold=True,
-            )
-            self.predicted_parameters.add_widget(title)
-
-            # Table container (Grid)
-            # Calculate required height based on number of rows (header + data)
-            row_height = 30
-            params_count = len(available_params)
-            table_height = (params_count + 1) * row_height
-
-            table = GridLayout(
-                cols=2,
-                size_hint_y=None,
-                height=table_height,
-                spacing=[10, 5],
-            )
-
-            # Headers - Using dark gray for contrast on white
-            table.add_widget(
-                Label(text="Parameter name", bold=True, color="#212529", halign="left")
-            )
-            table.add_widget(
-                Label(
-                    text="Parameter value", bold=True, color="#212529", halign="right"
+                # Title
+                title = Label(
+                    text="Estimated PC-SAFT parameters",
+                    size_hint_y=None,  # changed
+                    height=40,  # changed
+                    color="#198754",  # Bootstrap text-success
+                    font_size=20,
+                    bold=True,
                 )
-            )
+                self.predicted_parameters.add_widget(title)
 
-            # Rows
-            for name, para in zip(available_params, pred):
-                # Parameter Name
-                param_label = Label(text=str(name), color="#212529", halign="left")
-                param_label.bind(  # type: ignore pylint: disable=no-member
-                    size=param_label.setter("text_size")  # type: ignore pylint: disable=no-member
-                )  # Ensure text aligns within widget
-                table.add_widget(param_label)
+                # Table container (Grid)
+                # Calculate required height based on number of rows (header + data)
+                row_height = 30
+                params_count = len(available_params)
+                table_height = (params_count + 1) * row_height
 
-                # Parameter Value
-                param_label_value = Label(
-                    text=f"{para:.5g}", color="#212529", halign="right"
+                table = GridLayout(
+                    cols=2,
+                    size_hint_y=None,
+                    height=table_height,
+                    spacing=[10, 5],
                 )
-                param_label_value.bind(size=param_label_value.setter("text_size"))  # type: ignore pylint: disable=no-member
-                table.add_widget(param_label_value)
 
-            self.predicted_parameters.add_widget(table)
+                # Headers - Using dark gray for contrast on white
+                table.add_widget(
+                    Label(
+                        text="Parameter name", bold=True, color="#212529", halign="left"
+                    )
+                )
+                table.add_widget(
+                    Label(
+                        text="Parameter value",
+                        bold=True,
+                        color="#212529",
+                        halign="right",
+                    )
+                )
 
-            # Footer
-            footer = Label(
-                text="* Not estimated",
-                size_hint_y=None,
-                height=30,
-                color="#6c757d",
-                italic=True,
-            )
-            self.predicted_parameters.add_widget(footer)
+                # Rows
+                for name, para in zip(available_params, pred):
+                    # Parameter Name
+                    param_label = Label(text=str(name), color="#212529", halign="left")
+                    param_label.bind(  # type: ignore pylint: disable=no-member
+                        size=param_label.setter("text_size")  # type: ignore pylint: disable=no-member
+                    )  # Ensure text aligns within widget
+                    table.add_widget(param_label)
 
-        except ValueError as e:
+                    # Parameter Value
+                    param_label_value = Label(
+                        text=f"{para:.5g}", color="#212529", halign="right"
+                    )
+                    param_label_value.bind(size=param_label_value.setter("text_size"))  # type: ignore pylint: disable=no-member
+                    table.add_widget(param_label_value)
+
+                self.predicted_parameters.add_widget(table)
+
+                # Footer
+                footer = Label(
+                    text="* Not estimated",
+                    size_hint_y=None,
+                    height=30,
+                    color="#6c757d",
+                    italic=True,
+                )
+                self.predicted_parameters.add_widget(footer)
+
+            build_ui(rho_data, vp_range, st_range, pred)
+
+        except (RuntimeError, ValueError) as e:
             self._show_error_alert(e)

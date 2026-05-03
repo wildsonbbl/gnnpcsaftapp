@@ -4,6 +4,7 @@ from copy import copy
 
 from gnnepcsaft.pcsaft.pcsaft_feos import critical_points_feos
 from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
+from kivy.clock import mainthread
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
@@ -16,6 +17,7 @@ from utils import (
     generate_plot,
     generate_ternary_plot,
     get_smiles_from_input,
+    run_with_loading,
 )
 from utils_data import (
     retrieve_available_data_binary,
@@ -56,6 +58,7 @@ class MixtureLayout(BoxLayout):
     pressure = ObjectProperty(None)
     predicted_parameters = ObjectProperty(None)
 
+    @mainthread
     def _show_error_alert(self, e):
         error_message = Label(
             text=f"Error: {str(e)}",
@@ -67,6 +70,7 @@ class MixtureLayout(BoxLayout):
         self.predicted_parameters.clear_widgets()
         self.predicted_parameters.add_widget(error_message)
 
+    @mainthread
     def _generate_plot(
         self, x_datas, y_datas, title, x_label, y_label, legends=None, exp_data=None
     ):
@@ -75,6 +79,7 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @mainthread
     def _generate_ternary_plot(
         self, a, b, title, a_label, b_label, legends=None, exp_data=None
     ):
@@ -187,19 +192,72 @@ class MixtureLayout(BoxLayout):
             x3 = max(0.0, 1.0 - x1 - x2)
             self.fractions_input.text = f"{x1:.2f} {x2:.2f} {x3:.2f}"
 
+    @run_with_loading
     def on_submit(self):
         "handle submit button for mixture parameters"
-        self.predicted_parameters.clear_widgets()
+
+        @mainthread
+        def clear_widgets():
+            self.predicted_parameters.clear_widgets()
+
+        clear_widgets()
 
         try:
             smiles_list = self._get_smiles()
 
+            output_args = {
+                "rho_data": None,
+                "bubble_data": None,
+                "lle_data": None,
+                "vle_data": None,
+                "vle_pxy_data": None,
+                "rho_data_t": None,
+                "lle_data_t": None,
+                "vle_data_t": None,
+                "vle_tx_data_t": None,
+                "preds": [],
+            }
+
             if len(smiles_list) == 2:
                 # Check for binary data availability
                 try:
-                    rho_data, bubble_data, lle_data, vle_data, vle_pxy_data = (
-                        retrieve_available_data_binary(smiles_list)
-                    )
+                    (
+                        output_args["rho_data"],
+                        output_args["bubble_data"],
+                        output_args["lle_data"],
+                        output_args["vle_data"],
+                        output_args["vle_pxy_data"],
+                    ) = retrieve_available_data_binary(smiles_list)
+                except (ValueError, RuntimeError):
+                    pass
+
+            elif len(smiles_list) == 3:
+                # Check for ternary data availability
+                try:
+                    (
+                        output_args["rho_data_t"],
+                        output_args["lle_data_t"],
+                        output_args["vle_data_t"],
+                        output_args["vle_tx_data_t"],
+                    ) = retrieve_available_data_ternary(smiles_list)
+                except (ValueError, RuntimeError):
+                    pass
+
+            for smile in smiles_list:
+                pred = predict_pcsaft_parameters(smile)
+                pred += critical_points_feos(copy(pred))
+                output_args["preds"].append((smile, pred))
+
+            @mainthread
+            def build_ui():
+                self.predicted_parameters.clear_widgets()
+
+                if len(smiles_list) == 2:
+                    rho_data = output_args["rho_data"]
+                    bubble_data = output_args["bubble_data"]
+                    lle_data = output_args["lle_data"]
+                    vle_data = output_args["vle_data"]
+                    vle_pxy_data = output_args["vle_pxy_data"]
 
                     if any(
                         (exp_data is not None and len(exp_data) > 0)
@@ -369,15 +427,11 @@ class MixtureLayout(BoxLayout):
                         main_button.bind(on_release=dropdown.open)  # type: ignore pylint: disable=no-member
                         self.predicted_parameters.add_widget(main_button)
 
-                except (ValueError, RuntimeError):
-                    pass
-
-            elif len(smiles_list) == 3:
-                # Check for ternary data availability
-                try:
-                    rho_data_t, lle_data_t, vle_data_t, vle_tx_data_t = (
-                        retrieve_available_data_ternary(smiles_list)
-                    )
+                elif len(smiles_list) == 3:
+                    rho_data_t = output_args["rho_data_t"]
+                    lle_data_t = output_args["lle_data_t"]
+                    vle_data_t = output_args["vle_data_t"]
+                    vle_tx_data_t = output_args["vle_tx_data_t"]
 
                     if any(
                         (exp_data is not None and len(exp_data) > 0)
@@ -536,81 +590,83 @@ class MixtureLayout(BoxLayout):
                         main_button.bind(on_release=dropdown_vletx_t.open)  # type: ignore pylint: disable=no-member
                         self.predicted_parameters.add_widget(main_button)
 
-                except (ValueError, RuntimeError):
-                    pass
+                self.predicted_parameters.add_widget(Label(size_hint_y=None, height=10))
 
-            self.predicted_parameters.add_widget(Label(size_hint_y=None, height=10))
-
-            for smile in smiles_list:
-                pred = predict_pcsaft_parameters(smile)
-                pred += critical_points_feos(copy(pred))
-
-                # Header for this component
-                comp_header = Label(
-                    text=f"Component: {smile}",
-                    size_hint_y=None,
-                    height=40,
-                    color="#198754",
-                    font_size=18,
-                    bold=True,
-                    halign="left",
-                )
-                comp_header.bind(size=comp_header.setter("text_size"))  # type: ignore pylint: disable=no-member
-                self.predicted_parameters.add_widget(comp_header)
-
-                # Table
-                row_height = 30
-                params_count = len(available_params)
-                table_height = (params_count + 1) * row_height
-
-                table = GridLayout(
-                    cols=2,
-                    size_hint_y=None,
-                    height=table_height,
-                    spacing=[10, 5],
-                )
-
-                # Headers
-                table.add_widget(
-                    Label(
-                        text="Parameter name", bold=True, color="#212529", halign="left"
-                    )
-                )
-                table.add_widget(
-                    Label(
-                        text="Parameter value",
+                for smile, pred in output_args["preds"]:
+                    # Header for this component
+                    comp_header = Label(
+                        text=f"Component: {smile}",
+                        size_hint_y=None,
+                        height=40,
+                        color="#198754",
+                        font_size=18,
                         bold=True,
-                        color="#212529",
-                        halign="right",
+                        halign="left",
                     )
+                    comp_header.bind(size=comp_header.setter("text_size"))  # type: ignore pylint: disable=no-member
+                    self.predicted_parameters.add_widget(comp_header)
+
+                    # Table
+                    row_height = 30
+                    params_count = len(available_params)
+                    table_height = (params_count + 1) * row_height
+
+                    table = GridLayout(
+                        cols=2,
+                        size_hint_y=None,
+                        height=table_height,
+                        spacing=[10, 5],
+                    )
+
+                    # Headers
+                    table.add_widget(
+                        Label(
+                            text="Parameter name",
+                            bold=True,
+                            color="#212529",
+                            halign="left",
+                        )
+                    )
+                    table.add_widget(
+                        Label(
+                            text="Parameter value",
+                            bold=True,
+                            color="#212529",
+                            halign="right",
+                        )
+                    )
+
+                    for name, para in zip(available_params, pred):
+                        param_label = Label(
+                            text=str(name), color="#212529", halign="left"
+                        )
+                        param_label.bind(size=param_label.setter("text_size"))  # type: ignore pylint: disable=no-member
+                        table.add_widget(param_label)
+
+                        param_label_value = Label(
+                            text=f"{para:.5g}", color="#212529", halign="right"
+                        )
+                        param_label_value.bind(size=param_label_value.setter("text_size"))  # type: ignore pylint: disable=no-member
+                        table.add_widget(param_label_value)
+
+                    self.predicted_parameters.add_widget(table)
+
+                # Footer
+                footer = Label(
+                    text="* Not estimated",
+                    size_hint_y=None,
+                    height=30,
+                    color="#6c757d",
+                    italic=True,
                 )
+                self.predicted_parameters.add_widget(footer)
 
-                for name, para in zip(available_params, pred):
-                    param_label = Label(text=str(name), color="#212529", halign="left")
-                    param_label.bind(size=param_label.setter("text_size"))  # type: ignore pylint: disable=no-member
-                    table.add_widget(param_label)
-
-                    param_label_value = Label(
-                        text=f"{para:.5g}", color="#212529", halign="right"
-                    )
-                    param_label_value.bind(size=param_label_value.setter("text_size"))  # type: ignore pylint: disable=no-member
-                    table.add_widget(param_label_value)
-
-                self.predicted_parameters.add_widget(table)
-
-            # Footer
-            footer = Label(
-                text="* Not estimated",
-                size_hint_y=None,
-                height=30,
-                color="#6c757d",
-                italic=True,
-            )
-            self.predicted_parameters.add_widget(footer)
+            build_ui()
 
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_density(self):
         "plot mixture density vs temperature"
         try:
@@ -660,6 +716,7 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_vp(self):
         "plot mixture vapor pressure vs temperature"
         try:
@@ -700,6 +757,7 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_binary_vle_txy(self):
         "plot binary VLE T-x-y"
         try:
@@ -752,6 +810,7 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_binary_vle_pxy(self):
         "plot binary VLE P-x-y"
         try:
@@ -795,6 +854,7 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_binary_vle_xy(self):
         "plot binary VLE x-y"
         try:
@@ -835,6 +895,7 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_binary_lle_txx(self):
         "plot binary LLE T-x-x"
         try:
@@ -873,6 +934,7 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_ternary_vle_lle(self):
         "plot ternary VLE/LLE"
         try:
@@ -922,6 +984,7 @@ class MixtureLayout(BoxLayout):
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
+    @run_with_loading
     def on_plot_ternary_vle_tx_fixed(self):
         "plot ternary VLE P-x at fixed T and fixed solvent ratio"
         try:
