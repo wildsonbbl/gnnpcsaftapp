@@ -9,6 +9,7 @@ from gnnepcsaft.pcsaft.pcsaft_feos import (
     mix_lle_feos,
     mix_vle_diagram_feos,
     mix_vp_feos,
+    pure_vp_feos,
 )
 from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
 
@@ -95,6 +96,11 @@ def mix_vle_pxy(
     dps = []
     xs = []
 
+    xs.append(0.0)
+    pure_vp_x1 = pure_vp_feos(parameters=parameters_list[1], state=[temperature])
+    bps.append(pure_vp_x1)
+    dps.append(pure_vp_x1)
+
     for x0 in x0s:
         try:
             bp, dp = mix_vp_feos(
@@ -114,6 +120,10 @@ def mix_vle_pxy(
         except BaseException as e:  # pylint: disable=W0718
             if e.__class__.__name__ != "PanicException":
                 raise
+    xs.append(1.0)
+    pure_vp_x0 = pure_vp_feos(parameters=parameters_list[0], state=[temperature])
+    bps.append(pure_vp_x0)
+    dps.append(pure_vp_x0)
 
     return xs, bps, dps
 
