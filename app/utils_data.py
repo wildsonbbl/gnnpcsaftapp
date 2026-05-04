@@ -75,10 +75,7 @@ def retrieve_available_data_pure(
     vp_pure = pl.read_parquet(osp.join(application_path, "_data", "vp_pure.parquet"))
     st_pure = pl.read_parquet(osp.join(application_path, "_data", "st_pure.parquet"))
 
-    try:
-        inchi = smilestoinchi(smiles)
-    except ValueError:
-        return None, (None, None, 0), (None, None, 0)
+    inchi = smilestoinchi(smiles)
 
     rho_filtered = rho_pure.filter(pl.col("inchi1") == inchi)
     if rho_filtered.height > 0:
