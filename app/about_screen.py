@@ -13,6 +13,6 @@ class AboutScreen(Screen):
 class AboutLayout(BoxLayout):
     "About Layout containing project info"
 
-    def open_link(self, instance, value):
+    def open_link(self, instance, value):  # pylint: disable=unused-argument
         "Opens the clicked link in the default browser"
         webbrowser.open(value)

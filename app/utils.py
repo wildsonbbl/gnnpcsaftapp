@@ -62,7 +62,7 @@ def run_with_loading(func):
                 @mainthread
                 def show_err(err=exc):
                     if hasattr(self, "_show_error_alert"):
-                        self._show_error_alert(err)
+                        self._show_error_alert(err)  # pylint: disable=W0212
 
                 show_err()
             finally:

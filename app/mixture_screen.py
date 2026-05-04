@@ -47,6 +47,7 @@ class MixtureScreen(Screen):
     "Mixture screen"
 
 
+# pylint: disable=E1133
 class MixtureLayout(BoxLayout):
     "Mixture Layout"
 
