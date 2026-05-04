@@ -1,14 +1,17 @@
 "Experimental data utilitis"
 
 import os.path as osp
+from typing import Optional, Tuple
 
 import polars as pl
 from gnnepcsaft_mcp_server.utils import smilestoinchi
+from numpy import float64
+from numpy.typing import NDArray
 
 application_path = osp.dirname(osp.abspath(__file__))
 
 
-def retrieve_rho_pure_data(smiles: str, pressure: float):
+def retrieve_rho_pure_data(smiles: str, pressure: float) -> Optional[NDArray[float64]]:
     "retrieve density data for plots"
 
     df = pl.read_parquet(osp.join(application_path, "_data", "rho_pure.parquet"))
@@ -25,7 +28,7 @@ def retrieve_rho_pure_data(smiles: str, pressure: float):
     )
 
 
-def retrieve_vp_pure_data(smiles: str):
+def retrieve_vp_pure_data(smiles: str) -> Optional[NDArray[float64]]:
     "retrieve vapor pressure data for plots"
 
     df = pl.read_parquet(osp.join(application_path, "_data", "vp_pure.parquet"))
@@ -38,7 +41,7 @@ def retrieve_vp_pure_data(smiles: str):
     )
 
 
-def retrieve_st_pure_data(smiles: str):
+def retrieve_st_pure_data(smiles: str) -> Optional[NDArray[float64]]:
     "retrieve surface tension (N/m) data for plots"
 
     df = pl.read_parquet(osp.join(application_path, "_data", "st_pure.parquet"))
@@ -51,7 +54,21 @@ def retrieve_st_pure_data(smiles: str):
     )
 
 
-def retrieve_available_data_pure(smiles: str):
+def retrieve_available_data_pure(
+    smiles: str,
+) -> Tuple[
+    Optional[NDArray[float64]],
+    Tuple[
+        Optional[NDArray[float64]],
+        Optional[NDArray[float64]],
+        int,
+    ],
+    Tuple[
+        Optional[NDArray[float64]],
+        Optional[NDArray[float64]],
+        int,
+    ],
+]:
     "retrieve available pure data for smiles"
 
     rho_pure = pl.read_parquet(osp.join(application_path, "_data", "rho_pure.parquet"))
@@ -61,7 +78,7 @@ def retrieve_available_data_pure(smiles: str):
     try:
         inchi = smilestoinchi(smiles)
     except ValueError:
-        return None, (None, None), (None, None)
+        return None, (None, None, 0), (None, None, 0)
 
     rho_filtered = rho_pure.filter(pl.col("inchi1") == inchi)
     if rho_filtered.height > 0:
@@ -96,7 +113,9 @@ def retrieve_available_data_pure(smiles: str):
     return pure_data, vp_range, st_range
 
 
-def retrieve_rho_binary_data(smiles_list: list, pressure: float, x1: float):
+def retrieve_rho_binary_data(
+    smiles_list: list, pressure: float, x1: float
+) -> Optional[NDArray[float64]]:
     "retrieve binary density data"
     if len(smiles_list) != 2:
         return None
@@ -146,7 +165,9 @@ def retrieve_rho_binary_data(smiles_list: list, pressure: float, x1: float):
     )
 
 
-def retrieve_bubble_pressure_data(smiles_list: list, x1: float):
+def retrieve_bubble_pressure_data(
+    smiles_list: list, x1: float
+) -> Optional[NDArray[float64]]:
     "retrieve binary bubble point pressure data (P-T at constant x)"
     if len(smiles_list) != 2:
         return None
@@ -177,7 +198,9 @@ def retrieve_bubble_pressure_data(smiles_list: list, x1: float):
     return filtered.select("T_K", "BP_kPa").sort("T_K").to_numpy()
 
 
-def retrieve_vle_binary_data(smiles_list: list, pressure: float):
+def retrieve_vle_binary_data(
+    smiles_list: list, pressure: float
+) -> Optional[NDArray[float64]]:
     """
     retrieve binary VLE data (T-x-y). Currently, only for mixtures with CO2 for
     mole fractions on the liquid phase (p2)
@@ -220,7 +243,9 @@ def retrieve_vle_binary_data(smiles_list: list, pressure: float):
     return data.to_numpy()
 
 
-def retrieve_vle_pxy_binary_data(smiles_list: list, temperature: float):
+def retrieve_vle_pxy_binary_data(
+    smiles_list: list, temperature: float
+) -> Optional[NDArray[float64]]:
     """
     retrieve binary VLE data (P-x-y) at constant T.
     """
@@ -262,7 +287,9 @@ def retrieve_vle_pxy_binary_data(smiles_list: list, temperature: float):
     return data.to_numpy()
 
 
-def retrieve_lle_binary_data(smiles_list: list, pressure: float):
+def retrieve_lle_binary_data(
+    smiles_list: list, pressure: float
+) -> Optional[NDArray[float64]]:
     "retrieve binary LLE data (T-x-x)"
     if len(smiles_list) != 2:
         return None
@@ -301,7 +328,13 @@ def retrieve_lle_binary_data(smiles_list: list, pressure: float):
     return data.to_numpy()
 
 
-def retrieve_available_data_binary(smiles_list: list):
+def retrieve_available_data_binary(smiles_list: list) -> Tuple[
+    Optional[NDArray[float64]],
+    Optional[NDArray[float64]],
+    Optional[NDArray[float64]],
+    Optional[NDArray[float64]],
+    Optional[NDArray[float64]],
+]:
     "retrieve available binary data"
     if len(smiles_list) != 2:
         return None, None, None, None, None
@@ -413,7 +446,14 @@ def retrieve_available_data_binary(smiles_list: list):
     return rho_data, bubble_data, lle_data, vle_data, vle_pxy_data
 
 
-def retrieve_available_data_ternary(smiles_list: list):
+def retrieve_available_data_ternary(
+    smiles_list: list,
+) -> Tuple[
+    Optional[NDArray[float64]],
+    Optional[NDArray[float64]],
+    Optional[NDArray[float64]],
+    Optional[NDArray[float64]],
+]:
     "retrieve available ternary data"
     if len(smiles_list) != 3:
         return None, None, None, None
@@ -554,7 +594,9 @@ def retrieve_available_data_ternary(smiles_list: list):
     return rho_data, lle_data, vle_data, vle_tx_data
 
 
-def retrieve_rho_ternary_data(smiles_list: list, pressure: float, x1: float, x2: float):
+def retrieve_rho_ternary_data(
+    smiles_list: list, pressure: float, x1: float, x2: float
+) -> Optional[NDArray[float64]]:
     "retrieve ternary density data"
     if len(smiles_list) != 3:
         return None
@@ -630,7 +672,9 @@ def retrieve_rho_ternary_data(smiles_list: list, pressure: float, x1: float, x2:
     )
 
 
-def retrieve_lle_ternary_data(smiles_list: list, pressure: float, temperature: float):
+def retrieve_lle_ternary_data(
+    smiles_list: list, pressure: float, temperature: float
+) -> Optional[NDArray[float64]]:
     "retrieve ternary lle data (tie lines/binodal points)"
     if len(smiles_list) != 3:
         return None
@@ -682,7 +726,9 @@ def retrieve_lle_ternary_data(smiles_list: list, pressure: float, temperature: f
     )
 
 
-def retrieve_vle_ternary_data(smiles_list: list, pressure: float, temperature: float):
+def retrieve_vle_ternary_data(
+    smiles_list: list, pressure: float, temperature: float
+) -> Optional[NDArray[float64]]:
     "retrieve ternary vle data (liquid phase composition points)"
     if len(smiles_list) != 3:
         return None
@@ -727,7 +773,7 @@ def retrieve_vle_ternary_data(smiles_list: list, pressure: float, temperature: f
 
 def retrieve_vle_ternary_tx_fixed_data(
     smiles_list: list, temperature: float, solvent_ratio: float
-):
+) -> Optional[NDArray[float64]]:
     """
     retrieve ternary VLE data for isothermal P-x analysis with fixed solvent ratio.
 
@@ -781,7 +827,7 @@ def retrieve_vle_ternary_tx_fixed_data(
 
 
 # Function to map liquid phase composition (p2) based on inchi match
-def _get_col_map_p2(target_inchi, col_prefix):
+def _get_col_map_p2(target_inchi, col_prefix) -> pl.Expr:
     return (
         pl.when(pl.col("inchi1") == target_inchi)
         .then(pl.col(f"{col_prefix}1p2"))
