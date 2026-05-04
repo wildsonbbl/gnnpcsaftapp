@@ -42,6 +42,8 @@ def run_with_loading(func):
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         buttons_state = []
+        cancel_event = threading.Event()
+        dismissed = False
 
         def collect_buttons(root):
             stack = [root]
@@ -79,9 +81,15 @@ def run_with_loading(func):
             halign="center",
             color=(0, 0, 0, 1),
         )
+        cancel_button = Button(
+            text="Cancel",
+            size_hint_y=None,
+            height=36,
+        )
         content.add_widget(message_label)
         content.add_widget(progress)
         content.add_widget(elapsed_label)
+        content.add_widget(cancel_button)
 
         popup = Popup(
             title="Processing",
@@ -90,7 +98,7 @@ def run_with_loading(func):
             background="",
             background_color=(1, 1, 1, 1),
             size_hint=(None, None),
-            size=(320, 220),
+            size=(360, 280),
             auto_dismiss=False,
         )
 
@@ -101,34 +109,83 @@ def run_with_loading(func):
             elapsed_label.text = f"Elapsed: {elapsed:.1f}s"
             progress.value = (progress.value + 5) % progress.max
 
+        @mainthread
+        def safe_dismiss():
+            nonlocal dismissed
+            if dismissed:
+                return
+            dismissed = True
+            update_event.cancel()
+            popup.dismiss()
+            restore_buttons()
+
+        def on_cancel(_btn):
+            cancel_event.set()
+            message_label.text = "Cancel requested..."
+            cancel_button.disabled = True
+            safe_dismiss()
+
+        cancel_button.bind(on_release=on_cancel)  # type: ignore pylint: disable=no-member
+
         disable_buttons()
         popup.open()
         update_event = Clock.schedule_interval(update_ui, 0.1)
 
         def background_task():
-            try:
-                func(self, *args, **kwargs)
-            except (RuntimeError, ValueError) as exc:
 
-                @mainthread
-                def show_err(err=exc):
-                    if hasattr(self, "_show_error_alert"):
-                        self._show_error_alert(err)  # pylint: disable=W0212
-
-                show_err()
-            finally:
-
-                @mainthread
-                def dismiss():
-                    update_event.cancel()
-                    popup.dismiss()
-                    restore_buttons()
-
-                dismiss()
+            func(self, *args, **kwargs)
+            time.sleep(5)
+            safe_dismiss()
 
         threading.Thread(target=background_task, daemon=True).start()
 
     return wrapper
+
+
+@mainthread
+def show_error_popup(err):
+    """Show a detailed error popup with suggestions."""
+    error_text = str(err)
+    suggestions = []
+    if isinstance(err, ValueError):
+        lowered = error_text.lower()
+        if "smiles" in lowered or "inchi" in lowered:
+            suggestions = [
+                "Verify the SMILES/InChI format",
+                "Remove extra spaces or separators",
+                "Try a simpler component first",
+            ]
+        elif "temperature" in lowered or "pressure" in lowered:
+            suggestions = [
+                "Enter numeric values only",
+                "Check units (K, Pa)",
+            ]
+        elif "fraction" in lowered or "kij" in lowered:
+            suggestions = [
+                "Use space-separated numeric values",
+                "Match number of components",
+            ]
+
+    if suggestions:
+        detail = "\n".join(["Suggestions:"] + [f"- {s}" for s in suggestions])
+    else:
+        detail = "Suggestions:\n- Check your input values"
+
+    error_popup = Popup(
+        title="Input Error",
+        content=Label(
+            text=f"{error_text}\n\n{detail}",
+            halign="left",
+            color=(0, 0, 0, 1),
+        ),
+        title_color=(0, 0, 0, 1),
+        background="",
+        background_color=(1, 1, 1, 1),
+        size_hint=(None, None),
+        size=(420, 260),
+        auto_dismiss=True,
+    )
+    error_popup.open()
 
 
 def get_smiles_from_input(input_text):

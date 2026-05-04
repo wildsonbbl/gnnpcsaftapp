@@ -17,6 +17,7 @@ from utils import (
     generate_plot,
     get_smiles_from_input,
     run_with_loading,
+    show_error_popup,
 )
 from utils_data import (
     retrieve_available_data_pure,
@@ -86,6 +87,7 @@ class PureLayout(BoxLayout):
 
     @mainthread
     def _show_error_alert(self, e):
+        show_error_popup(e)
         error_message = Label(
             text=f"Error: {str(e)}",
             size_hint_y=None,
