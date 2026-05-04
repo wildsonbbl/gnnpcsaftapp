@@ -14,6 +14,7 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 from kivy.uix.progressbar import ProgressBar
+from kivy.uix.scrollview import ScrollView
 
 available_params = [
     "Segment number",
@@ -134,7 +135,7 @@ def run_with_loading(func):
         def background_task():
 
             func(self, *args, **kwargs)
-            time.sleep(5)
+            # time.sleep(5) #simulate long run
             safe_dismiss()
 
         threading.Thread(target=background_task, daemon=True).start()
@@ -171,13 +172,31 @@ def show_error_popup(err):
     else:
         detail = "Suggestions:\n- Check your input values"
 
+    message = Label(
+        text=f"{error_text}\n\n{detail}",
+        halign="left",
+        valign="top",
+        color=(0, 0, 0, 1),
+        size_hint=(1, None),
+    )
+
+    scroll = ScrollView(size_hint=(1, 1), do_scroll_x=False)
+    scroll.add_widget(message)
+
+    def update_message_layout(_instance, _value=None):
+        # Wrap text to the scrollview width so it does not overflow horizontally.
+        content_width = max(scroll.width - 20, 1)
+        message.text_size = (content_width, None)
+        message.texture_update()
+        message.height = message.texture_size[1]
+
+    scroll.bind(size=update_message_layout)  # type: ignore pylint: disable=no-member
+    message.bind(texture_size=lambda _w, size: setattr(message, "height", size[1]))  # type: ignore pylint: disable=no-member
+    Clock.schedule_once(update_message_layout, 0)
+
     error_popup = Popup(
         title="Input Error",
-        content=Label(
-            text=f"{error_text}\n\n{detail}",
-            halign="left",
-            color=(0, 0, 0, 1),
-        ),
+        content=scroll,
         title_color=(0, 0, 0, 1),
         background="",
         background_color=(1, 1, 1, 1),
