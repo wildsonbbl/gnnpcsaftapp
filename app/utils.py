@@ -3,13 +3,17 @@
 import functools
 import re
 import threading
+import time
 
 import matplotlib.pyplot as plt
 from gnnepcsaft_mcp_server.utils import inchitosmiles, smilestoinchi
 from kivy.app import App
-from kivy.clock import mainthread
+from kivy.clock import Clock, mainthread
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
+from kivy.uix.progressbar import ProgressBar
 
 available_params = [
     "Segment number",
@@ -37,22 +41,69 @@ def run_with_loading(func):
 
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
+        buttons_state = []
+
+        def collect_buttons(root):
+            stack = [root]
+            while stack:
+                widget = stack.pop()
+                if isinstance(widget, Button):
+                    buttons_state.append((widget, widget.disabled))
+                    widget.disabled = True
+                if hasattr(widget, "children"):
+                    stack.extend(widget.children)
+
+        @mainthread
+        def disable_buttons():
+            app = App.get_running_app()
+            root = getattr(app, "root", None)
+            if root is not None:
+                collect_buttons(root)
+
+        @mainthread
+        def restore_buttons():
+            for widget, prev_disabled in buttons_state:
+                widget.disabled = prev_disabled
+            buttons_state.clear()
+
         # Create the popup only once on main thread
+        content = BoxLayout(orientation="vertical", padding=10, spacing=10)
+        message_label = Label(
+            text="Calculating...\nThis may take a while.",
+            halign="center",
+            color=(0, 0, 0, 1),
+        )
+        progress = ProgressBar(max=100, value=0)
+        elapsed_label = Label(
+            text="Elapsed: 0.0s",
+            halign="center",
+            color=(0, 0, 0, 1),
+        )
+        content.add_widget(message_label)
+        content.add_widget(progress)
+        content.add_widget(elapsed_label)
+
         popup = Popup(
             title="Processing",
-            content=Label(
-                text="Calculating...\nThis may take a while.",
-                halign="center",
-                color=(0, 0, 0, 1),
-            ),
+            content=content,
             title_color=(0, 0, 0, 1),
             background="",
             background_color=(1, 1, 1, 1),
             size_hint=(None, None),
-            size=(300, 200),
+            size=(320, 220),
             auto_dismiss=False,
         )
+
+        start_time = time.perf_counter()
+
+        def update_ui(_dt):
+            elapsed = time.perf_counter() - start_time
+            elapsed_label.text = f"Elapsed: {elapsed:.1f}s"
+            progress.value = (progress.value + 5) % progress.max
+
+        disable_buttons()
         popup.open()
+        update_event = Clock.schedule_interval(update_ui, 0.1)
 
         def background_task():
             try:
@@ -69,7 +120,9 @@ def run_with_loading(func):
 
                 @mainthread
                 def dismiss():
+                    update_event.cancel()
                     popup.dismiss()
+                    restore_buttons()
 
                 dismiss()
 
