@@ -1,6 +1,6 @@
 """Plot handlers for mixture screens."""
 
-from app.plots.plot_helpers import assign_phase_by_density
+from app.plots.plot_helpers import assign_phase_by_density, get_kij_tmin_pressure
 from app.utils_data import (
     retrieve_lle_binary_data,
     retrieve_vle_binary_data,
@@ -53,8 +53,7 @@ def plot_vle_pxy(layout):
         )
 
     n = len(smiles_list)
-    kij_matrix = layout._get_kij(n)
-    t_min, _ = layout._get_temperatures(require_max=False)
+    kij_matrix, t_min, _ = get_kij_tmin_pressure(layout, n)
 
     exp_data = None
     try:

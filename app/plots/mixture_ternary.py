@@ -1,5 +1,6 @@
 """Plot handlers for mixture screens."""
 
+from app.plots.plot_helpers import get_kij_tmin_pressure
 from app.utils_data import (
     retrieve_lle_ternary_data,
     retrieve_vle_ternary_data,
@@ -18,9 +19,7 @@ def plot_vle_lle(layout):
         )
 
     n = len(smiles_list)
-    kij_matrix = layout._get_kij(n)
-    t_min, _ = layout._get_temperatures(require_max=False)
-    p_val = layout._get_pressure()
+    kij_matrix, t_min, p_val = get_kij_tmin_pressure(layout, n)
 
     exp_data = None
     try:
