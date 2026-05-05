@@ -29,6 +29,7 @@ sys.modules["gnnepcsaft_mcp_server.utils"] = MagicMock()
 import utils
 import utils_mix
 import utils_pure
+from mixture_ui_builder import MixtureUIBuilder
 from plots import mixture_binary, mixture_common, mixture_ternary, plot_helpers
 from pure_ui_builder import PureUIBuilder
 
@@ -541,6 +542,13 @@ class DummyLabel:
         return lambda *args, **kwargs: None
 
 
+class DummyGrid:
+    """Simple grid stand-in for UI builder tests."""
+
+    def __init__(self, **kwargs):
+        self.add_widget = MagicMock()
+
+
 class TestPureUIBuilder(unittest.TestCase):
     """test pure UI builder"""
 
@@ -599,6 +607,104 @@ class TestPureUIBuilder(unittest.TestCase):
         ]
         self.assertNotIn("Experimental Data Availability", label_texts)
         self.assertEqual(len(layout._dropdown_cache), 0)
+
+
+class TestMixtureUIBuilder(unittest.TestCase):
+    """test mixture UI builder"""
+
+    @patch(
+        "mixture_ui_builder.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs)
+    )
+    @patch("mixture_ui_builder.GridLayout", side_effect=lambda **kwargs: DummyGrid())
+    def test_build_binary_dropdowns(self, _mock_grid, _mock_label):
+        """Render binary availability header and dropdown sections."""
+        output_args = {
+            "rho_data": [[101.0, 0.5, 300.0, 310.0, 5]],
+            "bubble_data": [[0.5, 300.0, 310.0, 5]],
+            "lle_data": [[101.0, 300.0, 310.0, 5]],
+            "vle_data": [[101.0, 300.0, 310.0, 5]],
+            "vle_pxy_data": [[300.0, 101.0, 110.0, 5]],
+            "rho_data_t": None,
+            "lle_data_t": None,
+            "vle_data_t": None,
+            "vle_tx_data_t": None,
+            "preds": [("A", [1.0] * len(utils.available_params))],
+        }
+
+        class DummyLayout:
+            def __init__(self):
+                self.predicted_parameters = MagicMock()
+                self._dropdown_calls = []
+
+            def _add_dropdown(self, title, rows, make_button, width_ratio=0.4):
+                self._dropdown_calls.append(title)
+
+            def _make_binary_button(self, dropdown, text, fill_action):
+                return MagicMock()
+
+            def _fill_inputs_binary(
+                self, pressure=None, t_min=None, t_max=None, x1=None
+            ):
+                pass
+
+        layout = DummyLayout()
+        builder = MixtureUIBuilder(layout, ["A", "B"], output_args)
+        builder.build()
+
+        label_texts = [
+            call.args[0].text
+            for call in layout.predicted_parameters.add_widget.call_args_list
+            if hasattr(call.args[0], "text")
+        ]
+        self.assertIn("Experimental Data Availability", label_texts)
+        self.assertEqual(len(layout._dropdown_calls), 5)
+
+    @patch(
+        "mixture_ui_builder.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs)
+    )
+    @patch("mixture_ui_builder.GridLayout", side_effect=lambda **kwargs: DummyGrid())
+    def test_build_ternary_dropdowns(self, _mock_grid, _mock_label):
+        """Render ternary availability header and dropdown sections."""
+        output_args = {
+            "rho_data": None,
+            "bubble_data": None,
+            "lle_data": None,
+            "vle_data": None,
+            "vle_pxy_data": None,
+            "rho_data_t": [[101.0, 0.2, 0.3, 300.0, 310.0, 5]],
+            "lle_data_t": [[101.0, 300.0, 5]],
+            "vle_data_t": [[101.0, 300.0, 5]],
+            "vle_tx_data_t": [[300.0, 0.5, 101.0, 110.0, 5]],
+            "preds": [("A", [1.0] * len(utils.available_params))],
+        }
+
+        class DummyLayout:
+            def __init__(self):
+                self.predicted_parameters = MagicMock()
+                self._dropdown_calls = []
+
+            def _add_dropdown(self, title, rows, make_button, width_ratio=0.4):
+                self._dropdown_calls.append(title)
+
+            def _make_ternary_button(self, dropdown, text, fill_action):
+                return MagicMock()
+
+            def _fill_inputs_ternary(
+                self, pressure=None, t_min=None, t_max=None, x1=None, x2=None
+            ):
+                pass
+
+        layout = DummyLayout()
+        builder = MixtureUIBuilder(layout, ["A", "B", "C"], output_args)
+        builder.build()
+
+        label_texts = [
+            call.args[0].text
+            for call in layout.predicted_parameters.add_widget.call_args_list
+            if hasattr(call.args[0], "text")
+        ]
+        self.assertIn("Experimental Data Availability", label_texts)
+        self.assertEqual(len(layout._dropdown_calls), 4)
 
 
 if __name__ == "__main__":
