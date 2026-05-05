@@ -24,6 +24,24 @@ sys.modules["gnnepcsaft_mcp_server.utils"] = MagicMock()
 import utils
 import utils_mix
 import utils_pure
+from plots import mixture_binary, mixture_common, mixture_ternary, plot_helpers
+
+
+class FakeArray:
+    """Minimal array-like for tests that require 2D slicing."""
+
+    def __init__(self, data):
+        self._data = data
+
+    def __len__(self):
+        return len(self._data)
+
+    def __getitem__(self, idx):
+        if isinstance(idx, tuple):
+            rows, col = idx
+            if isinstance(rows, slice):
+                return [row[col] for row in self._data]
+        return self._data[idx]
 
 
 class TestUtils(unittest.TestCase):
@@ -115,6 +133,395 @@ class TestUtilsMix(unittest.TestCase):
         res = utils_mix.mix_vle(["A", "B"], [[0, 0], [0, 0]], 101325)
 
         self.assertEqual(res, expected_output)
+
+
+class TestPlotHelpers(unittest.TestCase):
+    """test plot helper utilities"""
+
+    def test_assign_phase_by_density(self):
+        """Assign phases by density ordering."""
+        output = {
+            "x0": [0.1, 0.9],
+            "y0": [0.9, 0.1],
+            "density liquid": [900.0, 700.0],
+            "density vapor": [10.0, 800.0],
+        }
+
+        x_liquid, y_vapor = plot_helpers.assign_phase_by_density(output)
+
+        self.assertEqual(x_liquid, [0.1, 0.1])
+        self.assertEqual(y_vapor, [0.9, 0.9])
+
+
+class TestPlotBinaryHandlers(unittest.TestCase):
+    """test binary plot handlers"""
+
+    @patch("plots.mixture_binary.mix_vle")
+    def test_plot_vle_xy(self, mock_mix):
+        """Plot binary VLE x-y with phase assignment."""
+        output = {
+            "x0": [0.2],
+            "y0": [0.8],
+            "density liquid": [900.0],
+            "density vapor": [10.0],
+        }
+        mock_mix.return_value = output
+
+        class DummyLayout:
+            def __init__(self):
+                self._generate_plot = MagicMock()
+
+            def _get_smiles(self):
+                return ["A", "B"]
+
+            def _get_kij(self, n):
+                return [[0.0, 0.0], [0.0, 0.0]]
+
+            def _get_pressure(self):
+                return 101325.0
+
+        layout = DummyLayout()
+        mixture_binary.plot_vle_xy(layout)
+
+        layout._generate_plot.assert_called_once()
+        args = layout._generate_plot.call_args[0]
+        self.assertEqual(args[0], [0.2])
+        self.assertEqual(args[1], [0.8])
+
+    @patch("plots.mixture_binary.retrieve_vle_binary_data")
+    @patch("plots.mixture_binary.mix_vle")
+    def test_plot_vle_txy_exp(self, mock_mix, mock_exp):
+        """Plot binary VLE T-x-y with experimental overlay."""
+        mock_exp.return_value = FakeArray([[300.0, 0.2]])
+        mock_mix.return_value = {
+            "x0": [0.2],
+            "y0": [0.8],
+            "density liquid": [900.0],
+            "density vapor": [10.0],
+            "temperature": [300.0],
+        }
+
+        class DummyLayout:
+            def __init__(self):
+                self._generate_plot = MagicMock()
+
+            def _get_smiles(self):
+                return ["A", "B"]
+
+            def _get_kij(self, n):
+                return [[0.0, 0.0], [0.0, 0.0]]
+
+            def _get_pressure(self):
+                return 101325.0
+
+        layout = DummyLayout()
+        mixture_binary.plot_vle_txy(layout)
+
+        layout._generate_plot.assert_called_once()
+        args, kwargs = layout._generate_plot.call_args
+        self.assertEqual(args[0], [[0.2], [0.8]])
+        self.assertEqual(args[1], [300.0])
+        self.assertEqual(kwargs["exp_data"], ([0.2], [300.0], "Exp. Bubble P"))
+
+    @patch("plots.mixture_binary.retrieve_vle_pxy_binary_data")
+    @patch("plots.mixture_binary.mix_vle_pxy")
+    def test_plot_vle_pxy_exp(self, mock_mix, mock_exp):
+        """Plot binary VLE P-x-y with experimental overlay."""
+        mock_exp.return_value = FakeArray([[200.0, 0.3]])
+        mock_mix.return_value = ([0.3], [1000.0], [900.0])
+
+        class DummyLayout:
+            def __init__(self):
+                self._generate_plot = MagicMock()
+
+            def _get_smiles(self):
+                return ["A", "B"]
+
+            def _get_kij(self, n):
+                return [[0.0, 0.0], [0.0, 0.0]]
+
+            def _get_temperatures(self, require_max=False):
+                return 300.0, 0.0
+
+        layout = DummyLayout()
+        mixture_binary.plot_vle_pxy(layout)
+
+        layout._generate_plot.assert_called_once()
+        args, kwargs = layout._generate_plot.call_args
+        self.assertEqual(args[0], [0.3])
+        self.assertEqual(args[1], [[1000.0], [900.0]])
+        self.assertEqual(kwargs["exp_data"], ([0.3], [200000.0], "Exp. Bubble P"))
+
+    @patch("plots.mixture_binary.retrieve_lle_binary_data")
+    @patch("plots.mixture_binary.mix_lle")
+    def test_plot_lle_txx_exp(self, mock_mix, mock_exp):
+        """Plot binary LLE T-x-x with experimental overlay."""
+        mock_exp.return_value = FakeArray([[300.0, 0.4]])
+        mock_mix.return_value = {"x0": [0.4], "y0": [0.6], "temperature": [300.0]}
+
+        class DummyLayout:
+            def __init__(self):
+                self._generate_plot = MagicMock()
+
+            def _get_smiles(self):
+                return ["A", "B"]
+
+            def _get_fractions(self, n):
+                return [0.4, 0.6]
+
+            def _get_kij(self, n):
+                return [[0.0, 0.0], [0.0, 0.0]]
+
+            def _get_temperatures(self, require_max=False):
+                return 300.0, 0.0
+
+            def _get_pressure(self):
+                return 101325.0
+
+        layout = DummyLayout()
+        mixture_binary.plot_lle_txx(layout)
+
+        layout._generate_plot.assert_called_once()
+        args, kwargs = layout._generate_plot.call_args
+        self.assertEqual(args[0], [[0.4], [0.6]])
+        self.assertEqual(args[1], [300.0])
+        self.assertEqual(kwargs["exp_data"], ([0.4], [300.0], "Exp. LLE Data"))
+
+
+class TestPlotCommonHandlers(unittest.TestCase):
+    """test shared plot handlers"""
+
+    @patch("plots.mixture_common.mix_den")
+    @patch("plots.mixture_common.retrieve_rho_binary_data")
+    @patch("plots.mixture_common.retrieve_rho_ternary_data")
+    def test_plot_density_multicomponent(self, mock_rho_t, mock_rho_b, mock_mix):
+        """Plot density for mixtures with more than three components."""
+        mock_rho_b.return_value = None
+        mock_rho_t.return_value = None
+        mock_mix.return_value = ([300.0, 310.0], [800.0, 790.0])
+
+        class DummyLayout:
+            def __init__(self):
+                self._generate_plot = MagicMock()
+
+            def _get_fractions(self, n):
+                return [1.0 / n] * n
+
+            def _get_kij(self, n):
+                return [[0.0] * n for _ in range(n)]
+
+            def _get_temperatures(self, require_max=True):
+                return 300.0, 310.0
+
+            def _get_pressure(self):
+                return 101325.0
+
+        layout = DummyLayout()
+        mixture_common.plot_density(layout, ["A", "B", "C", "D"])
+
+        layout._generate_plot.assert_called_once()
+        args = layout._generate_plot.call_args[0]
+        self.assertEqual(args[0], [300.0, 310.0])
+        self.assertEqual(args[1], [800.0, 790.0])
+
+    @patch("plots.mixture_common.mix_vp")
+    @patch("plots.mixture_common.retrieve_bubble_pressure_data")
+    def test_plot_vp_binary_no_exp(self, mock_exp, mock_mix):
+        """Plot vapor pressure without experimental overlay."""
+        mock_exp.return_value = None
+        mock_mix.return_value = ([300.0, 310.0], [1.0, 2.0], [0.5, 1.5])
+
+        class DummyLayout:
+            def __init__(self):
+                self._generate_plot = MagicMock()
+
+            def _get_fractions(self, n):
+                return [0.5, 0.5]
+
+            def _get_kij(self, n):
+                return [[0.0, 0.0], [0.0, 0.0]]
+
+            def _get_temperatures(self, require_max=True):
+                return 300.0, 310.0
+
+        layout = DummyLayout()
+        mixture_common.plot_vp(layout, ["A", "B"])
+
+        layout._generate_plot.assert_called_once()
+        args = layout._generate_plot.call_args[0]
+        self.assertEqual(args[0], [300.0, 310.0])
+        self.assertEqual(args[1], [[1.0, 2.0], [0.5, 1.5]])
+
+    @patch("plots.mixture_common.mix_den")
+    @patch("plots.mixture_common.retrieve_rho_binary_data")
+    def test_plot_density_binary_exp(self, mock_exp, mock_mix):
+        """Plot density with experimental overlay for binary mixtures."""
+        mock_exp.return_value = FakeArray([[300.0, 900.0]])
+        mock_mix.return_value = ([300.0], [800.0])
+
+        class DummyLayout:
+            def __init__(self):
+                self._generate_plot = MagicMock()
+
+            def _get_fractions(self, n):
+                return [0.5, 0.5]
+
+            def _get_kij(self, n):
+                return [[0.0, 0.0], [0.0, 0.0]]
+
+            def _get_temperatures(self, require_max=True):
+                return 300.0, 310.0
+
+            def _get_pressure(self):
+                return 101325.0
+
+        layout = DummyLayout()
+        mixture_common.plot_density(layout, ["A", "B"])
+
+        layout._generate_plot.assert_called_once()
+        args, kwargs = layout._generate_plot.call_args
+        self.assertEqual(args[0], [300.0])
+        self.assertEqual(args[1], [800.0])
+        self.assertEqual(kwargs["exp_data"], ([300.0], [900.0], "Exp. Data"))
+
+    @patch("plots.mixture_common.mix_vp")
+    @patch("plots.mixture_common.retrieve_bubble_pressure_data")
+    def test_plot_vp_binary_exp(self, mock_exp, mock_mix):
+        """Plot vapor pressure with experimental overlay for binary mixtures."""
+        mock_exp.return_value = FakeArray([[300.0, 2.0]])
+        mock_mix.return_value = ([300.0], [1.0], [0.5])
+
+        class DummyLayout:
+            def __init__(self):
+                self._generate_plot = MagicMock()
+
+            def _get_fractions(self, n):
+                return [0.5, 0.5]
+
+            def _get_kij(self, n):
+                return [[0.0, 0.0], [0.0, 0.0]]
+
+            def _get_temperatures(self, require_max=True):
+                return 300.0, 310.0
+
+        layout = DummyLayout()
+        mixture_common.plot_vp(layout, ["A", "B"])
+
+        layout._generate_plot.assert_called_once()
+        args, kwargs = layout._generate_plot.call_args
+        self.assertEqual(args[0], [300.0])
+        self.assertEqual(args[1], [[1.0], [0.5]])
+        self.assertEqual(kwargs["exp_data"], ([300.0], [2000.0], "Exp. Bubble P"))
+
+
+class TestPlotTernaryHandlers(unittest.TestCase):
+    """test ternary plot handlers"""
+
+    @patch("plots.mixture_ternary.retrieve_vle_ternary_tx_fixed_data")
+    @patch("plots.mixture_ternary.mix_ternary_vle_tx_fixed")
+    def test_plot_vle_tx_fixed(self, mock_mix, mock_exp):
+        """Plot ternary VLE P-x at fixed temperature and solvent ratio."""
+        mock_exp.return_value = None
+        mock_mix.return_value = ([0.0, 0.5, 1.0], [1.0, 2.0, 3.0], [0.5, 1.5, 2.5])
+
+        class DummyLayout:
+            def __init__(self):
+                self._generate_plot = MagicMock()
+
+            def _get_smiles(self):
+                return ["A", "B", "C"]
+
+            def _get_fractions(self, n):
+                return [0.2, 0.3, 0.5]
+
+            def _get_kij(self, n):
+                return [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+
+            def _get_temperatures(self, require_max=False):
+                return 300.0, 0.0
+
+        layout = DummyLayout()
+        mixture_ternary.plot_vle_tx_fixed(layout)
+
+        layout._generate_plot.assert_called_once()
+        args = layout._generate_plot.call_args[0]
+        self.assertEqual(args[0], [0.0, 0.5, 1.0])
+        self.assertEqual(args[1], [[1.0, 2.0, 3.0], [0.5, 1.5, 2.5]])
+        self.assertIn("x2/(x2+x3)=0.375", args[2])
+
+    @patch("plots.mixture_ternary.retrieve_vle_ternary_data")
+    @patch("plots.mixture_ternary.retrieve_lle_ternary_data")
+    @patch("plots.mixture_ternary.mix_ternary_lle")
+    def test_plot_vle_lle_prefers_lle(self, mock_mix, mock_lle, mock_vle):
+        """Prefer LLE experimental data when available."""
+        mock_lle.return_value = FakeArray([[0.1, 0.2]])
+        mock_vle.return_value = None
+        mock_mix.return_value = {
+            "x0": [0.1],
+            "y0": [0.2],
+            "x1": [0.3],
+            "y1": [0.4],
+        }
+
+        class DummyLayout:
+            def __init__(self):
+                self._generate_ternary_plot = MagicMock()
+
+            def _get_smiles(self):
+                return ["A", "B", "C"]
+
+            def _get_kij(self, n):
+                return [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+
+            def _get_temperatures(self, require_max=False):
+                return 300.0, 0.0
+
+            def _get_pressure(self):
+                return 101325.0
+
+        layout = DummyLayout()
+        mixture_ternary.plot_vle_lle(layout)
+
+        layout._generate_ternary_plot.assert_called_once()
+        _, kwargs = layout._generate_ternary_plot.call_args
+        self.assertEqual(kwargs["exp_data"], ([0.1], [0.2], "Exp. LLE Data"))
+
+    @patch("plots.mixture_ternary.retrieve_vle_ternary_data")
+    @patch("plots.mixture_ternary.retrieve_lle_ternary_data")
+    @patch("plots.mixture_ternary.mix_ternary_lle")
+    def test_plot_vle_lle_fallback_vle(self, mock_mix, mock_lle, mock_vle):
+        """Fallback to VLE experimental data when LLE is missing."""
+        mock_lle.return_value = None
+        mock_vle.return_value = FakeArray([[0.5, 0.6]])
+        mock_mix.return_value = {
+            "x0": [0.1],
+            "y0": [0.2],
+            "x1": [0.3],
+            "y1": [0.4],
+        }
+
+        class DummyLayout:
+            def __init__(self):
+                self._generate_ternary_plot = MagicMock()
+
+            def _get_smiles(self):
+                return ["A", "B", "C"]
+
+            def _get_kij(self, n):
+                return [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+
+            def _get_temperatures(self, require_max=False):
+                return 300.0, 0.0
+
+            def _get_pressure(self):
+                return 101325.0
+
+        layout = DummyLayout()
+        mixture_ternary.plot_vle_lle(layout)
+
+        layout._generate_ternary_plot.assert_called_once()
+        _, kwargs = layout._generate_ternary_plot.call_args
+        self.assertEqual(kwargs["exp_data"], ([0.5], [0.6], "Exp. Bubble P"))
 
 
 if __name__ == "__main__":
