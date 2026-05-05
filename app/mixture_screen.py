@@ -59,6 +59,7 @@ class MixtureLayout(BoxLayout):
     temp_max = ObjectProperty(None)
     pressure = ObjectProperty(None)
     predicted_parameters = ObjectProperty(None)
+    _dropdown_cache = []
 
     @mainthread
     def _show_error_alert(self, e):
@@ -170,6 +171,79 @@ class MixtureLayout(BoxLayout):
                         kij_matrix[j][i] = k_vals[k_idx]
                         k_idx += 1
 
+    def _get_available_data(self, smiles_list):
+        output_args = {
+            "rho_data": None,
+            "bubble_data": None,
+            "lle_data": None,
+            "vle_data": None,
+            "vle_pxy_data": None,
+            "rho_data_t": None,
+            "lle_data_t": None,
+            "vle_data_t": None,
+            "vle_tx_data_t": None,
+            "preds": [],
+        }
+
+        if len(smiles_list) == 2:
+            try:
+                (
+                    output_args["rho_data"],
+                    output_args["bubble_data"],
+                    output_args["lle_data"],
+                    output_args["vle_data"],
+                    output_args["vle_pxy_data"],
+                ) = retrieve_available_data_binary(smiles_list)
+            except (ValueError, RuntimeError):
+                pass
+        elif len(smiles_list) == 3:
+            try:
+                (
+                    output_args["rho_data_t"],
+                    output_args["lle_data_t"],
+                    output_args["vle_data_t"],
+                    output_args["vle_tx_data_t"],
+                ) = retrieve_available_data_ternary(smiles_list)
+            except (ValueError, RuntimeError):
+                pass
+
+        return output_args
+
+    def _add_dropdown(self, title, rows, make_button, width_ratio=0.4):
+        if rows is None or len(rows) == 0:
+            return
+
+        dropdown = DropDown()
+        self._dropdown_cache.append(dropdown)
+        dropdown_btns = [make_button(row, dropdown) for row in rows]
+        for btn in dropdown_btns:
+            dropdown.add_widget(btn)
+
+        main_button = Button(
+            text=title,
+            size_hint_y=None,
+            height=44,
+            size_hint_x=width_ratio,
+            pos_hint={"center_x": 0.5},
+            background_color=(0.1, 0.5, 0.8, 1),
+        )
+        main_button.bind(on_release=dropdown.open)  # type: ignore pylint: disable=no-member
+        self.predicted_parameters.add_widget(main_button)
+
+    def _make_binary_button(self, dropdown, text, fill_action):
+        btn = Button(
+            text=text,
+            size_hint_y=None,
+            height=44,
+        )
+        btn.bind(  # type: ignore pylint: disable=no-member
+            on_release=lambda btn: (fill_action(), dropdown.dismiss())
+        )
+        return btn
+
+    def _make_ternary_button(self, dropdown, text, fill_action):
+        return self._make_binary_button(dropdown, text, fill_action)
+
     def _fill_inputs_binary(self, pressure=None, t_min=None, t_max=None, x1=None):
         "Helper to populate inputs with clicked values"
         if pressure is not None:
@@ -202,49 +276,13 @@ class MixtureLayout(BoxLayout):
         @mainthread
         def clear_widgets():
             self.predicted_parameters.clear_widgets()
+            self._dropdown_cache = []
 
         clear_widgets()
 
         try:
             smiles_list = self._get_smiles()
-
-            output_args = {
-                "rho_data": None,
-                "bubble_data": None,
-                "lle_data": None,
-                "vle_data": None,
-                "vle_pxy_data": None,
-                "rho_data_t": None,
-                "lle_data_t": None,
-                "vle_data_t": None,
-                "vle_tx_data_t": None,
-                "preds": [],
-            }
-
-            if len(smiles_list) == 2:
-                # Check for binary data availability
-                try:
-                    (
-                        output_args["rho_data"],
-                        output_args["bubble_data"],
-                        output_args["lle_data"],
-                        output_args["vle_data"],
-                        output_args["vle_pxy_data"],
-                    ) = retrieve_available_data_binary(smiles_list)
-                except (ValueError, RuntimeError):
-                    pass
-
-            elif len(smiles_list) == 3:
-                # Check for ternary data availability
-                try:
-                    (
-                        output_args["rho_data_t"],
-                        output_args["lle_data_t"],
-                        output_args["vle_data_t"],
-                        output_args["vle_tx_data_t"],
-                    ) = retrieve_available_data_ternary(smiles_list)
-                except (ValueError, RuntimeError):
-                    pass
+            output_args = self._get_available_data(smiles_list)
 
             for smile in smiles_list:
                 pred = predict_pcsaft_parameters(smile)
@@ -284,151 +322,61 @@ class MixtureLayout(BoxLayout):
                         )
 
                     # Bubble Point Data (P-T Envelopes)
-                    if bubble_data is not None and len(bubble_data) > 0:
-                        dropdown_bp = DropDown()
-                        for row in bubble_data:
-                            # [x_approx, T_min, T_max, count]
-                            btn = Button(
-                                text=f"x={row[0]:.2f} ({int(row[3])} points)",
-                                size_hint_y=None,
-                                height=44,
-                            )
-                            btn.bind(  # type: ignore pylint: disable=no-member
-                                on_release=lambda btn, r=row: (
-                                    self._fill_inputs_binary(x1=r[0]),
-                                    dropdown_bp.dismiss(),
-                                )
-                            )
-                            dropdown_bp.add_widget(btn)
-
-                        main_button = Button(
-                            text="Select Bubble Pt. Data",
-                            size_hint_y=None,
-                            height=44,
-                            size_hint_x=0.4,
-                            pos_hint={"center_x": 0.5},
-                            background_color=(0.1, 0.5, 0.8, 1),
-                        )
-                        main_button.bind(on_release=dropdown_bp.open)  # type: ignore pylint: disable=no-member
-                        self.predicted_parameters.add_widget(main_button)
+                    self._add_dropdown(
+                        "Select Bubble Pt. Data",
+                        bubble_data,
+                        lambda row, dropdown: self._make_binary_button(
+                            dropdown,
+                            f"x={row[0]:.2f} ({int(row[3])} points)",
+                            lambda: self._fill_inputs_binary(x1=row[0]),
+                        ),
+                    )
 
                     # VLE Data
-                    if vle_data is not None and len(vle_data) > 0:
-                        dropdown_vle = DropDown()
-                        for row in vle_data:
-                            # [P_kPa, T_min, T_max, count]
-                            # Display T range for P
-                            btn = Button(
-                                text=f"Isobar: P={row[0]:.5g} kPa ({int(row[3])} points)",
-                                size_hint_y=None,
-                                height=44,
-                            )
-                            btn.bind(  # type: ignore pylint: disable=no-member
-                                on_release=lambda btn, r=row: (
-                                    self._fill_inputs_binary(pressure=r[0]),
-                                    dropdown_vle.dismiss(),
-                                )
-                            )
-                            dropdown_vle.add_widget(btn)
-
-                        main_button = Button(
-                            text="Select Isobaric VLE Data",
-                            size_hint_y=None,
-                            height=44,
-                            size_hint_x=0.4,
-                            pos_hint={"center_x": 0.5},
-                            background_color=(0.1, 0.5, 0.8, 1),
-                        )
-                        main_button.bind(on_release=dropdown_vle.open)  # type: ignore pylint: disable=no-member
-                        self.predicted_parameters.add_widget(main_button)
+                    self._add_dropdown(
+                        "Select Isobaric VLE Data",
+                        vle_data,
+                        lambda row, dropdown: self._make_binary_button(
+                            dropdown,
+                            f"Isobar: P={row[0]:.5g} kPa ({int(row[3])} points)",
+                            lambda: self._fill_inputs_binary(pressure=row[0]),
+                        ),
+                    )
 
                     # VLE Data (Isothermal P-x-y)
-                    if vle_pxy_data is not None and len(vle_pxy_data) > 0:
-                        dropdown_vle_pxy = DropDown()
-                        for row in vle_pxy_data:
-                            # [T_approx, P_min, P_max, count]
-                            btn = Button(
-                                text=f"Isotherm: T={row[0]:.2f} K ({int(row[3])} points)",
-                                size_hint_y=None,
-                                height=44,
-                            )
-                            btn.bind(  # type: ignore pylint: disable=no-member
-                                on_release=lambda btn, r=row: (
-                                    self._fill_inputs_binary(t_min=r[0]),
-                                    dropdown_vle_pxy.dismiss(),
-                                )
-                            )
-                            dropdown_vle_pxy.add_widget(btn)
-
-                        main_button = Button(
-                            text="Select Isothermal VLE Data",
-                            size_hint_y=None,
-                            height=44,
-                            size_hint_x=0.4,
-                            pos_hint={"center_x": 0.5},
-                            background_color=(0.1, 0.5, 0.8, 1),
-                        )
-                        main_button.bind(on_release=dropdown_vle_pxy.open)  # type: ignore pylint: disable=no-member
-                        self.predicted_parameters.add_widget(main_button)
+                    self._add_dropdown(
+                        "Select Isothermal VLE Data",
+                        vle_pxy_data,
+                        lambda row, dropdown: self._make_binary_button(
+                            dropdown,
+                            f"Isotherm: T={row[0]:.2f} K ({int(row[3])} points)",
+                            lambda: self._fill_inputs_binary(t_min=row[0]),
+                        ),
+                    )
 
                     # LLE Data
-                    if lle_data is not None and len(lle_data) > 0:
-                        dropdown_lle = DropDown()
-                        for row in lle_data:
-                            # [P_kPa, T_min, T_max, count]
-                            # Display T range for P
-                            btn = Button(
-                                text=f"P={row[0]:.5g} kPa ({int(row[3])} points)",
-                                size_hint_y=None,
-                                height=44,
-                            )
-                            btn.bind(  # type: ignore pylint: disable=no-member
-                                on_release=lambda btn, r=row: (
-                                    self._fill_inputs_binary(pressure=r[0]),
-                                    dropdown_lle.dismiss(),
-                                )
-                            )
-                            dropdown_lle.add_widget(btn)
-
-                        main_button = Button(
-                            text="Select LLE Data",
-                            size_hint_y=None,
-                            height=44,
-                            size_hint_x=0.4,
-                            pos_hint={"center_x": 0.5},
-                            background_color=(0.1, 0.5, 0.8, 1),
-                        )
-                        main_button.bind(on_release=dropdown_lle.open)  # type: ignore pylint: disable=no-member
-                        self.predicted_parameters.add_widget(main_button)
+                    self._add_dropdown(
+                        "Select LLE Data",
+                        lle_data,
+                        lambda row, dropdown: self._make_binary_button(
+                            dropdown,
+                            f"P={row[0]:.5g} kPa ({int(row[3])} points)",
+                            lambda: self._fill_inputs_binary(pressure=row[0]),
+                        ),
+                    )
 
                     # Density Data
-                    if rho_data is not None and len(rho_data) > 0:
-                        dropdown = DropDown()
-                        for row in rho_data:
-                            # [P_kPa, x_c1, T_min, T_max, count]
-                            btn = Button(
-                                text=f"P={row[0]:.5g} kPa, x={row[1]:.2f} ({int(row[4])} points)",
-                                size_hint_y=None,
-                                height=44,
-                            )
-                            btn.bind(  # type: ignore pylint: disable=no-member
-                                on_release=lambda btn, r=row: (
-                                    self._fill_inputs_binary(pressure=r[0], x1=r[1]),
-                                    dropdown.dismiss(),
-                                )
-                            )
-                            dropdown.add_widget(btn)
-
-                        main_button = Button(
-                            text="Select Liquid Density Data",
-                            size_hint_y=None,
-                            height=44,
-                            size_hint_x=0.4,
-                            pos_hint={"center_x": 0.5},
-                            background_color=(0.1, 0.5, 0.8, 1),
-                        )
-                        main_button.bind(on_release=dropdown.open)  # type: ignore pylint: disable=no-member
-                        self.predicted_parameters.add_widget(main_button)
+                    self._add_dropdown(
+                        "Select Liquid Density Data",
+                        rho_data,
+                        lambda row, dropdown: self._make_binary_button(
+                            dropdown,
+                            f"P={row[0]:.5g} kPa, x={row[1]:.2f} ({int(row[4])} points)",
+                            lambda: self._fill_inputs_binary(
+                                pressure=row[0], x1=row[1]
+                            ),
+                        ),
+                    )
 
                 elif len(smiles_list) == 3:
                     rho_data_t = output_args["rho_data_t"]
@@ -457,141 +405,75 @@ class MixtureLayout(BoxLayout):
                         )
 
                     # Density Data
-                    if rho_data_t is not None and len(rho_data_t) > 0:
-                        dropdown_t = DropDown()
-                        for row in rho_data_t:
-                            # [P_kPa, x1, x2, T_min, T_max, count]
-                            btn = Button(
-                                text=f"P={row[0]:.5g} kPa, x=[{row[1]:.2f}, {row[2]:.2f}] "
-                                f"({int(row[5])} points)",
-                                size_hint_y=None,
-                                height=44,
-                            )
-                            btn.bind(  # type: ignore pylint: disable=no-member
-                                on_release=lambda btn, r=row: (
-                                    self._fill_inputs_ternary(
-                                        pressure=r[0],
-                                        x1=r[1],
-                                        x2=r[2],
-                                    ),
-                                    dropdown_t.dismiss(),
-                                )
-                            )
-                            dropdown_t.add_widget(btn)
-
-                        main_button = Button(
-                            text="Select Ternary Density Data",
-                            size_hint_y=None,
-                            height=44,
-                            size_hint_x=0.4,
-                            pos_hint={"center_x": 0.5},
-                            background_color=(0.1, 0.5, 0.8, 1),
-                        )
-                        main_button.bind(on_release=dropdown_t.open)  # type: ignore pylint: disable=no-member
-                        self.predicted_parameters.add_widget(main_button)
+                    self._add_dropdown(
+                        "Select Ternary Density Data",
+                        rho_data_t,
+                        lambda row, dropdown: self._make_ternary_button(
+                            dropdown,
+                            (
+                                f"P={row[0]:.5g} kPa, x=[{row[1]:.2f}, {row[2]:.2f}] "
+                                f"({int(row[5])} points)"
+                            ),
+                            lambda: self._fill_inputs_ternary(
+                                pressure=row[0],
+                                x1=row[1],
+                                x2=row[2],
+                            ),
+                        ),
+                    )
 
                     # LLE Data
-                    if lle_data_t is not None and len(lle_data_t) > 0:
-                        dropdown_llet = DropDown()
-                        for row in lle_data_t:
-                            # [P_kPa, T_K, count]
-                            btn = Button(
-                                text=f"LLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K "
-                                f"({int(row[2])} points)",
-                                size_hint_y=None,
-                                height=44,
-                            )
-                            btn.bind(  # type: ignore pylint: disable=no-member
-                                on_release=lambda btn, r=row: (
-                                    self._fill_inputs_ternary(
-                                        pressure=r[0],
-                                        t_min=r[1],
-                                    ),
-                                    dropdown_llet.dismiss(),
-                                )
-                            )
-                            dropdown_llet.add_widget(btn)
-
-                        main_button = Button(
-                            text="Select Ternary LLE Data",
-                            size_hint_y=None,
-                            height=44,
-                            size_hint_x=0.4,
-                            pos_hint={"center_x": 0.5},
-                            background_color=(0.1, 0.5, 0.8, 1),
-                        )
-                        main_button.bind(on_release=dropdown_llet.open)  # type: ignore pylint: disable=no-member
-                        self.predicted_parameters.add_widget(main_button)
+                    self._add_dropdown(
+                        "Select Ternary LLE Data",
+                        lle_data_t,
+                        lambda row, dropdown: self._make_ternary_button(
+                            dropdown,
+                            (
+                                f"LLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K "
+                                f"({int(row[2])} points)"
+                            ),
+                            lambda: self._fill_inputs_ternary(
+                                pressure=row[0],
+                                t_min=row[1],
+                            ),
+                        ),
+                    )
 
                     # VLE Data (Ternary)
-                    if vle_data_t is not None and len(vle_data_t) > 0:
-                        dropdown_vlet = DropDown()
-                        for row in vle_data_t:
-                            # [P_kPa, T_K, count]
-                            btn = Button(
-                                text=f"VLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K "
-                                f"({int(row[2])} points)",
-                                size_hint_y=None,
-                                height=44,
-                            )
-                            btn.bind(  # type: ignore pylint: disable=no-member
-                                on_release=lambda btn, r=row: (
-                                    self._fill_inputs_ternary(
-                                        pressure=r[0],
-                                        t_min=r[1],
-                                    ),
-                                    dropdown_vlet.dismiss(),
-                                )
-                            )
-                            dropdown_vlet.add_widget(btn)
-
-                        main_button = Button(
-                            text="Select Ternary VLE Data",
-                            size_hint_y=None,
-                            height=44,
-                            size_hint_x=0.4,
-                            pos_hint={"center_x": 0.5},
-                            background_color=(0.1, 0.5, 0.8, 1),
-                        )
-                        main_button.bind(on_release=dropdown_vlet.open)  # type: ignore pylint: disable=no-member
-                        self.predicted_parameters.add_widget(main_button)
+                    self._add_dropdown(
+                        "Select Ternary VLE Data",
+                        vle_data_t,
+                        lambda row, dropdown: self._make_ternary_button(
+                            dropdown,
+                            (
+                                f"VLE: P={row[0]:.5g} kPa, T={row[1]:.2f} K "
+                                f"({int(row[2])} points)"
+                            ),
+                            lambda: self._fill_inputs_ternary(
+                                pressure=row[0],
+                                t_min=row[1],
+                            ),
+                        ),
+                    )
 
                     # VLE Data (Ternary T+x fixed)
-                    if vle_tx_data_t is not None and len(vle_tx_data_t) > 0:
-                        dropdown_vletx_t = DropDown()
-                        for row in vle_tx_data_t:
-                            # [T_K, solvent_ratio, P_min, P_max, count]
-                            btn = Button(
-                                text=(
-                                    f"VLE P-x: T={row[0]:.2f} K, "
-                                    f"x2/(x2+x3)={row[1]:.2f} "
-                                    f"({int(row[4])} points)"
-                                ),
-                                size_hint_y=None,
-                                height=44,
-                            )
-                            btn.bind(  # type: ignore pylint: disable=no-member
-                                on_release=lambda btn, r=row: (
-                                    self._fill_inputs_ternary(
-                                        t_min=r[0],
-                                        x1=0.0,
-                                        x2=1.0 * r[1],
-                                    ),
-                                    dropdown_vletx_t.dismiss(),
-                                )
-                            )
-                            dropdown_vletx_t.add_widget(btn)
-
-                        main_button = Button(
-                            text="Select Ternary VLE P-x Data",
-                            size_hint_y=None,
-                            height=44,
-                            size_hint_x=0.4,
-                            pos_hint={"center_x": 0.5},
-                            background_color=(0.1, 0.5, 0.8, 1),
-                        )
-                        main_button.bind(on_release=dropdown_vletx_t.open)  # type: ignore pylint: disable=no-member
-                        self.predicted_parameters.add_widget(main_button)
+                    self._add_dropdown(
+                        "Select Ternary VLE P-x Data",
+                        vle_tx_data_t,
+                        lambda row, dropdown: self._make_ternary_button(
+                            dropdown,
+                            (
+                                f"VLE P-x: T={row[0]:.2f} K, "
+                                f"x2/(x2+x3)={row[1]:.2f} "
+                                f"({int(row[4])} points)"
+                            ),
+                            lambda: self._fill_inputs_ternary(
+                                t_min=row[0],
+                                x1=0.0,
+                                x2=1.0 * row[1],
+                            ),
+                        ),
+                    )
 
                 self.predicted_parameters.add_widget(Label(size_hint_y=None, height=10))
 
