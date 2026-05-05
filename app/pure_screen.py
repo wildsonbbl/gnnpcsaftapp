@@ -6,16 +6,14 @@ from gnnepcsaft.pcsaft.pcsaft_feos import critical_points_feos
 from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
 from kivy.clock import mainthread
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 
+from app.layout_base import BaseInputLayout
 from app.pure_ui_builder import PureUIBuilder
 from app.utils import (
     generate_plot,
     get_smiles_from_input,
     run_with_loading,
-    show_error_popup,
 )
 from app.utils_data import (
     retrieve_available_data_pure,
@@ -36,15 +34,10 @@ class PureScreen(Screen):
     "Pure component screen"
 
 
-class PureLayout(BoxLayout):
+class PureLayout(BaseInputLayout):
     "Pure Layout"
 
     smiles_or_inchi_input = ObjectProperty(None)
-    temp_min = ObjectProperty(None)
-    temp_max = ObjectProperty(None)
-    pressure = ObjectProperty(None)
-    predicted_parameters = ObjectProperty(None)
-    _dropdown_cache = []
 
     @mainthread
     def _generate_plot(
@@ -61,51 +54,6 @@ class PureLayout(BoxLayout):
         if not smiles_input:
             raise ValueError("No component provided")
         return get_smiles_from_input(smiles_input)
-
-    def _get_temperatures(self, require_max=True):
-        if not self.temp_min.text:
-            raise ValueError("Min temperature required")
-        if require_max and not self.temp_max.text:
-            raise ValueError("Max temperature required")
-        try:
-            t_min = float(self.temp_min.text)
-            t_max = 0.0
-            if require_max:
-                t_max = float(self.temp_max.text)
-            return t_min, t_max
-        except ValueError as e:
-            raise ValueError("Temperature inputs must be numeric values") from e
-
-    def _get_pressure(self):
-        if not self.pressure.text:
-            raise ValueError("Pressure required")
-        try:
-            return float(self.pressure.text)
-        except ValueError as e:
-            raise ValueError("Pressure must be a numeric value") from e
-
-    @mainthread
-    def _show_error_alert(self, e):
-        show_error_popup(e)
-        error_message = Label(
-            text=f"Error: {str(e)}",
-            size_hint_y=None,
-            height=50,
-        )
-        error_message.font_size = 16
-        error_message.color = "#dc3545"
-        self.predicted_parameters.clear_widgets()
-        self.predicted_parameters.add_widget(error_message)
-
-    def _fill_inputs(self, pressure=None, t_min=None, t_max=None):
-        "Helper to populate inputs with clicked values"
-        if pressure is not None:
-            # Data is in kPa, Input expects Pa. Convert: * 1000
-            self.pressure.text = str(pressure * 1000.0)
-        if t_min is not None:
-            self.temp_min.text = str(t_min)
-        if t_max is not None:
-            self.temp_max.text = str(t_max)
 
     @run_with_loading
     def on_plot_density(self):

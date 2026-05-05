@@ -11,6 +11,22 @@ from numpy.typing import NDArray
 application_path = osp.dirname(osp.abspath(__file__))
 
 
+def default_mixture_output_args():
+    """Return the default output_args dict for mixture plots."""
+    return {
+        "rho_data": None,
+        "bubble_data": None,
+        "lle_data": None,
+        "vle_data": None,
+        "vle_pxy_data": None,
+        "rho_data_t": None,
+        "lle_data_t": None,
+        "vle_data_t": None,
+        "vle_tx_data_t": None,
+        "preds": [],
+    }
+
+
 def retrieve_rho_pure_data(smiles: str, pressure: float) -> Optional[NDArray[float64]]:
     "retrieve density data for plots"
 

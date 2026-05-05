@@ -12,11 +12,19 @@ from unittest.mock import MagicMock, patch
 # This prevents GUI/Backend libraries from trying to initialize during tests
 sys.modules["kivy"] = MagicMock()
 sys.modules["kivy.app"] = MagicMock()
+sys.modules["kivy.clock"] = MagicMock()
+sys.modules["kivy.logger"] = MagicMock()
+sys.modules["kivy.properties"] = MagicMock()
 sys.modules["kivy.uix"] = MagicMock()
+sys.modules["kivy.uix.boxlayout"] = MagicMock()
 sys.modules["kivy.uix.button"] = MagicMock()
 sys.modules["kivy.uix.dropdown"] = MagicMock()
 sys.modules["kivy.uix.gridlayout"] = MagicMock()
 sys.modules["kivy.uix.label"] = MagicMock()
+sys.modules["kivy.uix.popup"] = MagicMock()
+sys.modules["kivy.uix.progressbar"] = MagicMock()
+sys.modules["kivy.uix.screenmanager"] = MagicMock()
+sys.modules["kivy.uix.scrollview"] = MagicMock()
 sys.modules["matplotlib"] = MagicMock()
 sys.modules["matplotlib.pyplot"] = MagicMock()
 sys.modules["polars"] = MagicMock()
@@ -34,10 +42,21 @@ from app import utils, utils_mix, utils_pure
 from app.mixture_ui_builder import MixtureUIBuilder
 from app.plots import mixture_binary, mixture_common, mixture_ternary, plot_helpers
 from app.pure_ui_builder import PureUIBuilder
+from app.utils_data import default_mixture_output_args
 
 
 class FakeArray:
     """Minimal array-like for tests that require 2D slicing."""
+
+    class _FakeVector(list):
+        def __mul__(self, other):
+            return [value * other for value in self]
+
+        def __rmul__(self, other):
+            return [value * other for value in self]
+
+        def tolist(self):
+            return list(self)
 
     def __init__(self, data):
         self._data = data
@@ -49,15 +68,15 @@ class FakeArray:
         if isinstance(idx, tuple):
             rows, col = idx
             if isinstance(rows, slice):
-                return [row[col] for row in self._data]
+                return self._FakeVector([row[col] for row in self._data])
         return self._data[idx]
 
 
 class TestUtils(unittest.TestCase):
     "Test utils.py"
 
-    @patch("utils.inchitosmiles")
-    @patch("utils.smilestoinchi")
+    @patch("app.utils.inchitosmiles")
+    @patch("app.utils.smilestoinchi")
     def test_get_smiles_from_input(self, mock_s2i, mock_i2s):
         """Test SMILES/InChI input handling"""
         # Case 1: Standard SMILES input
@@ -77,8 +96,8 @@ class TestUtils(unittest.TestCase):
 class TestUtilsPure(unittest.TestCase):
     "test utils_pure.py"
 
-    @patch("utils_pure.predict_pcsaft_parameters")
-    @patch("utils_pure.pure_den_feos")
+    @patch("app.utils_pure.predict_pcsaft_parameters")
+    @patch("app.utils_pure.pure_den_feos")
     def test_pure_den(self, mock_calc, mock_predict):
         """Test Pure Density Logic"""
         # Setup mocks
@@ -94,8 +113,8 @@ class TestUtilsPure(unittest.TestCase):
         self.assertEqual(dens[0], 1000.0)
         mock_predict.assert_called_with("water")
 
-    @patch("utils_pure.predict_pcsaft_parameters")
-    @patch("utils_pure.pure_vp_feos")
+    @patch("app.utils_pure.predict_pcsaft_parameters")
+    @patch("app.utils_pure.pure_vp_feos")
     def test_pure_vp(self, mock_calc, mock_predict):
         """Test Pure Vapor Pressure Logic"""
         mock_predict.return_value = "dummy_params"
@@ -110,8 +129,8 @@ class TestUtilsPure(unittest.TestCase):
 class TestUtilsMix(unittest.TestCase):
     "test utils_mix.py"
 
-    @patch("utils_mix.predict_pcsaft_parameters")
-    @patch("utils_mix.mix_den_feos")
+    @patch("app.utils_mix.predict_pcsaft_parameters")
+    @patch("app.utils_mix.mix_den_feos")
     def test_mix_den(self, mock_calc, mock_predict):
         """Test Mixture Density Logic"""
         mock_predict.side_effect = ["p1", "p2"]
@@ -131,8 +150,8 @@ class TestUtilsMix(unittest.TestCase):
         self.assertIn("state", call_kwargs)
         self.assertIn("kij_matrix", call_kwargs)
 
-    @patch("utils_mix.predict_pcsaft_parameters")
-    @patch("utils_mix.mix_vle_diagram_feos")
+    @patch("app.utils_mix.predict_pcsaft_parameters")
+    @patch("app.utils_mix.mix_vle_diagram_feos")
     def test_mix_vle(self, mock_calc, mock_predict):
         """Test Mixture VLE Logic"""
         mock_predict.return_value = "p"
@@ -165,7 +184,7 @@ class TestPlotHelpers(unittest.TestCase):
 class TestPlotBinaryHandlers(unittest.TestCase):
     """test binary plot handlers"""
 
-    @patch("plots.mixture_binary.mix_vle")
+    @patch("app.plots.mixture_binary.mix_vle")
     def test_plot_vle_xy(self, mock_mix):
         """Plot binary VLE x-y with phase assignment."""
         output = {
@@ -197,8 +216,8 @@ class TestPlotBinaryHandlers(unittest.TestCase):
         self.assertEqual(args[0], [0.2])
         self.assertEqual(args[1], [0.8])
 
-    @patch("plots.mixture_binary.retrieve_vle_binary_data")
-    @patch("plots.mixture_binary.mix_vle")
+    @patch("app.plots.mixture_binary.retrieve_vle_binary_data")
+    @patch("app.plots.mixture_binary.mix_vle")
     def test_plot_vle_txy_exp(self, mock_mix, mock_exp):
         """Plot binary VLE T-x-y with experimental overlay."""
         mock_exp.return_value = FakeArray([[300.0, 0.2]])
@@ -232,8 +251,8 @@ class TestPlotBinaryHandlers(unittest.TestCase):
         self.assertEqual(args[1], [300.0])
         self.assertEqual(kwargs["exp_data"], ([0.2], [300.0], "Exp. Bubble P"))
 
-    @patch("plots.mixture_binary.retrieve_vle_pxy_binary_data")
-    @patch("plots.mixture_binary.mix_vle_pxy")
+    @patch("app.plots.mixture_binary.retrieve_vle_pxy_binary_data")
+    @patch("app.plots.mixture_binary.mix_vle_pxy")
     def test_plot_vle_pxy_exp(self, mock_mix, mock_exp):
         """Plot binary VLE P-x-y with experimental overlay."""
         mock_exp.return_value = FakeArray([[200.0, 0.3]])
@@ -261,8 +280,8 @@ class TestPlotBinaryHandlers(unittest.TestCase):
         self.assertEqual(args[1], [[1000.0], [900.0]])
         self.assertEqual(kwargs["exp_data"], ([0.3], [200000.0], "Exp. Bubble P"))
 
-    @patch("plots.mixture_binary.retrieve_lle_binary_data")
-    @patch("plots.mixture_binary.mix_lle")
+    @patch("app.plots.mixture_binary.retrieve_lle_binary_data")
+    @patch("app.plots.mixture_binary.mix_lle")
     def test_plot_lle_txx_exp(self, mock_mix, mock_exp):
         """Plot binary LLE T-x-x with experimental overlay."""
         mock_exp.return_value = FakeArray([[300.0, 0.4]])
@@ -300,9 +319,9 @@ class TestPlotBinaryHandlers(unittest.TestCase):
 class TestPlotCommonHandlers(unittest.TestCase):
     """test shared plot handlers"""
 
-    @patch("plots.mixture_common.mix_den")
-    @patch("plots.mixture_common.retrieve_rho_binary_data")
-    @patch("plots.mixture_common.retrieve_rho_ternary_data")
+    @patch("app.plots.mixture_common.mix_den")
+    @patch("app.plots.mixture_common.retrieve_rho_binary_data")
+    @patch("app.plots.mixture_common.retrieve_rho_ternary_data")
     def test_plot_density_multicomponent(self, mock_rho_t, mock_rho_b, mock_mix):
         """Plot density for mixtures with more than three components."""
         mock_rho_b.return_value = None
@@ -333,8 +352,8 @@ class TestPlotCommonHandlers(unittest.TestCase):
         self.assertEqual(args[0], [300.0, 310.0])
         self.assertEqual(args[1], [800.0, 790.0])
 
-    @patch("plots.mixture_common.mix_vp")
-    @patch("plots.mixture_common.retrieve_bubble_pressure_data")
+    @patch("app.plots.mixture_common.mix_vp")
+    @patch("app.plots.mixture_common.retrieve_bubble_pressure_data")
     def test_plot_vp_binary_no_exp(self, mock_exp, mock_mix):
         """Plot vapor pressure without experimental overlay."""
         mock_exp.return_value = None
@@ -361,8 +380,8 @@ class TestPlotCommonHandlers(unittest.TestCase):
         self.assertEqual(args[0], [300.0, 310.0])
         self.assertEqual(args[1], [[1.0, 2.0], [0.5, 1.5]])
 
-    @patch("plots.mixture_common.mix_den")
-    @patch("plots.mixture_common.retrieve_rho_binary_data")
+    @patch("app.plots.mixture_common.mix_den")
+    @patch("app.plots.mixture_common.retrieve_rho_binary_data")
     def test_plot_density_binary_exp(self, mock_exp, mock_mix):
         """Plot density with experimental overlay for binary mixtures."""
         mock_exp.return_value = FakeArray([[300.0, 900.0]])
@@ -393,8 +412,8 @@ class TestPlotCommonHandlers(unittest.TestCase):
         self.assertEqual(args[1], [800.0])
         self.assertEqual(kwargs["exp_data"], ([300.0], [900.0], "Exp. Data"))
 
-    @patch("plots.mixture_common.mix_vp")
-    @patch("plots.mixture_common.retrieve_bubble_pressure_data")
+    @patch("app.plots.mixture_common.mix_vp")
+    @patch("app.plots.mixture_common.retrieve_bubble_pressure_data")
     def test_plot_vp_binary_exp(self, mock_exp, mock_mix):
         """Plot vapor pressure with experimental overlay for binary mixtures."""
         mock_exp.return_value = FakeArray([[300.0, 2.0]])
@@ -426,8 +445,8 @@ class TestPlotCommonHandlers(unittest.TestCase):
 class TestPlotTernaryHandlers(unittest.TestCase):
     """test ternary plot handlers"""
 
-    @patch("plots.mixture_ternary.retrieve_vle_ternary_tx_fixed_data")
-    @patch("plots.mixture_ternary.mix_ternary_vle_tx_fixed")
+    @patch("app.plots.mixture_ternary.retrieve_vle_ternary_tx_fixed_data")
+    @patch("app.plots.mixture_ternary.mix_ternary_vle_tx_fixed")
     def test_plot_vle_tx_fixed(self, mock_mix, mock_exp):
         """Plot ternary VLE P-x at fixed temperature and solvent ratio."""
         mock_exp.return_value = None
@@ -458,9 +477,9 @@ class TestPlotTernaryHandlers(unittest.TestCase):
         self.assertEqual(args[1], [[1.0, 2.0, 3.0], [0.5, 1.5, 2.5]])
         self.assertIn("x2/(x2+x3)=0.375", args[2])
 
-    @patch("plots.mixture_ternary.retrieve_vle_ternary_data")
-    @patch("plots.mixture_ternary.retrieve_lle_ternary_data")
-    @patch("plots.mixture_ternary.mix_ternary_lle")
+    @patch("app.plots.mixture_ternary.retrieve_vle_ternary_data")
+    @patch("app.plots.mixture_ternary.retrieve_lle_ternary_data")
+    @patch("app.plots.mixture_ternary.mix_ternary_lle")
     def test_plot_vle_lle_prefers_lle(self, mock_mix, mock_lle, mock_vle):
         """Prefer LLE experimental data when available."""
         mock_lle.return_value = FakeArray([[0.1, 0.2]])
@@ -495,9 +514,9 @@ class TestPlotTernaryHandlers(unittest.TestCase):
         _, kwargs = layout._generate_ternary_plot.call_args
         self.assertEqual(kwargs["exp_data"], ([0.1], [0.2], "Exp. LLE Data"))
 
-    @patch("plots.mixture_ternary.retrieve_vle_ternary_data")
-    @patch("plots.mixture_ternary.retrieve_lle_ternary_data")
-    @patch("plots.mixture_ternary.mix_ternary_lle")
+    @patch("app.plots.mixture_ternary.retrieve_vle_ternary_data")
+    @patch("app.plots.mixture_ternary.retrieve_lle_ternary_data")
+    @patch("app.plots.mixture_ternary.mix_ternary_lle")
     def test_plot_vle_lle_fallback_vle(self, mock_mix, mock_lle, mock_vle):
         """Fallback to VLE experimental data when LLE is missing."""
         mock_lle.return_value = None
@@ -554,7 +573,9 @@ class DummyGrid:
 class TestPureUIBuilder(unittest.TestCase):
     """test pure UI builder"""
 
-    @patch("pure_ui_builder.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs))
+    @patch(
+        "app.ui_helpers.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs)
+    )
     def test_build_adds_availability_header(self, _mock_label):
         """Show availability header when experimental data exists."""
         rho_data = [[101.0, 300.0, 310.0, 5]]
@@ -582,7 +603,9 @@ class TestPureUIBuilder(unittest.TestCase):
         self.assertIn("Experimental Data Availability", label_texts)
         self.assertGreaterEqual(len(layout._dropdown_cache), 1)
 
-    @patch("pure_ui_builder.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs))
+    @patch(
+        "app.ui_helpers.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs)
+    )
     def test_build_skips_availability_header(self, _mock_label):
         """Skip availability header when no experimental data exists."""
         rho_data = []
@@ -615,23 +638,30 @@ class TestMixtureUIBuilder(unittest.TestCase):
     """test mixture UI builder"""
 
     @patch(
-        "mixture_ui_builder.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs)
+        "app.mixture_ui_builder.Label",
+        side_effect=lambda **kwargs: DummyLabel(**kwargs),
     )
-    @patch("mixture_ui_builder.GridLayout", side_effect=lambda **kwargs: DummyGrid())
-    def test_build_binary_dropdowns(self, _mock_grid, _mock_label):
+    @patch(
+        "app.ui_helpers.Label",
+        side_effect=lambda **kwargs: DummyLabel(**kwargs),
+    )
+    @patch(
+        "app.ui_helpers.GridLayout",
+        side_effect=lambda **kwargs: DummyGrid(),
+    )
+    def test_build_binary_dropdowns(self, _mock_grid, _mock_helper_label, _mock_label):
         """Render binary availability header and dropdown sections."""
-        output_args = {
-            "rho_data": [[101.0, 0.5, 300.0, 310.0, 5]],
-            "bubble_data": [[0.5, 300.0, 310.0, 5]],
-            "lle_data": [[101.0, 300.0, 310.0, 5]],
-            "vle_data": [[101.0, 300.0, 310.0, 5]],
-            "vle_pxy_data": [[300.0, 101.0, 110.0, 5]],
-            "rho_data_t": None,
-            "lle_data_t": None,
-            "vle_data_t": None,
-            "vle_tx_data_t": None,
-            "preds": [("A", [1.0] * len(utils.available_params))],
-        }
+        output_args = default_mixture_output_args()
+        output_args.update(
+            {
+                "rho_data": [[101.0, 0.5, 300.0, 310.0, 5]],
+                "bubble_data": [[0.5, 300.0, 310.0, 5]],
+                "lle_data": [[101.0, 300.0, 310.0, 5]],
+                "vle_data": [[101.0, 300.0, 310.0, 5]],
+                "vle_pxy_data": [[300.0, 101.0, 110.0, 5]],
+                "preds": [("A", [1.0] * len(utils.available_params))],
+            }
+        )
 
         class DummyLayout:
             def __init__(self):
@@ -662,23 +692,29 @@ class TestMixtureUIBuilder(unittest.TestCase):
         self.assertEqual(len(layout._dropdown_calls), 5)
 
     @patch(
-        "mixture_ui_builder.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs)
+        "app.mixture_ui_builder.Label",
+        side_effect=lambda **kwargs: DummyLabel(**kwargs),
     )
-    @patch("mixture_ui_builder.GridLayout", side_effect=lambda **kwargs: DummyGrid())
-    def test_build_ternary_dropdowns(self, _mock_grid, _mock_label):
+    @patch(
+        "app.ui_helpers.Label",
+        side_effect=lambda **kwargs: DummyLabel(**kwargs),
+    )
+    @patch(
+        "app.ui_helpers.GridLayout",
+        side_effect=lambda **kwargs: DummyGrid(),
+    )
+    def test_build_ternary_dropdowns(self, _mock_grid, _mock_helper_label, _mock_label):
         """Render ternary availability header and dropdown sections."""
-        output_args = {
-            "rho_data": None,
-            "bubble_data": None,
-            "lle_data": None,
-            "vle_data": None,
-            "vle_pxy_data": None,
-            "rho_data_t": [[101.0, 0.2, 0.3, 300.0, 310.0, 5]],
-            "lle_data_t": [[101.0, 300.0, 5]],
-            "vle_data_t": [[101.0, 300.0, 5]],
-            "vle_tx_data_t": [[300.0, 0.5, 101.0, 110.0, 5]],
-            "preds": [("A", [1.0] * len(utils.available_params))],
-        }
+        output_args = default_mixture_output_args()
+        output_args.update(
+            {
+                "rho_data_t": [[101.0, 0.2, 0.3, 300.0, 310.0, 5]],
+                "lle_data_t": [[101.0, 300.0, 5]],
+                "vle_data_t": [[101.0, 300.0, 5]],
+                "vle_tx_data_t": [[300.0, 0.5, 101.0, 110.0, 5]],
+                "preds": [("A", [1.0] * len(utils.available_params))],
+            }
+        )
 
         class DummyLayout:
             def __init__(self):

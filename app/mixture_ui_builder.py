@@ -1,8 +1,8 @@
 """UI builder for mixture parameter results."""
 
-from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 
+from app.ui_helpers import add_availability_header, add_footer, build_param_table
 from app.utils import available_params
 
 
@@ -40,7 +40,7 @@ class MixtureUIBuilder:
         if self._has_exp_data(
             [rho_data, bubble_data, lle_data, vle_data, vle_pxy_data]
         ):
-            self._add_availability_header()
+            add_availability_header(self.layout)
 
     def _render_ternary_availability(self):
         rho_data_t = self.output_args["rho_data_t"]
@@ -49,7 +49,7 @@ class MixtureUIBuilder:
         vle_tx_data_t = self.output_args["vle_tx_data_t"]
 
         if self._has_exp_data([rho_data_t, lle_data_t, vle_data_t, vle_tx_data_t]):
-            self._add_availability_header()
+            add_availability_header(self.layout)
 
     def _render_binary_dropdowns(self):
         rho_data = self.output_args["rho_data"]
@@ -195,68 +195,11 @@ class MixtureUIBuilder:
             comp_header.bind(size=comp_header.setter("text_size"))  # type: ignore pylint: disable=no-member
             self.layout.predicted_parameters.add_widget(comp_header)
 
-            row_height = 30
-            params_count = len(available_params)
-            table_height = (params_count + 1) * row_height
-
-            table = GridLayout(
-                cols=2,
-                size_hint_y=None,
-                height=table_height,
-                spacing=[10, 5],
-            )
-
-            table.add_widget(
-                Label(
-                    text="Parameter name",
-                    bold=True,
-                    color="#212529",
-                    halign="left",
-                )
-            )
-            table.add_widget(
-                Label(
-                    text="Parameter value",
-                    bold=True,
-                    color="#212529",
-                    halign="right",
-                )
-            )
-
-            for name, para in zip(available_params, pred):
-                param_label = Label(text=str(name), color="#212529", halign="left")
-                param_label.bind(size=param_label.setter("text_size"))  # type: ignore pylint: disable=no-member
-                table.add_widget(param_label)
-
-                param_label_value = Label(
-                    text=f"{para:.5g}", color="#212529", halign="right"
-                )
-                param_label_value.bind(size=param_label_value.setter("text_size"))  # type: ignore pylint: disable=no-member
-                table.add_widget(param_label_value)
-
+            table = build_param_table(available_params, pred)
             self.layout.predicted_parameters.add_widget(table)
 
     def _render_footer(self):
-        footer = Label(
-            text="* Not estimated",
-            size_hint_y=None,
-            height=30,
-            color="#6c757d",
-            italic=True,
-        )
-        self.layout.predicted_parameters.add_widget(footer)
-
-    def _add_availability_header(self):
-        self.layout.predicted_parameters.add_widget(
-            Label(
-                text="Experimental Data Availability",
-                size_hint_y=None,
-                height=40,
-                color="#0d6efd",
-                font_size=20,
-                bold=True,
-            )
-        )
+        add_footer(self.layout)
 
     @staticmethod
     def _has_exp_data(exp_sets):

@@ -6,22 +6,25 @@ from gnnepcsaft.pcsaft.pcsaft_feos import critical_points_feos
 from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
 from kivy.clock import mainthread
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
-from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.dropdown import DropDown
-from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 
+from app.layout_base import BaseInputLayout
 from app.mixture_ui_builder import MixtureUIBuilder
 from app.plots import mixture_binary, mixture_common, mixture_ternary
+from app.ui_helpers import (
+    add_dropdown_button,
+    fill_pressure_temperature,
+)
 from app.utils import (
     generate_plot,
     generate_ternary_plot,
     get_smiles_from_input,
     run_with_loading,
-    show_error_popup,
 )
 from app.utils_data import (
+    default_mixture_output_args,
     retrieve_available_data_binary,
     retrieve_available_data_ternary,
 )
@@ -32,30 +35,12 @@ class MixtureScreen(Screen):
 
 
 # pylint: disable=E1133
-class MixtureLayout(BoxLayout):
+class MixtureLayout(BaseInputLayout):
     "Mixture Layout"
 
     smiles_or_inchi_input = ObjectProperty(None)
     fractions_input = ObjectProperty(None)
     kij_input = ObjectProperty(None)
-    temp_min = ObjectProperty(None)
-    temp_max = ObjectProperty(None)
-    pressure = ObjectProperty(None)
-    predicted_parameters = ObjectProperty(None)
-    _dropdown_cache = []
-
-    @mainthread
-    def _show_error_alert(self, e):
-        show_error_popup(e)
-        error_message = Label(
-            text=f"Error: {str(e)}",
-            size_hint_y=None,
-            height=50,
-        )
-        error_message.font_size = 16
-        error_message.color = "#dc3545"
-        self.predicted_parameters.clear_widgets()
-        self.predicted_parameters.add_widget(error_message)
 
     @mainthread
     def _generate_plot(
@@ -97,28 +82,6 @@ class MixtureLayout(BoxLayout):
             raise ValueError("Number of components and fractions must match")
         return fractions
 
-    def _get_temperatures(self, require_max=True):
-        if not self.temp_min.text:
-            raise ValueError("Min temperature required")
-        if require_max and not self.temp_max.text:
-            raise ValueError("Max temperature required")
-        try:
-            t_min = float(self.temp_min.text)
-            t_max = 0.0
-            if require_max:
-                t_max = float(self.temp_max.text)
-            return t_min, t_max
-        except ValueError as e:
-            raise ValueError("Temperature values must be numeric") from e
-
-    def _get_pressure(self):
-        if not self.pressure.text:
-            raise ValueError("Pressure required")
-        try:
-            return float(self.pressure.text)
-        except ValueError as e:
-            raise ValueError("Pressure must be a numeric value") from e
-
     def _get_kij(self, n):
         kij_txt = self.kij_input.text.strip()
         kij_matrix = [[0.0] * n for _ in range(n)]
@@ -155,18 +118,7 @@ class MixtureLayout(BoxLayout):
                         k_idx += 1
 
     def _get_available_data(self, smiles_list):
-        output_args = {
-            "rho_data": None,
-            "bubble_data": None,
-            "lle_data": None,
-            "vle_data": None,
-            "vle_pxy_data": None,
-            "rho_data_t": None,
-            "lle_data_t": None,
-            "vle_data_t": None,
-            "vle_tx_data_t": None,
-            "preds": [],
-        }
+        output_args = default_mixture_output_args()
 
         if len(smiles_list) == 2:
             try:
@@ -202,16 +154,7 @@ class MixtureLayout(BoxLayout):
         for btn in dropdown_btns:
             dropdown.add_widget(btn)
 
-        main_button = Button(
-            text=title,
-            size_hint_y=None,
-            height=44,
-            size_hint_x=width_ratio,
-            pos_hint={"center_x": 0.5},
-            background_color=(0.1, 0.5, 0.8, 1),
-        )
-        main_button.bind(on_release=dropdown.open)  # type: ignore pylint: disable=no-member
-        self.predicted_parameters.add_widget(main_button)
+        add_dropdown_button(self, title, dropdown, width_ratio=width_ratio)
 
     def _make_binary_button(self, dropdown, text, fill_action):
         btn = Button(
@@ -229,12 +172,7 @@ class MixtureLayout(BoxLayout):
 
     def _fill_inputs_binary(self, pressure=None, t_min=None, t_max=None, x1=None):
         "Helper to populate inputs with clicked values"
-        if pressure is not None:
-            self.pressure.text = str(pressure * 1000.0)  # kPa to Pa
-        if t_min is not None:
-            self.temp_min.text = str(t_min)
-        if t_max is not None:
-            self.temp_max.text = str(t_max)
+        fill_pressure_temperature(self, pressure=pressure, t_min=t_min, t_max=t_max)
         if x1 is not None:
             self.fractions_input.text = f"{x1:.2f} {1.0 - x1:.2f}"
 
@@ -242,12 +180,7 @@ class MixtureLayout(BoxLayout):
         self, pressure=None, t_min=None, t_max=None, x1=None, x2=None
     ):
         "Helper to populate inputs with clicked values for ternary"
-        if pressure is not None:
-            self.pressure.text = str(pressure * 1000.0)
-        if t_min is not None:
-            self.temp_min.text = str(t_min)
-        if t_max is not None:
-            self.temp_max.text = str(t_max)
+        fill_pressure_temperature(self, pressure=pressure, t_min=t_min, t_max=t_max)
         if x1 is not None and x2 is not None:
             x3 = max(0.0, 1.0 - x1 - x2)
             self.fractions_input.text = f"{x1:.2f} {x2:.2f} {x3:.2f}"
