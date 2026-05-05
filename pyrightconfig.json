@@ -1,6 +1,12 @@
 {
   "include": ["app"],
-  "exclude": ["**/app_pkg", "**/.venv"],
+  "exclude": [
+    "**/app_pkg",
+    "**/.venv",
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*"
+  ],
   "typeCheckingMode": "standard",
   "reportMissingTypeStubs": "none"
 }
