@@ -8,6 +8,11 @@ from unittest.mock import MagicMock, patch
 # This prevents GUI/Backend libraries from trying to initialize during tests
 sys.modules["kivy"] = MagicMock()
 sys.modules["kivy.app"] = MagicMock()
+sys.modules["kivy.uix"] = MagicMock()
+sys.modules["kivy.uix.button"] = MagicMock()
+sys.modules["kivy.uix.dropdown"] = MagicMock()
+sys.modules["kivy.uix.gridlayout"] = MagicMock()
+sys.modules["kivy.uix.label"] = MagicMock()
 sys.modules["matplotlib"] = MagicMock()
 sys.modules["matplotlib.pyplot"] = MagicMock()
 sys.modules["polars"] = MagicMock()
@@ -25,6 +30,7 @@ import utils
 import utils_mix
 import utils_pure
 from plots import mixture_binary, mixture_common, mixture_ternary, plot_helpers
+from pure_ui_builder import PureUIBuilder
 
 
 class FakeArray:
@@ -522,6 +528,77 @@ class TestPlotTernaryHandlers(unittest.TestCase):
         layout._generate_ternary_plot.assert_called_once()
         _, kwargs = layout._generate_ternary_plot.call_args
         self.assertEqual(kwargs["exp_data"], ([0.5], [0.6], "Exp. Bubble P"))
+
+
+class DummyLabel:
+    """Simple label stand-in for UI builder tests."""
+
+    def __init__(self, **kwargs):
+        self.text = kwargs.get("text")
+        self.bind = MagicMock()
+
+    def setter(self, name):
+        return lambda *args, **kwargs: None
+
+
+class TestPureUIBuilder(unittest.TestCase):
+    """test pure UI builder"""
+
+    @patch("pure_ui_builder.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs))
+    def test_build_adds_availability_header(self, _mock_label):
+        """Show availability header when experimental data exists."""
+        rho_data = [[101.0, 300.0, 310.0, 5]]
+        vp_range = [None] * 5
+        st_range = [None] * 5
+        pred = [1.0] * len(utils.available_params)
+
+        class DummyLayout:
+            def __init__(self):
+                self.predicted_parameters = MagicMock()
+                self._dropdown_cache = []
+
+            def _fill_inputs(self, pressure=None, t_min=None, t_max=None):
+                pass
+
+        layout = DummyLayout()
+        builder = PureUIBuilder(layout, rho_data, vp_range, st_range, pred)
+        builder.build()
+
+        label_texts = [
+            call.args[0].text
+            for call in layout.predicted_parameters.add_widget.call_args_list
+            if hasattr(call.args[0], "text")
+        ]
+        self.assertIn("Experimental Data Availability", label_texts)
+        self.assertGreaterEqual(len(layout._dropdown_cache), 1)
+
+    @patch("pure_ui_builder.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs))
+    def test_build_skips_availability_header(self, _mock_label):
+        """Skip availability header when no experimental data exists."""
+        rho_data = []
+        vp_range = [None] * 5
+        st_range = [None] * 5
+        pred = [1.0] * len(utils.available_params)
+
+        class DummyLayout:
+            def __init__(self):
+                self.predicted_parameters = MagicMock()
+                self._dropdown_cache = []
+
+            def _fill_inputs(self, pressure=None, t_min=None, t_max=None):
+                pass
+
+        layout = DummyLayout()
+        builder = PureUIBuilder(layout, rho_data, vp_range, st_range, pred)
+        builder.build()
+
+        label_texts = [
+            call.args[0].text
+            for call in layout.predicted_parameters.add_widget.call_args_list
+            if hasattr(call.args[0], "text")
+        ]
+        self.assertNotIn("Experimental Data Availability", label_texts)
+        self.assertEqual(len(layout._dropdown_cache), 0)
 
 
 if __name__ == "__main__":
