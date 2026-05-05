@@ -1,5 +1,9 @@
 "tests"
 
+# pylint: disable=missing-class-docstring,missing-function-docstring,protected-access
+# pylint: disable=too-few-public-methods,unused-argument,wrong-import-position
+# pylint: disable=unnecessary-lambda
+
 import sys
 import unittest
 from unittest.mock import MagicMock, patch
