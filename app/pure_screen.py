@@ -7,13 +7,10 @@ from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
 from kivy.clock import mainthread
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
-from kivy.uix.dropdown import DropDown
-from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
+from pure_ui_builder import PureUIBuilder
 from utils import (
-    available_params,
     generate_plot,
     get_smiles_from_input,
     run_with_loading,
@@ -46,6 +43,7 @@ class PureLayout(BoxLayout):
     temp_max = ObjectProperty(None)
     pressure = ObjectProperty(None)
     predicted_parameters = ObjectProperty(None)
+    _dropdown_cache = []
 
     @mainthread
     def _generate_plot(
@@ -259,6 +257,7 @@ class PureLayout(BoxLayout):
         @mainthread
         def clear_widgets():
             self.predicted_parameters.clear_widgets()
+            self._dropdown_cache = []
 
         clear_widgets()
 
@@ -279,165 +278,8 @@ class PureLayout(BoxLayout):
 
             @mainthread
             def build_ui(rho_data, vp_range, st_range, pred):
-                if (rho_data is not None and len(rho_data) > 0) or (
-                    vp_range[0] is not None or st_range[0] is not None
-                ):
-                    self.predicted_parameters.add_widget(
-                        Label(
-                            text="Experimental Data Availability",
-                            size_hint_y=None,
-                            height=40,
-                            color="#0d6efd",
-                            font_size=20,
-                            bold=True,
-                        )
-                    )
-
-                # Surface Tension
-                if st_range[0] is not None:
-                    dropdown_st = DropDown()
-                    btn = Button(
-                        text=f"ST data ({int(st_range[2])} points, T is variable)",
-                        size_hint_y=None,
-                        height=44,
-                    )
-                    btn.bind(  # type: ignore pylint: disable=no-member
-                        on_release=lambda btn: (dropdown_st.dismiss(),)
-                    )
-                    dropdown_st.add_widget(btn)
-
-                    main_button = Button(
-                        text="Select Surface Tension Data",
-                        size_hint_y=None,
-                        height=44,
-                        size_hint_x=0.4,
-                        pos_hint={"center_x": 0.5},
-                        background_color=(0.1, 0.5, 0.8, 1),
-                    )
-                    main_button.bind(on_release=dropdown_st.open)  # type: ignore pylint: disable=no-member
-                    self.predicted_parameters.add_widget(main_button)
-
-                # Vapor Pressure
-                if vp_range[0] is not None:
-                    dropdown_vp = DropDown()
-                    btn = Button(
-                        text=f"VP data ({int(vp_range[2])} points, T is variable)",
-                        size_hint_y=None,
-                        height=44,
-                    )
-                    btn.bind(  # type: ignore pylint: disable=no-member
-                        on_release=lambda btn: (dropdown_vp.dismiss(),)
-                    )
-                    dropdown_vp.add_widget(btn)
-
-                    main_button = Button(
-                        text="Select Vapor Pressure Data",
-                        size_hint_y=None,
-                        height=44,
-                        size_hint_x=0.4,
-                        pos_hint={"center_x": 0.5},
-                        background_color=(0.1, 0.5, 0.8, 1),
-                    )
-                    main_button.bind(on_release=dropdown_vp.open)  # type: ignore pylint: disable=no-member
-                    self.predicted_parameters.add_widget(main_button)
-
-                # Density
-                if rho_data is not None and len(rho_data) > 0:
-                    dropdown = DropDown()
-                    for row in rho_data:
-                        # row: [Pressure (kPa), T_min, T_max, count]
-                        btn = Button(
-                            text=f"P={row[0]:.5g} kPa ({int(row[3])} points)",
-                            size_hint_y=None,
-                            height=44,
-                        )
-                        btn.bind(  # type: ignore pylint: disable=no-member
-                            on_release=lambda btn, r=row: (
-                                self._fill_inputs(pressure=r[0]),
-                                dropdown.dismiss(),
-                            )
-                        )
-                        dropdown.add_widget(btn)
-
-                    main_button = Button(
-                        text="Select Liquid Density Data",
-                        size_hint_y=None,
-                        height=44,
-                        size_hint_x=0.4,
-                        pos_hint={"center_x": 0.5},
-                        background_color=(0.1, 0.5, 0.8, 1),
-                    )
-                    main_button.bind(on_release=dropdown.open)  # type: ignore pylint: disable=no-member
-                    self.predicted_parameters.add_widget(main_button)
-
-                self.predicted_parameters.add_widget(Label(size_hint_y=None, height=20))
-
-                # Title
-                title = Label(
-                    text="Estimated PC-SAFT parameters",
-                    size_hint_y=None,  # changed
-                    height=40,  # changed
-                    color="#198754",  # Bootstrap text-success
-                    font_size=20,
-                    bold=True,
-                )
-                self.predicted_parameters.add_widget(title)
-
-                # Table container (Grid)
-                # Calculate required height based on number of rows (header + data)
-                row_height = 30
-                params_count = len(available_params)
-                table_height = (params_count + 1) * row_height
-
-                table = GridLayout(
-                    cols=2,
-                    size_hint_y=None,
-                    height=table_height,
-                    spacing=[10, 5],
-                )
-
-                # Headers - Using dark gray for contrast on white
-                table.add_widget(
-                    Label(
-                        text="Parameter name", bold=True, color="#212529", halign="left"
-                    )
-                )
-                table.add_widget(
-                    Label(
-                        text="Parameter value",
-                        bold=True,
-                        color="#212529",
-                        halign="right",
-                    )
-                )
-
-                # Rows
-                for name, para in zip(available_params, pred):
-                    # Parameter Name
-                    param_label = Label(text=str(name), color="#212529", halign="left")
-                    param_label.bind(  # type: ignore pylint: disable=no-member
-                        size=param_label.setter("text_size")  # type: ignore pylint: disable=no-member
-                    )  # Ensure text aligns within widget
-                    table.add_widget(param_label)
-
-                    # Parameter Value
-                    param_label_value = Label(
-                        text=f"{para:.5g}", color="#212529", halign="right"
-                    )
-                    param_label_value.bind(size=param_label_value.setter("text_size"))  # type: ignore pylint: disable=no-member
-                    table.add_widget(param_label_value)
-
-                self.predicted_parameters.add_widget(table)
-
-                # Footer
-                footer = Label(
-                    text="* Not estimated",
-                    size_hint_y=None,
-                    height=30,
-                    color="#6c757d",
-                    italic=True,
-                )
-                self.predicted_parameters.add_widget(footer)
+                builder = PureUIBuilder(self, rho_data, vp_range, st_range, pred)
+                builder.build()
 
             build_ui(rho_data, vp_range, st_range, pred)
 
