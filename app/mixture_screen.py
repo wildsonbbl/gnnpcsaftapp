@@ -1025,6 +1025,7 @@ class MixtureLayout(BoxLayout):
                 kij_matrix,
                 t_min,
                 solvent_ratio,
+                mole_fractions=exp_data and exp_data[0].tolist(),
             )
 
             if not x1_values:

@@ -164,7 +164,7 @@ def mix_vle_pxy(
             # Reject points whose pressures exceed both components' critical pressures
             if bp > max_pc or dp > max_pc:
                 Logger.warning(
-                    "mix_vle_pxy: breaking from point beyond both Pc at x0=%.4f: bp=%.2f, dp=%.2f",
+                    "mix_vle_pxy: breaking from point above both Pc at x0=%.4f: bp=%.2f, dp=%.2f",
                     x0,
                     bp,
                     dp,
@@ -187,7 +187,7 @@ def mix_vle_pxy(
                 dps.append(bp)
             xs.append(x0)
         except RuntimeError as e:
-            Logger.debug("mix_vle_pxy: Runtime error at x0=%.4f: %s", x0, e)
+            Logger.debug("mix_vle_pxy: Runtime Error at x0=%.4f: %s", x0, e)
             continue
         except BaseException as e:  # pylint: disable=W0718
             exception_type = type(e).__name__
@@ -288,7 +288,8 @@ def mix_ternary_vle_tx_fixed(
     kij_matrix: List[List[float]],
     temperature: float,
     solvent_ratio: float,
-    n_points: int = 25,
+    n_points: int = 52,
+    mole_fractions: Optional[List[float]] = None,
 ) -> Tuple[List[float], List[float], List[float]]:
     """
     Calculate ternary isothermal VLE curve (P-x) at fixed solvent ratio.
@@ -297,10 +298,60 @@ def mix_ternary_vle_tx_fixed(
     """
     parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
 
-    if not 0.0 < solvent_ratio < 1.0:
-        raise ValueError("For ternary P-x, solvent ratio must be between 0 and 1")
+    tcs_pcs = [critical_points_feos(parameters=p) for p in parameters_list]
+    tcs = [tc for tc, _, _ in tcs_pcs]
+    pcs = [pc for _, pc, _ in tcs_pcs]
 
-    x1_grid = np.linspace(1e-4, 0.98, num=n_points)
+    if all(temperature >= tc for tc in tcs):
+        raise ValueError(
+            f"Temperature {temperature} K is above the critical temperature of all components; "
+            "VLE calculation is not meaningful.",
+        )
+
+    vps = []
+    for idx, tc in enumerate(tcs):
+        try:
+            if temperature < tc:
+                vps.append(
+                    pure_vp_feos(parameters=parameters_list[idx], state=[temperature])
+                )
+            else:
+                vps.append(None)
+        except RuntimeError:
+            vps.append(None)
+
+    if all(vp is None for vp in vps):
+        raise ValueError(
+            f"Unable to compute pure vapor pressures at {temperature} K for any component; "
+            "VLE calculation is not meaningful.",
+        )
+
+    # Componente mais volatil deve ser o primeiro. Usa VP quando disponivel;
+    # componentes supercriticos sao tratados como mais volateis.
+    def _volatility_rank(vp, tc):
+        if vp is not None:
+            return vp
+        if temperature >= tc:
+            return float("inf")
+        return float("-inf")
+
+    ranks = [_volatility_rank(vps[i], tcs[i]) for i in range(3)]
+    most_volatile_index = int(np.argmax(ranks))
+    if most_volatile_index != 0:
+        raise ValueError(
+            f"More volatile component ({smiles_list[most_volatile_index]}) must be listed first "
+            "in ternary P-x calculation",
+        )
+
+    if not 0.0 < solvent_ratio < 1.0:
+        raise ValueError(
+            f"For ternary P-x, solvent ratio must be between 0 and 1, got ratio = {solvent_ratio}"
+        )
+
+    x1_grid = np.linspace(0.0, 1.0, num=n_points, dtype=np.float64).tolist()
+    if mole_fractions:
+        x1_grid.extend(mole_fractions)
+        x1_grid = sorted(x1_grid)
 
     x1_values = []
     bubble_pressures = []
@@ -320,8 +371,54 @@ def mix_ternary_vle_tx_fixed(
                 state=[temperature, 0.0, float(x1), float(x2), float(x3)],
                 kij_matrix=kij_matrix,
             )
-        except (RuntimeError, ValueError):
+        except RuntimeError as e:
+            Logger.debug(
+                "mix_ternary_vle_tx_fixed: Runtime Error at x1=%.4f, x2=%.4f, x3=%.4f: %s",
+                x1,
+                x2,
+                x3,
+                e,
+            )
             continue
+        except BaseException as e:  # pylint: disable=W0718
+            exception_type = type(e).__name__
+            if exception_type == "PanicException":
+                Logger.warning(
+                    "mix_ternary_vle_tx_fixed: PanicException at x1=%.4f, x2=%.4f, x3=%.4f: %s",
+                    x1,
+                    x2,
+                    x3,
+                    e,
+                )
+                continue
+            Logger.exception(
+                "mix_ternary_vle_tx_fixed: unexpected %s at x1=%.4f, x2=%.4f, x3=%.4f",
+                exception_type,
+                x1,
+                x2,
+                x3,
+            )
+            raise
+
+        max_pc = max(pcs)
+        min_pc = min(pcs)
+        if bubble_p > max_pc or dew_p > max_pc:
+            Logger.warning(
+                "mix_ternary_vle_tx_fixed: breaking from "
+                "point above all Pc at x1=%.4f: bp=%.2f, dp=%.2f",
+                x1,
+                bubble_p,
+                dew_p,
+            )
+            break
+        if bubble_p > min_pc or dew_p > min_pc:
+            Logger.warning(
+                "mix_ternary_vle_tx_fixed: point above at least "
+                "one Pc at x1=%.4f: bp=%.2f, dp=%.2f",
+                x1,
+                bubble_p,
+                dew_p,
+            )
 
         if (
             np.isfinite(bubble_p)
