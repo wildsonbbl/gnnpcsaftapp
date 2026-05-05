@@ -12,6 +12,7 @@ from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
+from plots import mixture_binary, mixture_common, mixture_ternary
 from utils import (
     available_params,
     generate_plot,
@@ -23,24 +24,6 @@ from utils import (
 from utils_data import (
     retrieve_available_data_binary,
     retrieve_available_data_ternary,
-    retrieve_bubble_pressure_data,
-    retrieve_lle_binary_data,
-    retrieve_lle_ternary_data,
-    retrieve_rho_binary_data,
-    retrieve_rho_ternary_data,
-    retrieve_vle_binary_data,
-    retrieve_vle_pxy_binary_data,
-    retrieve_vle_ternary_data,
-    retrieve_vle_ternary_tx_fixed_data,
-)
-from utils_mix import (
-    mix_den,
-    mix_lle,
-    mix_ternary_lle,
-    mix_ternary_vle_tx_fixed,
-    mix_vle,
-    mix_vle_pxy,
-    mix_vp,
 )
 
 
@@ -556,48 +539,7 @@ class MixtureLayout(BoxLayout):
         "plot mixture density vs temperature"
         try:
             smiles_list = self._get_smiles()
-            n = len(smiles_list)
-            fractions = self._get_fractions(n)
-            kij_matrix = self._get_kij(n)
-            t_min, t_max = self._get_temperatures(require_max=True)
-            p_val = self._get_pressure()
-
-            # Fetch Experimental Data
-            exp_data = None
-            if len(smiles_list) == 2:
-                try:
-                    # fractions[0] corresponds to x1 relative to smiles_list order
-                    exp_array = retrieve_rho_binary_data(
-                        smiles_list, p_val / 1000.0, fractions[0]
-                    )
-                    if exp_array is not None and len(exp_array) > 0:
-                        exp_data = (exp_array[:, 0], exp_array[:, 1], "Exp. Data")
-                except (ValueError, RuntimeError):
-                    pass
-
-            elif len(smiles_list) == 3:
-                try:
-                    # fractions[0]=x1, fractions[1]=x2
-                    if len(fractions) >= 2:
-                        exp_array = retrieve_rho_ternary_data(
-                            smiles_list, p_val / 1000.0, fractions[0], fractions[1]
-                        )
-                        if exp_array is not None and len(exp_array) > 0:
-                            exp_data = (exp_array[:, 0], exp_array[:, 1], "Exp. Data")
-                except (ValueError, RuntimeError):
-                    pass
-
-            temperatures, densities = mix_den(
-                smiles_list, fractions, kij_matrix, t_min, t_max, p_val
-            )
-            self._generate_plot(
-                temperatures,
-                densities,
-                "Mixture Density vs Temperature",
-                "Temperature (K)",
-                "Density (mol/m³)",
-                exp_data=exp_data,
-            )
+            mixture_common.plot_density(self, smiles_list)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -606,39 +548,7 @@ class MixtureLayout(BoxLayout):
         "plot mixture vapor pressure vs temperature"
         try:
             smiles_list = self._get_smiles()
-            n = len(smiles_list)
-            fractions = self._get_fractions(n)
-            kij_matrix = self._get_kij(n)
-            t_min, t_max = self._get_temperatures(require_max=True)
-
-            # Fetch Experimental Bubble Point Data (P vs T for constant x)
-            exp_data = None
-            try:
-                if len(smiles_list) == 2:
-                    # Retrieve data for x1 = fractions[0]
-                    exp_bp = retrieve_bubble_pressure_data(smiles_list, fractions[0])
-                    if exp_bp is not None and len(exp_bp) > 0:
-                        # exp_bp: [T, P_kPa] -> Convert kPa to Pa
-                        exp_data = (
-                            exp_bp[:, 0],
-                            exp_bp[:, 1] * 1000.0,
-                            "Exp. Bubble P",
-                        )
-            except (ValueError, RuntimeError):
-                pass
-
-            temperatures, bubbles, dews = mix_vp(
-                smiles_list, fractions, kij_matrix, t_min, t_max
-            )
-            self._generate_plot(
-                temperatures,
-                [bubbles, dews],
-                "Mixture Phase Envelope (P-T)",
-                "Temperature (K)",
-                "Pressure (Pa)",
-                legends=["Bubble Point", "Dew Point"],
-                exp_data=exp_data,
-            )
+            mixture_common.plot_vp(self, smiles_list)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -646,52 +556,7 @@ class MixtureLayout(BoxLayout):
     def on_plot_binary_vle_txy(self):
         "plot binary VLE T-x-y"
         try:
-            smiles_list = self._get_smiles()
-            if len(smiles_list) != 2:
-                raise ValueError(
-                    f"VLE for binary mixture, got {len(smiles_list)} components instead"
-                )
-
-            n = len(smiles_list)
-            kij_matrix = self._get_kij(n)
-            p_val = self._get_pressure()
-
-            # Retrieve Experimental Data
-            exp_data = None
-            try:
-                vle_arr = retrieve_vle_binary_data(smiles_list, p_val / 1000.0)
-                if vle_arr is not None and len(vle_arr) > 0:
-                    # vle_arr: [T, x_c1]
-                    exp_data = (vle_arr[:, 1], vle_arr[:, 0], "Exp. Bubble P")
-            except (ValueError, RuntimeError):
-                pass
-
-            output = mix_vle(smiles_list, kij_matrix, p_val)
-
-            # Check density for correct phase assignment point by point
-            dens_l = output["density liquid"]
-            dens_v = output["density vapor"]
-            x_liquid = []
-            y_vapor = []
-            for x_liq, y_vap, rho_liq, rho_vap in zip(
-                output["x0"], output["y0"], dens_l, dens_v
-            ):
-                if rho_liq > rho_vap:
-                    x_liquid.append(x_liq)
-                    y_vapor.append(y_vap)
-                else:
-                    x_liquid.append(y_vap)
-                    y_vapor.append(x_liq)
-
-            self._generate_plot(
-                [x_liquid, y_vapor],
-                output["temperature"],
-                f"VLE T-x-y for {smiles_list[0]} at {p_val} Pa",
-                "x,y",
-                "Temperature (K)",
-                legends=["Bubble Point", "Dew Point"],
-                exp_data=exp_data,
-            )
+            mixture_binary.plot_vle_txy(self)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -699,43 +564,7 @@ class MixtureLayout(BoxLayout):
     def on_plot_binary_vle_pxy(self):
         "plot binary VLE P-x-y"
         try:
-            smiles_list = self._get_smiles()
-            if len(smiles_list) != 2:
-                raise ValueError(
-                    f"VLE for binary mixture, got {len(smiles_list)} components instead"
-                )
-
-            n = len(smiles_list)
-            kij_matrix = self._get_kij(n)
-            t_min, _ = self._get_temperatures(require_max=False)
-
-            # Retrieve Experimental Data
-            exp_data = None
-            try:
-                # Returns [P_kPa, x_c1]
-                vle_arr = retrieve_vle_pxy_binary_data(smiles_list, t_min)
-                if vle_arr is not None and len(vle_arr) > 0:
-                    exp_data = (
-                        vle_arr[:, 1],
-                        vle_arr[:, 0] * 1000.0,
-                        "Exp. Bubble P",
-                    )
-            except (ValueError, RuntimeError):
-                pass
-
-            x0s, bps, dps = mix_vle_pxy(
-                smiles_list, kij_matrix, t_min, exp_data and exp_data[0].tolist()
-            )
-
-            self._generate_plot(
-                x0s,
-                [bps, dps],
-                f"VLE P-x-y for {smiles_list[0]} at {t_min} K",
-                "x,y",
-                "Pressure (Pa)",
-                legends=["Bubble Point", "Dew Point"],
-                exp_data=exp_data,
-            )
+            mixture_binary.plot_vle_pxy(self)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -743,40 +572,7 @@ class MixtureLayout(BoxLayout):
     def on_plot_binary_vle_xy(self):
         "plot binary VLE x-y"
         try:
-            smiles_list = self._get_smiles()
-            if len(smiles_list) != 2:
-                raise ValueError(
-                    f"VLE for binary mixture, got {len(smiles_list)} components instead"
-                )
-
-            n = len(smiles_list)
-            kij_matrix = self._get_kij(n)
-            p_val = self._get_pressure()
-
-            output = mix_vle(smiles_list, kij_matrix, p_val)
-
-            # Check density for correct phase assignment point by point
-            dens_l = output["density liquid"]
-            dens_v = output["density vapor"]
-            x_liquid = []
-            y_vapor = []
-            for x_liq, y_vap, rho_liq, rho_vap in zip(
-                output["x0"], output["y0"], dens_l, dens_v
-            ):
-                if rho_liq > rho_vap:
-                    x_liquid.append(x_liq)
-                    y_vapor.append(y_vap)
-                else:
-                    x_liquid.append(y_vap)
-                    y_vapor.append(x_liq)
-
-            self._generate_plot(
-                x_liquid,
-                y_vapor,
-                f"VLE x-y for {smiles_list[0]} at {p_val} Pa",
-                "x",
-                "y",
-            )
+            mixture_binary.plot_vle_xy(self)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -784,38 +580,7 @@ class MixtureLayout(BoxLayout):
     def on_plot_binary_lle_txx(self):
         "plot binary LLE T-x-x"
         try:
-            smiles_list = self._get_smiles()
-            if len(smiles_list) != 2:
-                raise ValueError(
-                    f"LLE for binary mixture, got {len(smiles_list)} components instead"
-                )
-
-            n = len(smiles_list)
-            fractions = self._get_fractions(n)
-            kij_matrix = self._get_kij(n)
-            t_min, _ = self._get_temperatures(require_max=False)
-            p_val = self._get_pressure()
-
-            # Retrieve Experimental Data
-            exp_data = None
-            try:
-                lle_arr = retrieve_lle_binary_data(smiles_list, p_val / 1000.0)
-                if lle_arr is not None and len(lle_arr) > 0:
-                    # lle_arr: [T, x_c1]
-                    exp_data = (lle_arr[:, 1], lle_arr[:, 0], "Exp. LLE Data")
-            except (ValueError, RuntimeError):
-                pass
-
-            output = mix_lle(smiles_list, fractions, kij_matrix, t_min, p_val)
-            self._generate_plot(
-                [output["x0"], output["y0"]],
-                output["temperature"],
-                f"LLE T-x-x for {smiles_list[0]} at {p_val} Pa",
-                "x,x",
-                "Temperature (K)",
-                legends=["Phase 1", "Phase 2"],
-                exp_data=exp_data,
-            )
+            mixture_binary.plot_lle_txx(self)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -823,49 +588,7 @@ class MixtureLayout(BoxLayout):
     def on_plot_ternary_vle_lle(self):
         "plot ternary VLE/LLE"
         try:
-            smiles_list = self._get_smiles()
-            if len(smiles_list) != 3:
-                raise ValueError(
-                    f"VLE/LLE for ternary mixture, got {len(smiles_list)} components instead"
-                )
-
-            n = len(smiles_list)
-            kij_matrix = self._get_kij(n)
-            t_min, _ = self._get_temperatures(require_max=False)
-            p_val = self._get_pressure()
-
-            # Fetch Experimental Data (Try LLE then VLE)
-            exp_data = None
-            try:
-                # Try LLE first
-                exp_arr = retrieve_lle_ternary_data(smiles_list, p_val / 1000.0, t_min)
-                if exp_arr is not None and len(exp_arr) > 0:
-                    exp_data = (exp_arr[:, 0], exp_arr[:, 1], "Exp. LLE Data")
-                else:
-                    # Try VLE
-                    exp_arr_vle = retrieve_vle_ternary_data(
-                        smiles_list, p_val / 1000.0, t_min
-                    )
-                    if exp_arr_vle is not None and len(exp_arr_vle) > 0:
-                        exp_data = (
-                            exp_arr_vle[:, 0],
-                            exp_arr_vle[:, 1],
-                            "Exp. Bubble P",
-                        )
-            except (ValueError, RuntimeError):
-                pass
-
-            output = mix_ternary_lle(smiles_list, kij_matrix, t_min, p_val)
-
-            self._generate_ternary_plot(
-                [output["x0"], output["y0"]],
-                [output["x1"], output["y1"]],
-                title=f"VLE/LLE at {p_val} Pa, {t_min} K",
-                a_label=smiles_list[0],
-                b_label=smiles_list[1],
-                legends=["Phase 1", "Phase 2"],
-                exp_data=exp_data,
-            )
+            mixture_ternary.plot_vle_lle(self)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -873,59 +596,6 @@ class MixtureLayout(BoxLayout):
     def on_plot_ternary_vle_tx_fixed(self):
         "plot ternary VLE P-x at fixed T and fixed solvent ratio"
         try:
-            smiles_list = self._get_smiles()
-            if len(smiles_list) != 3:
-                raise ValueError(
-                    f"Ternary VLE P-x, got {len(smiles_list)} components instead"
-                )
-
-            n = len(smiles_list)
-            fractions = self._get_fractions(n)
-            kij_matrix = self._get_kij(n)
-            t_min, _ = self._get_temperatures(require_max=False)
-
-            solvent_pool = fractions[1] + fractions[2]
-            if solvent_pool <= 0.0:
-                raise ValueError(
-                    "For ternary VLE P-x, fractions for components 2 and 3 must be > 0"
-                )
-            solvent_ratio = fractions[1] / solvent_pool
-
-            # Retrieve experimental data (isothermal, fixed solvent ratio)
-            exp_data = None
-            try:
-                exp_arr = retrieve_vle_ternary_tx_fixed_data(
-                    smiles_list, t_min, solvent_ratio
-                )
-                if exp_arr is not None and len(exp_arr) > 0:
-                    exp_data = (exp_arr[:, 0], exp_arr[:, 1] * 1000.0, "Exp. Bubble P")
-            except (ValueError, RuntimeError):
-                pass
-
-            x1_values, bubble_pressures, dew_pressures = mix_ternary_vle_tx_fixed(
-                smiles_list,
-                kij_matrix,
-                t_min,
-                solvent_ratio,
-                mole_fractions=exp_data and exp_data[0].tolist(),
-            )
-
-            if not x1_values:
-                raise RuntimeError(
-                    "No valid VLE points found. Try adjusting temperature or composition"
-                )
-
-            self._generate_plot(
-                x1_values,
-                [bubble_pressures, dew_pressures],
-                (
-                    f"Ternary VLE P-x at {t_min} K\n"
-                    f"Fixed solvent ratio x2/(x2+x3)={solvent_ratio:.3f}"
-                ),
-                f"x({smiles_list[0]})",
-                "Pressure (Pa)",
-                legends=["Bubble Point", "Dew Point"],
-                exp_data=exp_data,
-            )
+            mixture_ternary.plot_vle_tx_fixed(self)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
