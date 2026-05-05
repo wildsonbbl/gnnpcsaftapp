@@ -271,6 +271,9 @@ class TestPlotBinaryHandlers(unittest.TestCase):
             def _get_temperatures(self, require_max=False):
                 return 300.0, 0.0
 
+            def _get_pressure(self):
+                return 101325.0
+
         layout = DummyLayout()
         mixture_binary.plot_vle_pxy(layout)
 
