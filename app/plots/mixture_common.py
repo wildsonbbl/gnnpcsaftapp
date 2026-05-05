@@ -1,11 +1,11 @@
 """Shared plot handlers for mixture screens."""
 
-from utils_data import (
+from app.utils_data import (
     retrieve_bubble_pressure_data,
     retrieve_rho_binary_data,
     retrieve_rho_ternary_data,
 )
-from utils_mix import mix_den, mix_vp
+from app.utils_mix import mix_den, mix_vp
 
 
 # pylint: disable = w0212

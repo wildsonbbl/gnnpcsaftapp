@@ -9,20 +9,21 @@ from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
-from pure_ui_builder import PureUIBuilder
-from utils import (
+
+from app.pure_ui_builder import PureUIBuilder
+from app.utils import (
     generate_plot,
     get_smiles_from_input,
     run_with_loading,
     show_error_popup,
 )
-from utils_data import (
+from app.utils_data import (
     retrieve_available_data_pure,
     retrieve_rho_pure_data,
     retrieve_st_pure_data,
     retrieve_vp_pure_data,
 )
-from utils_pure import (
+from app.utils_pure import (
     pure_den,
     pure_h_lv,
     pure_phase_diagram,

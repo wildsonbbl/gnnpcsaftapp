@@ -30,12 +30,10 @@ sys.modules["gnnepcsaft_mcp_server.utils"] = MagicMock()
 
 # -- IMPORT MODULES TO TEST --
 
-import utils
-import utils_mix
-import utils_pure
-from mixture_ui_builder import MixtureUIBuilder
-from plots import mixture_binary, mixture_common, mixture_ternary, plot_helpers
-from pure_ui_builder import PureUIBuilder
+from app import utils, utils_mix, utils_pure
+from app.mixture_ui_builder import MixtureUIBuilder
+from app.plots import mixture_binary, mixture_common, mixture_ternary, plot_helpers
+from app.pure_ui_builder import PureUIBuilder
 
 
 class FakeArray:

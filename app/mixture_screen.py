@@ -11,16 +11,17 @@ from kivy.uix.button import Button
 from kivy.uix.dropdown import DropDown
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
-from mixture_ui_builder import MixtureUIBuilder
-from plots import mixture_binary, mixture_common, mixture_ternary
-from utils import (
+
+from app.mixture_ui_builder import MixtureUIBuilder
+from app.plots import mixture_binary, mixture_common, mixture_ternary
+from app.utils import (
     generate_plot,
     generate_ternary_plot,
     get_smiles_from_input,
     run_with_loading,
     show_error_popup,
 )
-from utils_data import (
+from app.utils_data import (
     retrieve_available_data_binary,
     retrieve_available_data_ternary,
 )

@@ -2,10 +2,11 @@
 
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
-from utils import available_params
+
+from app.utils import available_params
 
 
-# pylint: disable=w0212
+# pylint: disable=w0212,r0903
 class MixtureUIBuilder:
     """Builds the mixture results UI for a MixtureLayout instance."""
 

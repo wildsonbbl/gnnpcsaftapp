@@ -1,10 +1,9 @@
-"# main.py"
+"""App entrypoint for the Kivy UI."""
 
 import os
 
 import kivy
 import kivy_matplotlib_widget  # pylint: disable=unused-import
-from about_screen import AboutLayout, AboutScreen  # pylint: disable=unused-import
 from kivy.app import App
 from kivy.properties import (  # pylint: disable=no-name-in-module
     ObjectProperty,
@@ -12,8 +11,13 @@ from kivy.properties import (  # pylint: disable=no-name-in-module
 )
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.screenmanager import Screen, ScreenManager
-from mixture_screen import MixtureLayout, MixtureScreen  # pylint: disable=unused-import
-from pure_screen import PureLayout, PureScreen  # pylint: disable=unused-import
+
+from app.about_screen import AboutLayout, AboutScreen  # pylint: disable=unused-import
+from app.mixture_screen import (  # pylint: disable=unused-import
+    MixtureLayout,
+    MixtureScreen,
+)
+from app.pure_screen import PureLayout, PureScreen  # pylint: disable=unused-import
 
 kivy.require("2.3.1")  # replace with your current kivy version
 

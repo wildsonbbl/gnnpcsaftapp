@@ -1,11 +1,11 @@
 """Plot handlers for mixture screens."""
 
-from utils_data import (
+from app.utils_data import (
     retrieve_lle_ternary_data,
     retrieve_vle_ternary_data,
     retrieve_vle_ternary_tx_fixed_data,
 )
-from utils_mix import mix_ternary_lle, mix_ternary_vle_tx_fixed
+from app.utils_mix import mix_ternary_lle, mix_ternary_vle_tx_fixed
 
 
 # pylint: disable = w0212

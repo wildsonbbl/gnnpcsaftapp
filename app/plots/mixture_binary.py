@@ -1,12 +1,12 @@
 """Plot handlers for mixture screens."""
 
-from plots.plot_helpers import assign_phase_by_density
-from utils_data import (
+from app.plots.plot_helpers import assign_phase_by_density
+from app.utils_data import (
     retrieve_lle_binary_data,
     retrieve_vle_binary_data,
     retrieve_vle_pxy_binary_data,
 )
-from utils_mix import mix_lle, mix_vle, mix_vle_pxy
+from app.utils_mix import mix_lle, mix_vle, mix_vle_pxy
 
 
 # pylint: disable = w0212

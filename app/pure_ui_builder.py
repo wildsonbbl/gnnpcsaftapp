@@ -4,10 +4,11 @@ from kivy.uix.button import Button
 from kivy.uix.dropdown import DropDown
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
-from utils import available_params
+
+from app.utils import available_params
 
 
-# pylint: disable=w0212
+# pylint: disable=w0212,r0903
 class PureUIBuilder:
     """Builds the pure-component results UI for a PureLayout instance."""
 
