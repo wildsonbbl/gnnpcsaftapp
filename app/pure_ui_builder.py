@@ -1,5 +1,7 @@
 """UI builder for pure component results."""
 
+from dataclasses import dataclass
+
 from kivy.uix.button import Button
 from kivy.uix.dropdown import DropDown
 from kivy.uix.label import Label
@@ -14,16 +16,26 @@ from app.ui_helpers import (
 from app.utils import available_params
 
 
+@dataclass
+class PureUIData:
+    """Payload for rendering pure-component UI results."""
+
+    rho_data: list
+    vp_range: list
+    st_range: list
+    pred: list
+
+
 # pylint: disable=w0212,r0903
 class PureUIBuilder:
     """Builds the pure-component results UI for a PureLayout instance."""
 
-    def __init__(self, layout, rho_data, vp_range, st_range, pred):
+    def __init__(self, layout, data: PureUIData):
         self.layout = layout
-        self.rho_data = rho_data
-        self.vp_range = vp_range
-        self.st_range = st_range
-        self.pred = pred
+        self.rho_data = data.rho_data
+        self.vp_range = data.vp_range
+        self.st_range = data.st_range
+        self.pred = data.pred
 
     def build(self):
         """Render all UI sections into the layout container."""

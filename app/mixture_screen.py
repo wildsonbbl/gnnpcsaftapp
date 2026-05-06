@@ -10,8 +10,10 @@ from kivy.uix.button import Button
 from kivy.uix.dropdown import DropDown
 from kivy.uix.screenmanager import Screen
 
+from app.input_requests import BinaryFillRequest, TernaryFillRequest
 from app.layout_base import BaseInputLayout
 from app.mixture_ui_builder import MixtureUIBuilder
+from app.plot_requests import PlotRequest, TernaryPlotRequest
 from app.plots import mixture_binary, mixture_common, mixture_ternary
 from app.ui_helpers import (
     add_dropdown_button,
@@ -43,20 +45,16 @@ class MixtureLayout(BaseInputLayout):
     kij_input = ObjectProperty(None)
 
     @mainthread
-    def _generate_plot(
-        self, x_datas, y_datas, title, x_label, y_label, legends=None, exp_data=None
-    ):
+    def _generate_plot(self, request: PlotRequest):
         try:
-            generate_plot(x_datas, y_datas, title, x_label, y_label, legends, exp_data)
+            generate_plot(request)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
     @mainthread
-    def _generate_ternary_plot(
-        self, a, b, title, a_label, b_label, legends=None, exp_data=None
-    ):
+    def _generate_ternary_plot(self, request: TernaryPlotRequest):
         try:
-            generate_ternary_plot(a, b, title, a_label, b_label, legends, exp_data)
+            generate_ternary_plot(request)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -170,20 +168,28 @@ class MixtureLayout(BaseInputLayout):
     def _make_ternary_button(self, dropdown, text, fill_action):
         return self._make_binary_button(dropdown, text, fill_action)
 
-    def _fill_inputs_binary(self, pressure=None, t_min=None, t_max=None, x1=None):
-        "Helper to populate inputs with clicked values"
-        fill_pressure_temperature(self, pressure=pressure, t_min=t_min, t_max=t_max)
-        if x1 is not None:
-            self.fractions_input.text = f"{x1:.2f} {1.0 - x1:.2f}"
+    def _fill_inputs_binary(self, request: BinaryFillRequest):
+        """Helper to populate inputs with clicked values."""
+        fill_pressure_temperature(
+            self,
+            pressure=request.pressure,
+            t_min=request.t_min,
+            t_max=request.t_max,
+        )
+        if request.x1 is not None:
+            self.fractions_input.text = f"{request.x1:.2f} {1.0 - request.x1:.2f}"
 
-    def _fill_inputs_ternary(
-        self, pressure=None, t_min=None, t_max=None, x1=None, x2=None
-    ):
-        "Helper to populate inputs with clicked values for ternary"
-        fill_pressure_temperature(self, pressure=pressure, t_min=t_min, t_max=t_max)
-        if x1 is not None and x2 is not None:
-            x3 = max(0.0, 1.0 - x1 - x2)
-            self.fractions_input.text = f"{x1:.2f} {x2:.2f} {x3:.2f}"
+    def _fill_inputs_ternary(self, request: TernaryFillRequest):
+        """Helper to populate inputs with clicked values for ternary."""
+        fill_pressure_temperature(
+            self,
+            pressure=request.pressure,
+            t_min=request.t_min,
+            t_max=request.t_max,
+        )
+        if request.x1 is not None and request.x2 is not None:
+            x3 = max(0.0, 1.0 - request.x1 - request.x2)
+            self.fractions_input.text = f"{request.x1:.2f} {request.x2:.2f} {x3:.2f}"
 
     @run_with_loading
     def on_submit(self):

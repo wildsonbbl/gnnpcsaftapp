@@ -1,12 +1,13 @@
 """Plot handlers for mixture screens."""
 
+from app.plot_requests import PlotRequest, TernaryPlotRequest
 from app.plots.plot_helpers import get_kij_tmin_pressure
 from app.utils_data import (
     retrieve_lle_ternary_data,
     retrieve_vle_ternary_data,
     retrieve_vle_ternary_tx_fixed_data,
 )
-from app.utils_mix import mix_ternary_lle, mix_ternary_vle_tx_fixed
+from app.utils_mix import TernaryVleTxParams, mix_ternary_lle, mix_ternary_vle_tx_fixed
 
 
 # pylint: disable = w0212
@@ -40,13 +41,15 @@ def plot_vle_lle(layout):
     output = mix_ternary_lle(smiles_list, kij_matrix, t_min, p_val)
 
     layout._generate_ternary_plot(
-        [output["x0"], output["y0"]],
-        [output["x1"], output["y1"]],
-        title=f"VLE/LLE at {p_val} Pa, {t_min} K",
-        a_label=smiles_list[0],
-        b_label=smiles_list[1],
-        legends=["Phase 1", "Phase 2"],
-        exp_data=exp_data,
+        TernaryPlotRequest(
+            a=[output["x0"], output["y0"]],
+            b=[output["x1"], output["y1"]],
+            title=f"VLE/LLE at {p_val} Pa, {t_min} K",
+            a_label=smiles_list[0],
+            b_label=smiles_list[1],
+            legends=["Phase 1", "Phase 2"],
+            exp_data=exp_data,
+        )
     )
 
 
@@ -76,13 +79,14 @@ def plot_vle_tx_fixed(layout):
     except (ValueError, RuntimeError):
         pass
 
-    x1_values, bubble_pressures, dew_pressures = mix_ternary_vle_tx_fixed(
-        smiles_list,
-        kij_matrix,
-        t_min,
-        solvent_ratio,
+    vle_params = TernaryVleTxParams(
+        smiles_list=smiles_list,
+        kij_matrix=kij_matrix,
+        temperature=t_min,
+        solvent_ratio=solvent_ratio,
         mole_fractions=exp_data and exp_data[0].tolist(),
     )
+    x1_values, bubble_pressures, dew_pressures = mix_ternary_vle_tx_fixed(vle_params)
 
     if not x1_values:
         raise RuntimeError(
@@ -90,14 +94,16 @@ def plot_vle_tx_fixed(layout):
         )
 
     layout._generate_plot(
-        x1_values,
-        [bubble_pressures, dew_pressures],
-        (
-            f"Ternary VLE P-x at {t_min} K\n"
-            f"Fixed solvent ratio x2/(x2+x3)={solvent_ratio:.3f}"
-        ),
-        f"x({smiles_list[0]})",
-        "Pressure (Pa)",
-        legends=["Bubble Point", "Dew Point"],
-        exp_data=exp_data,
+        PlotRequest(
+            x_data=x1_values,
+            y_data=[bubble_pressures, dew_pressures],
+            title=(
+                f"Ternary VLE P-x at {t_min} K\n"
+                f"Fixed solvent ratio x2/(x2+x3)={solvent_ratio:.3f}"
+            ),
+            x_label=f"x({smiles_list[0]})",
+            y_label="Pressure (Pa)",
+            legends=["Bubble Point", "Dew Point"],
+            exp_data=exp_data,
+        )
     )

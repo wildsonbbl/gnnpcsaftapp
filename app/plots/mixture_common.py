@@ -1,11 +1,12 @@
 """Shared plot handlers for mixture screens."""
 
+from app.plot_requests import PlotRequest
 from app.utils_data import (
     retrieve_bubble_pressure_data,
     retrieve_rho_binary_data,
     retrieve_rho_ternary_data,
 )
-from app.utils_mix import mix_den, mix_vp
+from app.utils_mix import MixDenParams, MixVpParams, mix_den, mix_vp
 
 
 # pylint: disable = w0212
@@ -34,16 +35,24 @@ def plot_density(layout, smiles_list):
     except (ValueError, RuntimeError):
         pass
 
-    temperatures, densities = mix_den(
-        smiles_list, fractions, kij_matrix, t_min, t_max, p_val
+    mix_den_params = MixDenParams(
+        smiles_list=smiles_list,
+        mole_fractions=fractions,
+        kij_matrix=kij_matrix,
+        min_temp=t_min,
+        max_temp=t_max,
+        pressure=p_val,
     )
+    temperatures, densities = mix_den(mix_den_params)
     layout._generate_plot(
-        temperatures,
-        densities,
-        "Mixture Density vs Temperature",
-        "Temperature (K)",
-        "Density (mol/m³)",
-        exp_data=exp_data,
+        PlotRequest(
+            x_data=temperatures,
+            y_data=densities,
+            title="Mixture Density vs Temperature",
+            x_label="Temperature (K)",
+            y_label="Density (mol/m³)",
+            exp_data=exp_data,
+        )
     )
 
 
@@ -68,15 +77,22 @@ def plot_vp(layout, smiles_list):
     except (ValueError, RuntimeError):
         pass
 
-    temperatures, bubbles, dews = mix_vp(
-        smiles_list, fractions, kij_matrix, t_min, t_max
+    mix_vp_params = MixVpParams(
+        smiles_list=smiles_list,
+        mole_fractions=fractions,
+        kij_matrix=kij_matrix,
+        min_temp=t_min,
+        max_temp=t_max,
     )
+    temperatures, bubbles, dews = mix_vp(mix_vp_params)
     layout._generate_plot(
-        temperatures,
-        [bubbles, dews],
-        "Mixture Phase Envelope (P-T)",
-        "Temperature (K)",
-        "Pressure (Pa)",
-        legends=["Bubble Point", "Dew Point"],
-        exp_data=exp_data,
+        PlotRequest(
+            x_data=temperatures,
+            y_data=[bubbles, dews],
+            title="Mixture Phase Envelope (P-T)",
+            x_label="Temperature (K)",
+            y_label="Pressure (Pa)",
+            legends=["Bubble Point", "Dew Point"],
+            exp_data=exp_data,
+        )
     )

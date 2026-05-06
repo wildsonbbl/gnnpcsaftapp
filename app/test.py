@@ -2,6 +2,7 @@
 
 # pylint: disable=missing-class-docstring,missing-function-docstring,protected-access
 # pylint: disable=too-few-public-methods,unused-argument,wrong-import-position
+# pylint: disable=too-many-arguments
 # pylint: disable=unnecessary-lambda
 
 import sys
@@ -41,7 +42,7 @@ sys.modules["gnnepcsaft_mcp_server.utils"] = MagicMock()
 from app import utils, utils_mix, utils_pure
 from app.mixture_ui_builder import MixtureUIBuilder
 from app.plots import mixture_binary, mixture_common, mixture_ternary, plot_helpers
-from app.pure_ui_builder import PureUIBuilder
+from app.pure_ui_builder import PureUIBuilder, PureUIData
 from app.utils_data import default_mixture_output_args
 
 
@@ -139,7 +140,15 @@ class TestUtilsMix(unittest.TestCase):
         smiles = ["C1", "C2"]
         fracs = [0.5, 0.5]
         kij = [[0.0, 0.0], [0.0, 0.0]]
-        temps, dens = utils_mix.mix_den(smiles, fracs, kij, 300, 310, 100000)
+        params = utils_mix.MixDenParams(
+            smiles_list=smiles,
+            mole_fractions=fracs,
+            kij_matrix=kij,
+            min_temp=300,
+            max_temp=310,
+            pressure=100000,
+        )
+        temps, dens = utils_mix.mix_den(params)
 
         self.assertEqual(len(temps), 10)
         self.assertEqual(dens[0], 800.0)
@@ -212,9 +221,9 @@ class TestPlotBinaryHandlers(unittest.TestCase):
         mixture_binary.plot_vle_xy(layout)
 
         layout._generate_plot.assert_called_once()
-        args = layout._generate_plot.call_args[0]
-        self.assertEqual(args[0], [0.2])
-        self.assertEqual(args[1], [0.8])
+        (request,) = layout._generate_plot.call_args[0]
+        self.assertEqual(request.x_data, [0.2])
+        self.assertEqual(request.y_data, [0.8])
 
     @patch("app.plots.mixture_binary.retrieve_vle_binary_data")
     @patch("app.plots.mixture_binary.mix_vle")
@@ -246,10 +255,10 @@ class TestPlotBinaryHandlers(unittest.TestCase):
         mixture_binary.plot_vle_txy(layout)
 
         layout._generate_plot.assert_called_once()
-        args, kwargs = layout._generate_plot.call_args
-        self.assertEqual(args[0], [[0.2], [0.8]])
-        self.assertEqual(args[1], [300.0])
-        self.assertEqual(kwargs["exp_data"], ([0.2], [300.0], "Exp. Bubble P"))
+        (request,), _ = layout._generate_plot.call_args
+        self.assertEqual(request.x_data, [[0.2], [0.8]])
+        self.assertEqual(request.y_data, [300.0])
+        self.assertEqual(request.exp_data, ([0.2], [300.0], "Exp. Bubble P"))
 
     @patch("app.plots.mixture_binary.retrieve_vle_pxy_binary_data")
     @patch("app.plots.mixture_binary.mix_vle_pxy")
@@ -278,10 +287,10 @@ class TestPlotBinaryHandlers(unittest.TestCase):
         mixture_binary.plot_vle_pxy(layout)
 
         layout._generate_plot.assert_called_once()
-        args, kwargs = layout._generate_plot.call_args
-        self.assertEqual(args[0], [0.3])
-        self.assertEqual(args[1], [[1000.0], [900.0]])
-        self.assertEqual(kwargs["exp_data"], ([0.3], [200000.0], "Exp. Bubble P"))
+        (request,), _ = layout._generate_plot.call_args
+        self.assertEqual(request.x_data, [0.3])
+        self.assertEqual(request.y_data, [[1000.0], [900.0]])
+        self.assertEqual(request.exp_data, ([0.3], [200000.0], "Exp. Bubble P"))
 
     @patch("app.plots.mixture_binary.retrieve_lle_binary_data")
     @patch("app.plots.mixture_binary.mix_lle")
@@ -313,10 +322,10 @@ class TestPlotBinaryHandlers(unittest.TestCase):
         mixture_binary.plot_lle_txx(layout)
 
         layout._generate_plot.assert_called_once()
-        args, kwargs = layout._generate_plot.call_args
-        self.assertEqual(args[0], [[0.4], [0.6]])
-        self.assertEqual(args[1], [300.0])
-        self.assertEqual(kwargs["exp_data"], ([0.4], [300.0], "Exp. LLE Data"))
+        (request,), _ = layout._generate_plot.call_args
+        self.assertEqual(request.x_data, [[0.4], [0.6]])
+        self.assertEqual(request.y_data, [300.0])
+        self.assertEqual(request.exp_data, ([0.4], [300.0], "Exp. LLE Data"))
 
 
 class TestPlotCommonHandlers(unittest.TestCase):
@@ -351,9 +360,9 @@ class TestPlotCommonHandlers(unittest.TestCase):
         mixture_common.plot_density(layout, ["A", "B", "C", "D"])
 
         layout._generate_plot.assert_called_once()
-        args = layout._generate_plot.call_args[0]
-        self.assertEqual(args[0], [300.0, 310.0])
-        self.assertEqual(args[1], [800.0, 790.0])
+        (request,) = layout._generate_plot.call_args[0]
+        self.assertEqual(request.x_data, [300.0, 310.0])
+        self.assertEqual(request.y_data, [800.0, 790.0])
 
     @patch("app.plots.mixture_common.mix_vp")
     @patch("app.plots.mixture_common.retrieve_bubble_pressure_data")
@@ -379,9 +388,9 @@ class TestPlotCommonHandlers(unittest.TestCase):
         mixture_common.plot_vp(layout, ["A", "B"])
 
         layout._generate_plot.assert_called_once()
-        args = layout._generate_plot.call_args[0]
-        self.assertEqual(args[0], [300.0, 310.0])
-        self.assertEqual(args[1], [[1.0, 2.0], [0.5, 1.5]])
+        (request,) = layout._generate_plot.call_args[0]
+        self.assertEqual(request.x_data, [300.0, 310.0])
+        self.assertEqual(request.y_data, [[1.0, 2.0], [0.5, 1.5]])
 
     @patch("app.plots.mixture_common.mix_den")
     @patch("app.plots.mixture_common.retrieve_rho_binary_data")
@@ -410,10 +419,10 @@ class TestPlotCommonHandlers(unittest.TestCase):
         mixture_common.plot_density(layout, ["A", "B"])
 
         layout._generate_plot.assert_called_once()
-        args, kwargs = layout._generate_plot.call_args
-        self.assertEqual(args[0], [300.0])
-        self.assertEqual(args[1], [800.0])
-        self.assertEqual(kwargs["exp_data"], ([300.0], [900.0], "Exp. Data"))
+        (request,), _ = layout._generate_plot.call_args
+        self.assertEqual(request.x_data, [300.0])
+        self.assertEqual(request.y_data, [800.0])
+        self.assertEqual(request.exp_data, ([300.0], [900.0], "Exp. Data"))
 
     @patch("app.plots.mixture_common.mix_vp")
     @patch("app.plots.mixture_common.retrieve_bubble_pressure_data")
@@ -439,10 +448,10 @@ class TestPlotCommonHandlers(unittest.TestCase):
         mixture_common.plot_vp(layout, ["A", "B"])
 
         layout._generate_plot.assert_called_once()
-        args, kwargs = layout._generate_plot.call_args
-        self.assertEqual(args[0], [300.0])
-        self.assertEqual(args[1], [[1.0], [0.5]])
-        self.assertEqual(kwargs["exp_data"], ([300.0], [2000.0], "Exp. Bubble P"))
+        (request,), _ = layout._generate_plot.call_args
+        self.assertEqual(request.x_data, [300.0])
+        self.assertEqual(request.y_data, [[1.0], [0.5]])
+        self.assertEqual(request.exp_data, ([300.0], [2000.0], "Exp. Bubble P"))
 
 
 class TestPlotTernaryHandlers(unittest.TestCase):
@@ -475,10 +484,10 @@ class TestPlotTernaryHandlers(unittest.TestCase):
         mixture_ternary.plot_vle_tx_fixed(layout)
 
         layout._generate_plot.assert_called_once()
-        args = layout._generate_plot.call_args[0]
-        self.assertEqual(args[0], [0.0, 0.5, 1.0])
-        self.assertEqual(args[1], [[1.0, 2.0, 3.0], [0.5, 1.5, 2.5]])
-        self.assertIn("x2/(x2+x3)=0.375", args[2])
+        (request,) = layout._generate_plot.call_args[0]
+        self.assertEqual(request.x_data, [0.0, 0.5, 1.0])
+        self.assertEqual(request.y_data, [[1.0, 2.0, 3.0], [0.5, 1.5, 2.5]])
+        self.assertIn("x2/(x2+x3)=0.375", request.title)
 
     @patch("app.plots.mixture_ternary.retrieve_vle_ternary_data")
     @patch("app.plots.mixture_ternary.retrieve_lle_ternary_data")
@@ -514,8 +523,8 @@ class TestPlotTernaryHandlers(unittest.TestCase):
         mixture_ternary.plot_vle_lle(layout)
 
         layout._generate_ternary_plot.assert_called_once()
-        _, kwargs = layout._generate_ternary_plot.call_args
-        self.assertEqual(kwargs["exp_data"], ([0.1], [0.2], "Exp. LLE Data"))
+        (request,), _ = layout._generate_ternary_plot.call_args
+        self.assertEqual(request.exp_data, ([0.1], [0.2], "Exp. LLE Data"))
 
     @patch("app.plots.mixture_ternary.retrieve_vle_ternary_data")
     @patch("app.plots.mixture_ternary.retrieve_lle_ternary_data")
@@ -551,8 +560,8 @@ class TestPlotTernaryHandlers(unittest.TestCase):
         mixture_ternary.plot_vle_lle(layout)
 
         layout._generate_ternary_plot.assert_called_once()
-        _, kwargs = layout._generate_ternary_plot.call_args
-        self.assertEqual(kwargs["exp_data"], ([0.5], [0.6], "Exp. Bubble P"))
+        (request,), _ = layout._generate_ternary_plot.call_args
+        self.assertEqual(request.exp_data, ([0.5], [0.6], "Exp. Bubble P"))
 
 
 class DummyLabel:
@@ -576,14 +585,12 @@ class DummyGrid:
 class TestPureUIBuilder(unittest.TestCase):
     """test pure UI builder"""
 
-    @patch(
-        "app.ui_helpers.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs)
-    )
+    @patch("app.ui_helpers.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs))
     def test_build_adds_availability_header(self, _mock_label):
         """Show availability header when experimental data exists."""
-        rho_data = [[101.0, 300.0, 310.0, 5]]
-        vp_range = [None] * 5
-        st_range = [None] * 5
+        test_rho_data = [[101.0, 300.0, 310.0, 5]]
+        test_vp_range = [None] * 5
+        test_st_range = [None] * 5
         pred = [1.0] * len(utils.available_params)
 
         class DummyLayout:
@@ -595,7 +602,13 @@ class TestPureUIBuilder(unittest.TestCase):
                 pass
 
         layout = DummyLayout()
-        builder = PureUIBuilder(layout, rho_data, vp_range, st_range, pred)
+        ui_data = PureUIData(
+            rho_data=test_rho_data,
+            vp_range=test_vp_range,
+            st_range=test_st_range,
+            pred=pred,
+        )
+        builder = PureUIBuilder(layout, ui_data)
         builder.build()
 
         label_texts = [
@@ -606,14 +619,12 @@ class TestPureUIBuilder(unittest.TestCase):
         self.assertIn("Experimental Data Availability", label_texts)
         self.assertGreaterEqual(len(layout._dropdown_cache), 1)
 
-    @patch(
-        "app.ui_helpers.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs)
-    )
+    @patch("app.ui_helpers.Label", side_effect=lambda **kwargs: DummyLabel(**kwargs))
     def test_build_skips_availability_header(self, _mock_label):
         """Skip availability header when no experimental data exists."""
-        rho_data = []
-        vp_range = [None] * 5
-        st_range = [None] * 5
+        test_rho_data = []
+        test_vp_range = [None] * 5
+        test_st_range = [None] * 5
         pred = [1.0] * len(utils.available_params)
 
         class DummyLayout:
@@ -625,7 +636,13 @@ class TestPureUIBuilder(unittest.TestCase):
                 pass
 
         layout = DummyLayout()
-        builder = PureUIBuilder(layout, rho_data, vp_range, st_range, pred)
+        ui_data = PureUIData(
+            rho_data=test_rho_data,
+            vp_range=test_vp_range,
+            st_range=test_st_range,
+            pred=pred,
+        )
+        builder = PureUIBuilder(layout, ui_data)
         builder.build()
 
         label_texts = [
@@ -677,9 +694,7 @@ class TestMixtureUIBuilder(unittest.TestCase):
             def _make_binary_button(self, dropdown, text, fill_action):
                 return MagicMock()
 
-            def _fill_inputs_binary(
-                self, pressure=None, t_min=None, t_max=None, x1=None
-            ):
+            def _fill_inputs_binary(self, request):
                 pass
 
         layout = DummyLayout()
@@ -730,9 +745,7 @@ class TestMixtureUIBuilder(unittest.TestCase):
             def _make_ternary_button(self, dropdown, text, fill_action):
                 return MagicMock()
 
-            def _fill_inputs_ternary(
-                self, pressure=None, t_min=None, t_max=None, x1=None, x2=None
-            ):
+            def _fill_inputs_ternary(self, request):
                 pass
 
         layout = DummyLayout()

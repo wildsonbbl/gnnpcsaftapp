@@ -1,5 +1,6 @@
 """Plot handlers for mixture screens."""
 
+from app.plot_requests import PlotRequest
 from app.plots.plot_helpers import assign_phase_by_density, get_kij_tmin_pressure
 from app.utils_data import (
     retrieve_lle_binary_data,
@@ -34,13 +35,15 @@ def plot_vle_txy(layout):
     x_liquid, y_vapor = assign_phase_by_density(output)
 
     layout._generate_plot(
-        [x_liquid, y_vapor],
-        output["temperature"],
-        f"VLE T-x-y for {smiles_list[0]} at {p_val} Pa",
-        "x,y",
-        "Temperature (K)",
-        legends=["Bubble Point", "Dew Point"],
-        exp_data=exp_data,
+        PlotRequest(
+            x_data=[x_liquid, y_vapor],
+            y_data=output["temperature"],
+            title=f"VLE T-x-y for {smiles_list[0]} at {p_val} Pa",
+            x_label="x,y",
+            y_label="Temperature (K)",
+            legends=["Bubble Point", "Dew Point"],
+            exp_data=exp_data,
+        )
     )
 
 
@@ -72,13 +75,15 @@ def plot_vle_pxy(layout):
     )
 
     layout._generate_plot(
-        x0s,
-        [bps, dps],
-        f"VLE P-x-y for {smiles_list[0]} at {t_min} K",
-        "x,y",
-        "Pressure (Pa)",
-        legends=["Bubble Point", "Dew Point"],
-        exp_data=exp_data,
+        PlotRequest(
+            x_data=x0s,
+            y_data=[bps, dps],
+            title=f"VLE P-x-y for {smiles_list[0]} at {t_min} K",
+            x_label="x,y",
+            y_label="Pressure (Pa)",
+            legends=["Bubble Point", "Dew Point"],
+            exp_data=exp_data,
+        )
     )
 
 
@@ -98,11 +103,13 @@ def plot_vle_xy(layout):
     x_liquid, y_vapor = assign_phase_by_density(output)
 
     layout._generate_plot(
-        x_liquid,
-        y_vapor,
-        f"VLE x-y for {smiles_list[0]} at {p_val} Pa",
-        "x",
-        "y",
+        PlotRequest(
+            x_data=x_liquid,
+            y_data=y_vapor,
+            title=f"VLE x-y for {smiles_list[0]} at {p_val} Pa",
+            x_label="x",
+            y_label="y",
+        )
     )
 
 
@@ -130,11 +137,13 @@ def plot_lle_txx(layout):
 
     output = mix_lle(smiles_list, fractions, kij_matrix, t_min, p_val)
     layout._generate_plot(
-        [output["x0"], output["y0"]],
-        output["temperature"],
-        f"LLE T-x-x for {smiles_list[0]} at {p_val} Pa",
-        "x,x",
-        "Temperature (K)",
-        legends=["Phase 1", "Phase 2"],
-        exp_data=exp_data,
+        PlotRequest(
+            x_data=[output["x0"], output["y0"]],
+            y_data=output["temperature"],
+            title=f"LLE T-x-x for {smiles_list[0]} at {p_val} Pa",
+            x_label="x,x",
+            y_label="Temperature (K)",
+            legends=["Phase 1", "Phase 2"],
+            exp_data=exp_data,
+        )
     )

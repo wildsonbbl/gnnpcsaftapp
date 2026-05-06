@@ -11,6 +11,275 @@ from numpy.typing import NDArray
 application_path = osp.dirname(osp.abspath(__file__))
 
 
+def _read_parquet_if_exists(path: str) -> Optional[pl.DataFrame]:
+    if not osp.exists(path):
+        return None
+    return pl.read_parquet(path)
+
+
+def _filter_binary_pair(
+    dframe: pl.DataFrame,
+    inchi1: str,
+    inchi2: str,
+    col_x1: str,
+    col_x2: str,
+) -> pl.DataFrame:
+    return dframe.filter(
+        ((pl.col("inchi1") == inchi1) & (pl.col("inchi2") == inchi2))
+        | ((pl.col("inchi1") == inchi2) & (pl.col("inchi2") == inchi1))
+    ).with_columns(
+        pl.when(pl.col("inchi1") == inchi1)
+        .then(pl.col(col_x1))
+        .otherwise(pl.col(col_x2))
+        .alias("x_c1")
+    )
+
+
+def _build_binary_rho_data(
+    rho_bin: pl.DataFrame,
+    inchi1: str,
+    inchi2: str,
+) -> Optional[NDArray[float64]]:
+    rf = _filter_binary_pair(
+        rho_bin, inchi1, inchi2, "mole_fraction_c1", "mole_fraction_c2"
+    )
+    if rf.height == 0:
+        return None
+    return (
+        rf.with_columns((pl.col("x_c1").round(2)).alias("x_approx"))
+        .group_by(["P_kPa", "x_approx"])
+        .agg(
+            pl.col("T_K").min().alias("T_min"),
+            pl.col("T_K").max().alias("T_max"),
+            pl.len().alias("count"),
+        )
+        .sort(["P_kPa", "x_approx"])
+        .to_numpy()
+    )
+
+
+def _build_binary_bubble_data(
+    vp_bin: pl.DataFrame,
+    inchi1: str,
+    inchi2: str,
+) -> Optional[NDArray[float64]]:
+    vf = _filter_binary_pair(
+        vp_bin, inchi1, inchi2, "mole_fraction_c1", "mole_fraction_c2"
+    )
+    if vf.height == 0:
+        return None
+    return (
+        vf.with_columns((pl.col("x_c1").round(2)).alias("x_approx"))
+        .group_by("x_approx")
+        .agg(
+            pl.col("T_K").min().alias("T_min"),
+            pl.col("T_K").max().alias("T_max"),
+            pl.len().alias("count"),
+        )
+        .sort("x_approx")
+        .to_numpy()
+    )
+
+
+def _build_binary_lle_data(
+    inchi1: str,
+    inchi2: str,
+) -> Optional[NDArray[float64]]:
+    path_lle = osp.join(application_path, "_data", "lle_binary.parquet")
+    df_lle = _read_parquet_if_exists(path_lle)
+    if df_lle is None:
+        return None
+    lf = _filter_binary_pair(
+        df_lle, inchi1, inchi2, "mole_fraction_c1", "mole_fraction_c2"
+    )
+    if lf.height == 0:
+        return None
+    return (
+        lf.group_by("P_kPa")
+        .agg(
+            pl.col("T_K").min().alias("T_min"),
+            pl.col("T_K").max().alias("T_max"),
+            pl.len().alias("count"),
+        )
+        .sort("P_kPa")
+        .to_numpy()
+    )
+
+
+def _build_binary_vle_data(
+    inchi1: str,
+    inchi2: str,
+) -> Tuple[Optional[NDArray[float64]], Optional[NDArray[float64]]]:
+    path_vle = osp.join(application_path, "_data", "co2_binary.parquet")
+    df_vle = _read_parquet_if_exists(path_vle)
+    if df_vle is None:
+        return None, None
+    vf = _filter_binary_pair(
+        df_vle, inchi1, inchi2, "mole_fraction_c1p2", "mole_fraction_c2p2"
+    )
+    if vf.height == 0:
+        return None, None
+    vle_data = (
+        vf.group_by("P_kPa")
+        .agg(
+            pl.col("T_K").min().alias("T_min"),
+            pl.col("T_K").max().alias("T_max"),
+            pl.len().alias("count"),
+        )
+        .sort("P_kPa")
+        .to_numpy()
+    )
+    vle_pxy_data = (
+        vf.with_columns(pl.col("T_K").round(1).alias("T_approx"))
+        .group_by("T_approx")
+        .agg(
+            pl.col("P_kPa").min().alias("P_min"),
+            pl.col("P_kPa").max().alias("P_max"),
+            pl.len().alias("count"),
+        )
+        .sort("T_approx")
+        .to_numpy()
+    )
+    return vle_data, vle_pxy_data
+
+
+def _filter_ternary_set(dframe: pl.DataFrame, target_set: list) -> pl.DataFrame:
+    return dframe.filter(
+        pl.col("inchi1").is_in(target_set)
+        & pl.col("inchi2").is_in(target_set)
+        & pl.col("inchi3").is_in(target_set)
+    )
+
+
+def _map_ternary_fractions(
+    dframe: pl.DataFrame,
+    inchi1: str,
+    inchi2: str,
+) -> pl.DataFrame:
+    return dframe.with_columns(
+        [
+            pl.when(pl.col("inchi1") == inchi1)
+            .then(pl.col("mole_fraction_c1"))
+            .otherwise(
+                pl.when(pl.col("inchi2") == inchi1)
+                .then(pl.col("mole_fraction_c2"))
+                .otherwise(pl.col("mole_fraction_c3"))
+            )
+            .alias("x_mapped_1"),
+            pl.when(pl.col("inchi1") == inchi2)
+            .then(pl.col("mole_fraction_c1"))
+            .otherwise(
+                pl.when(pl.col("inchi2") == inchi2)
+                .then(pl.col("mole_fraction_c2"))
+                .otherwise(pl.col("mole_fraction_c3"))
+            )
+            .alias("x_mapped_2"),
+        ]
+    )
+
+
+def _build_ternary_rho_data(
+    inchi1: str,
+    inchi2: str,
+    target_set: list,
+) -> Optional[NDArray[float64]]:
+    path_rho = osp.join(application_path, "_data", "rho_ternary.parquet")
+    df = _read_parquet_if_exists(path_rho)
+    if df is None:
+        return None
+
+    filtered = _filter_ternary_set(df, target_set)
+    if filtered.height == 0:
+        return None
+
+    data = (
+        _map_ternary_fractions(filtered, inchi1, inchi2)
+        .with_columns(
+            [
+                pl.col("x_mapped_1").round(2).alias("x_approx_1"),
+                pl.col("x_mapped_2").round(2).alias("x_approx_2"),
+            ]
+        )
+        .group_by(["P_kPa", "x_approx_1", "x_approx_2"])
+        .agg(
+            pl.col("T_K").min().alias("T_min"),
+            pl.col("T_K").max().alias("T_max"),
+            pl.len().alias("count"),
+        )
+        .sort(["P_kPa", "x_approx_1", "x_approx_2"])
+    )
+
+    if data.height == 0:
+        return None
+    return data.to_numpy()
+
+
+def _build_ternary_lle_data(target_set: list) -> Optional[NDArray[float64]]:
+    path_lle = osp.join(application_path, "_data", "lle_ternary.parquet")
+    df_lle = _read_parquet_if_exists(path_lle)
+    if df_lle is None:
+        return None
+
+    filtered_lle = _filter_ternary_set(df_lle, target_set)
+    if filtered_lle.height == 0:
+        return None
+
+    return (
+        filtered_lle.group_by(["P_kPa", "T_K"])
+        .agg(pl.len().alias("count"))
+        .sort(["P_kPa", "T_K"])
+        .to_numpy()
+    )
+
+
+def _build_ternary_vle_data(
+    inchi1: str,
+    inchi2: str,
+    inchi3: str,
+    target_set: list,
+) -> Tuple[Optional[NDArray[float64]], Optional[NDArray[float64]]]:
+    path_vle = osp.join(application_path, "_data", "co2_ternary.parquet")
+    df_vle = _read_parquet_if_exists(path_vle)
+    if df_vle is None:
+        return None, None
+
+    filtered_vle = _filter_ternary_set(df_vle, target_set)
+    if filtered_vle.height == 0:
+        return None, None
+
+    vle_data = (
+        filtered_vle.group_by(["P_kPa", "T_K"])
+        .agg(pl.len().alias("count"))
+        .sort(["P_kPa", "T_K"])
+        .to_numpy()
+    )
+
+    vle_tx = (
+        filtered_vle.with_columns(
+            [
+                _get_col_map_p2(inchi1, "mole_fraction_c").alias("x_m1"),
+                _get_col_map_p2(inchi2, "mole_fraction_c").alias("x_m2"),
+                _get_col_map_p2(inchi3, "mole_fraction_c").alias("x_m3"),
+            ]
+        )
+        .with_columns(
+            (pl.col("x_m2") / (pl.col("x_m2") + pl.col("x_m3")))
+            .alias("solvent_ratio")
+            .round(2)
+        )
+        .group_by(["T_K", "solvent_ratio"])
+        .agg(
+            pl.col("P_kPa").min().alias("P_min"),
+            pl.col("P_kPa").max().alias("P_max"),
+            pl.len().alias("count"),
+        )
+        .sort(["T_K", "solvent_ratio"])
+    )
+
+    vle_tx_data = vle_tx.to_numpy() if vle_tx.height > 0 else None
+    return vle_data, vle_tx_data
+
+
 def default_mixture_output_args():
     """Return the default output_args dict for mixture plots."""
     return {
@@ -353,108 +622,13 @@ def retrieve_available_data_binary(smiles_list: list) -> Tuple[
         return None, None, None, None, None
 
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
-
     rho_bin = pl.read_parquet(osp.join(application_path, "_data", "rho_binary.parquet"))
     vp_bin = pl.read_parquet(osp.join(application_path, "_data", "vp_binary.parquet"))
 
-    # Helper filter & normalize
-    def _filter_norm(dframe, col_x1, col_x2):
-        return dframe.filter(
-            ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
-            | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
-        ).with_columns(
-            pl.when(pl.col("inchi1") == i1)
-            .then(pl.col(col_x1))
-            .otherwise(pl.col(col_x2))
-            .alias("x_c1")
-        )
-
-    # RHO
-    rf = _filter_norm(rho_bin, "mole_fraction_c1", "mole_fraction_c2")
-    if rf.height > 0:
-        rho_data = (
-            rf.with_columns((pl.col("x_c1").round(2)).alias("x_approx"))
-            .group_by(["P_kPa", "x_approx"])
-            .agg(
-                pl.col("T_K").min().alias("T_min"),
-                pl.col("T_K").max().alias("T_max"),
-                pl.len().alias("count"),
-            )
-            .sort(["P_kPa", "x_approx"])
-            .to_numpy()
-        )
-    else:
-        rho_data = None
-
-    # Bubble Point data (Identify isopleths by grouping approximate composition)
-    vf = _filter_norm(vp_bin, "mole_fraction_c1", "mole_fraction_c2")
-    if vf.height > 0:
-        # Create a rounded x column to group experimental points into "isopleths"
-        bubble_data = (
-            vf.with_columns((pl.col("x_c1").round(2)).alias("x_approx"))
-            .group_by("x_approx")
-            .agg(
-                pl.col("T_K").min().alias("T_min"),
-                pl.col("T_K").max().alias("T_max"),
-                pl.len().alias("count"),
-            )
-            .sort("x_approx")
-            .to_numpy()
-        )
-    else:
-        bubble_data = None
-
-    # LLE checking
-    lle_data = None
-    path_lle = osp.join(application_path, "_data", "lle_binary.parquet")
-    if osp.exists(path_lle):
-        df_lle = pl.read_parquet(path_lle)
-        # Filter
-        lf = _filter_norm(df_lle, "mole_fraction_c1", "mole_fraction_c2")
-        if lf.height > 0:
-            lle_data = (
-                lf.group_by("P_kPa")
-                .agg(
-                    pl.col("T_K").min().alias("T_min"),
-                    pl.col("T_K").max().alias("T_max"),
-                    pl.len().alias("count"),
-                )
-                .sort("P_kPa")
-                .to_numpy()
-            )
-
-    # LLE checking
-    vle_data = None
-    vle_pxy_data = None
-    path_vle = osp.join(application_path, "_data", "co2_binary.parquet")
-    if osp.exists(path_vle):
-        df_vle = pl.read_parquet(path_vle)
-        # Filter
-        vf = _filter_norm(df_vle, "mole_fraction_c1p2", "mole_fraction_c2p2")
-        if vf.height > 0:
-            vle_data = (
-                vf.group_by("P_kPa")
-                .agg(
-                    pl.col("T_K").min().alias("T_min"),
-                    pl.col("T_K").max().alias("T_max"),
-                    pl.len().alias("count"),
-                )
-                .sort("P_kPa")
-                .to_numpy()
-            )
-
-            # Isothermal P-x-y data
-            vle_pxy_data = (
-                vf.with_columns(pl.col("T_K").round(1).alias("T_approx"))
-                .group_by("T_approx")
-                .agg(
-                    pl.col("P_kPa").min().alias("P_min"),
-                    pl.col("P_kPa").max().alias("P_max"),
-                    pl.len().alias("count"),
-                )
-                .sort("T_approx")
-                .to_numpy()
-            )
+    rho_data = _build_binary_rho_data(rho_bin, i1, i2)
+    bubble_data = _build_binary_bubble_data(vp_bin, i1, i2)
+    lle_data = _build_binary_lle_data(i1, i2)
+    vle_data, vle_pxy_data = _build_binary_vle_data(i1, i2)
 
     return rho_data, bubble_data, lle_data, vle_data, vle_pxy_data
 
@@ -478,131 +652,9 @@ def retrieve_available_data_ternary(
     )
     target_set = [i1, i2, i3]
 
-    # --- RHO Data ---
-    rho_data = None
-    path_rho = osp.join(application_path, "_data", "rho_ternary.parquet")
-    if osp.exists(path_rho):
-
-        df = pl.read_parquet(path_rho)
-
-        # Filter for components (exact set match)
-        filter_expr = (
-            pl.col("inchi1").is_in(target_set)
-            & pl.col("inchi2").is_in(target_set)
-            & pl.col("inchi3").is_in(target_set)
-        )
-
-        filtered = df.filter(filter_expr)
-
-        if filtered.height > 0:
-            # Map mole fractions to input order
-            data = (
-                filtered.with_columns(
-                    [
-                        pl.when(pl.col("inchi1") == i1)
-                        .then(pl.col("mole_fraction_c1"))
-                        .otherwise(
-                            pl.when(pl.col("inchi2") == i1)
-                            .then(pl.col("mole_fraction_c2"))
-                            .otherwise(pl.col("mole_fraction_c3"))
-                        )
-                        .alias("x_mapped_1"),
-                        pl.when(pl.col("inchi1") == i2)
-                        .then(pl.col("mole_fraction_c1"))
-                        .otherwise(
-                            pl.when(pl.col("inchi2") == i2)
-                            .then(pl.col("mole_fraction_c2"))
-                            .otherwise(pl.col("mole_fraction_c3"))
-                        )
-                        .alias("x_mapped_2"),
-                    ]
-                )
-                .with_columns(
-                    [
-                        pl.col("x_mapped_1").round(2).alias("x_approx_1"),
-                        pl.col("x_mapped_2").round(2).alias("x_approx_2"),
-                    ]
-                )
-                .group_by(["P_kPa", "x_approx_1", "x_approx_2"])
-                .agg(
-                    pl.col("T_K").min().alias("T_min"),
-                    pl.col("T_K").max().alias("T_max"),
-                    pl.len().alias("count"),
-                )
-                .sort(["P_kPa", "x_approx_1", "x_approx_2"])
-            )
-
-            if data.height > 0:
-                rho_data = data.to_numpy()
-
-    # --- LLE Data ---
-    lle_data = None
-    path_lle = osp.join(application_path, "_data", "lle_ternary.parquet")
-    if osp.exists(path_lle):
-        df_lle = pl.read_parquet(path_lle)
-        filter_expr_lle = (
-            pl.col("inchi1").is_in(target_set)
-            & pl.col("inchi2").is_in(target_set)
-            & pl.col("inchi3").is_in(target_set)
-        )
-        filtered_lle = df_lle.filter(filter_expr_lle)
-
-        if filtered_lle.height > 0:
-            # Group by P and T to find available isotherms/isobars
-            lle_data = (
-                filtered_lle.group_by(["P_kPa", "T_K"])
-                .agg(pl.len().alias("count"))
-                .sort(["P_kPa", "T_K"])
-                .to_numpy()
-            )
-
-    # --- VLE Data ---
-    vle_data = None
-    vle_tx_data = None
-    path_vle = osp.join(application_path, "_data", "co2_ternary.parquet")
-    if osp.exists(path_vle):
-        df_vle = pl.read_parquet(path_vle)
-        filter_expr_vle = (
-            pl.col("inchi1").is_in(target_set)
-            & pl.col("inchi2").is_in(target_set)
-            & pl.col("inchi3").is_in(target_set)
-        )
-        filtered_vle = df_vle.filter(filter_expr_vle)
-
-        if filtered_vle.height > 0:
-            # Group by P and T
-            vle_data = (
-                filtered_vle.group_by(["P_kPa", "T_K"])
-                .agg(pl.len().alias("count"))
-                .sort(["P_kPa", "T_K"])
-                .to_numpy()
-            )
-
-            # Group by T and solvent ratio
-            vle_tx = (
-                filtered_vle.with_columns(
-                    [
-                        _get_col_map_p2(i1, "mole_fraction_c").alias("x_m1"),
-                        _get_col_map_p2(i2, "mole_fraction_c").alias("x_m2"),
-                        _get_col_map_p2(i3, "mole_fraction_c").alias("x_m3"),
-                    ]
-                )
-                .with_columns(
-                    (pl.col("x_m2") / (pl.col("x_m2") + pl.col("x_m3")))
-                    .alias("solvent_ratio")
-                    .round(2)
-                )
-                .group_by(["T_K", "solvent_ratio"])
-                .agg(
-                    pl.col("P_kPa").min().alias("P_min"),
-                    pl.col("P_kPa").max().alias("P_max"),
-                    pl.len().alias("count"),
-                )
-                .sort(["T_K", "solvent_ratio"])
-            )
-
-            if vle_tx.height > 0:
-                vle_tx_data = vle_tx.to_numpy()
+    rho_data = _build_ternary_rho_data(i1, i2, target_set)
+    lle_data = _build_ternary_lle_data(target_set)
+    vle_data, vle_tx_data = _build_ternary_vle_data(i1, i2, i3, target_set)
 
     return rho_data, lle_data, vle_data, vle_tx_data
 

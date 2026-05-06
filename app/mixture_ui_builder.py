@@ -2,6 +2,7 @@
 
 from kivy.uix.label import Label
 
+from app.input_requests import BinaryFillRequest, TernaryFillRequest
 from app.ui_helpers import add_availability_header, add_footer, build_param_table
 from app.utils import available_params
 
@@ -64,7 +65,7 @@ class MixtureUIBuilder:
             lambda row, dropdown: self.layout._make_binary_button(
                 dropdown,
                 f"x={row[0]:.2f} ({int(row[3])} points)",
-                lambda: self.layout._fill_inputs_binary(x1=row[0]),
+                lambda: self.layout._fill_inputs_binary(BinaryFillRequest(x1=row[0])),
             ),
         )
 
@@ -74,7 +75,9 @@ class MixtureUIBuilder:
             lambda row, dropdown: self.layout._make_binary_button(
                 dropdown,
                 f"Isobar: P={row[0]:.5g} kPa ({int(row[3])} points)",
-                lambda: self.layout._fill_inputs_binary(pressure=row[0]),
+                lambda: self.layout._fill_inputs_binary(
+                    BinaryFillRequest(pressure=row[0])
+                ),
             ),
         )
 
@@ -84,7 +87,9 @@ class MixtureUIBuilder:
             lambda row, dropdown: self.layout._make_binary_button(
                 dropdown,
                 f"Isotherm: T={row[0]:.2f} K ({int(row[3])} points)",
-                lambda: self.layout._fill_inputs_binary(t_min=row[0]),
+                lambda: self.layout._fill_inputs_binary(
+                    BinaryFillRequest(t_min=row[0])
+                ),
             ),
         )
 
@@ -94,7 +99,9 @@ class MixtureUIBuilder:
             lambda row, dropdown: self.layout._make_binary_button(
                 dropdown,
                 f"P={row[0]:.5g} kPa ({int(row[3])} points)",
-                lambda: self.layout._fill_inputs_binary(pressure=row[0]),
+                lambda: self.layout._fill_inputs_binary(
+                    BinaryFillRequest(pressure=row[0])
+                ),
             ),
         )
 
@@ -104,7 +111,9 @@ class MixtureUIBuilder:
             lambda row, dropdown: self.layout._make_binary_button(
                 dropdown,
                 f"P={row[0]:.5g} kPa, x={row[1]:.2f} ({int(row[4])} points)",
-                lambda: self.layout._fill_inputs_binary(pressure=row[0], x1=row[1]),
+                lambda: self.layout._fill_inputs_binary(
+                    BinaryFillRequest(pressure=row[0], x1=row[1])
+                ),
             ),
         )
 
@@ -124,9 +133,11 @@ class MixtureUIBuilder:
                     f"({int(row[5])} points)"
                 ),
                 lambda: self.layout._fill_inputs_ternary(
-                    pressure=row[0],
-                    x1=row[1],
-                    x2=row[2],
+                    TernaryFillRequest(
+                        pressure=row[0],
+                        x1=row[1],
+                        x2=row[2],
+                    )
                 ),
             ),
         )
@@ -141,8 +152,10 @@ class MixtureUIBuilder:
                     f"({int(row[2])} points)"
                 ),
                 lambda: self.layout._fill_inputs_ternary(
-                    pressure=row[0],
-                    t_min=row[1],
+                    TernaryFillRequest(
+                        pressure=row[0],
+                        t_min=row[1],
+                    )
                 ),
             ),
         )
@@ -157,8 +170,10 @@ class MixtureUIBuilder:
                     f"({int(row[2])} points)"
                 ),
                 lambda: self.layout._fill_inputs_ternary(
-                    pressure=row[0],
-                    t_min=row[1],
+                    TernaryFillRequest(
+                        pressure=row[0],
+                        t_min=row[1],
+                    )
                 ),
             ),
         )
@@ -174,9 +189,11 @@ class MixtureUIBuilder:
                     f"({int(row[4])} points)"
                 ),
                 lambda: self.layout._fill_inputs_ternary(
-                    t_min=row[0],
-                    x1=0.0,
-                    x2=1.0 * row[1],
+                    TernaryFillRequest(
+                        t_min=row[0],
+                        x1=0.0,
+                        x2=1.0 * row[1],
+                    )
                 ),
             ),
         )

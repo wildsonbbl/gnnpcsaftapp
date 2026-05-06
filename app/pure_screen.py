@@ -9,7 +9,8 @@ from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
 from kivy.uix.screenmanager import Screen
 
 from app.layout_base import BaseInputLayout
-from app.pure_ui_builder import PureUIBuilder
+from app.plot_requests import PlotRequest
+from app.pure_ui_builder import PureUIBuilder, PureUIData
 from app.utils import (
     generate_plot,
     get_smiles_from_input,
@@ -40,12 +41,10 @@ class PureLayout(BaseInputLayout):
     smiles_or_inchi_input = ObjectProperty(None)
 
     @mainthread
-    def _generate_plot(
-        self, x_data, y_data, title, x_label, y_label, legends=None, exp_data=None
-    ):
+    def _generate_plot(self, request: PlotRequest):
         """Helper to generate plot and switch screen"""
         try:
-            generate_plot(x_data, y_data, title, x_label, y_label, legends, exp_data)
+            generate_plot(request)
         except (RuntimeError, AssertionError) as e:
             self._show_error_alert(e)
 
@@ -74,12 +73,14 @@ class PureLayout(BaseInputLayout):
 
             temperatures, densities = pure_den(smiles, t_min, t_max, p_val)
             self._generate_plot(
-                temperatures,
-                densities,
-                f"Density vs Temperature\n({smiles})",
-                "Temperature (K)",
-                "Density (mol/m³)",
-                exp_data=exp_data,
+                PlotRequest(
+                    x_data=temperatures,
+                    y_data=densities,
+                    title=f"Density vs Temperature\n({smiles})",
+                    x_label="Temperature (K)",
+                    y_label="Density (mol/m³)",
+                    exp_data=exp_data,
+                )
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
@@ -103,12 +104,14 @@ class PureLayout(BaseInputLayout):
 
             temperatures, vps = pure_vp(smiles, t_min, t_max)
             self._generate_plot(
-                temperatures,
-                vps,
-                f"Vapor Pressure vs Temperature\n({smiles})",
-                "Temperature (K)",
-                "Pressure (Pa)",
-                exp_data=exp_data,
+                PlotRequest(
+                    x_data=temperatures,
+                    y_data=vps,
+                    title=f"Vapor Pressure vs Temperature\n({smiles})",
+                    x_label="Temperature (K)",
+                    y_label="Pressure (Pa)",
+                    exp_data=exp_data,
+                )
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
@@ -122,11 +125,13 @@ class PureLayout(BaseInputLayout):
 
             temperatures, hlvs = pure_h_lv(smiles, t_min, t_max)
             self._generate_plot(
-                temperatures,
-                hlvs,
-                f"Enthalpy of Vap. vs Temperature\n({smiles})",
-                "Temperature (K)",
-                r"$H_{vap}$ (kJ/mol)",
+                PlotRequest(
+                    x_data=temperatures,
+                    y_data=hlvs,
+                    title=f"Enthalpy of Vap. vs Temperature\n({smiles})",
+                    x_label="Temperature (K)",
+                    y_label=r"$H_{vap}$ (kJ/mol)",
+                )
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
@@ -150,12 +155,14 @@ class PureLayout(BaseInputLayout):
 
             temperatures, st = pure_surface_tension(smiles, t_min)
             self._generate_plot(
-                temperatures,
-                st,
-                f"Surface Tension vs Temperature\n({smiles})",
-                "Temperature (K)",
-                "Surface Tension (mN/m)",
-                exp_data=exp_data,
+                PlotRequest(
+                    x_data=temperatures,
+                    y_data=st,
+                    title=f"Surface Tension vs Temperature\n({smiles})",
+                    x_label="Temperature (K)",
+                    y_label="Surface Tension (mN/m)",
+                    exp_data=exp_data,
+                )
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
@@ -169,12 +176,14 @@ class PureLayout(BaseInputLayout):
 
             temperatures, _, rho_liq, rho_vap = pure_phase_diagram(smiles, t_min)
             self._generate_plot(
-                [rho_liq, rho_vap],
-                temperatures,
-                f"Phase diagram - Temperature vs Density\n({smiles})",
-                "Density (mol/m³)",
-                "Temperature (K)",
-                legends=["Liquid", "Vapor"],
+                PlotRequest(
+                    x_data=[rho_liq, rho_vap],
+                    y_data=temperatures,
+                    title=f"Phase diagram - Temperature vs Density\n({smiles})",
+                    x_label="Density (mol/m³)",
+                    y_label="Temperature (K)",
+                    legends=["Liquid", "Vapor"],
+                )
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
@@ -188,12 +197,14 @@ class PureLayout(BaseInputLayout):
 
             _, pressures, rho_liq, rho_vap = pure_phase_diagram(smiles, t_min)
             self._generate_plot(
-                [rho_liq, rho_vap],
-                pressures,
-                f"Phase diagram - Pressure vs Density\n({smiles})",
-                "Density (mol/m³)",
-                "Pressure (Pa)",
-                legends=["Liquid", "Vapor"],
+                PlotRequest(
+                    x_data=[rho_liq, rho_vap],
+                    y_data=pressures,
+                    title=f"Phase diagram - Pressure vs Density\n({smiles})",
+                    x_label="Density (mol/m³)",
+                    y_label="Pressure (Pa)",
+                    legends=["Liquid", "Vapor"],
+                )
             )
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
@@ -227,7 +238,13 @@ class PureLayout(BaseInputLayout):
 
             @mainthread
             def build_ui(rho_data, vp_range, st_range, pred):
-                builder = PureUIBuilder(self, rho_data, vp_range, st_range, pred)
+                ui_data = PureUIData(
+                    rho_data=rho_data,
+                    vp_range=vp_range,
+                    st_range=st_range,
+                    pred=pred,
+                )
+                builder = PureUIBuilder(self, ui_data)
                 builder.build()
 
             build_ui(rho_data, vp_range, st_range, pred)
