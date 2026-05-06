@@ -18,6 +18,13 @@ version="v$version_number"
 arch="$(dpkg --print-architecture)"
 package_name="gnnpcsaft"
 deb_file="${package_name}_${version_number}_${arch}.deb"
+app_dir="$script_dir/app"
+
+if [ -n "${PYTHONPATH:-}" ]; then
+	export PYTHONPATH="$app_dir:$PYTHONPATH"
+else
+	export PYTHONPATH="$app_dir"
+fi
 
 ## create tag and release
 # git tag $version

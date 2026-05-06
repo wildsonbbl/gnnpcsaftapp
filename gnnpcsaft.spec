@@ -2,13 +2,13 @@
 
 
 a = Analysis(
-    ["-m", "app.main"],
+    ["app/main.py"],
     pathex=[],
     binaries=[],
     datas=[
         ("./app/512.png", "."),
         ("./app/gnnpcsaft.kv", "."),
-        ("./app/_data", "./_data"),
+        ("./app/_data", "./app/_data"),
     ],
     hiddenimports=[],
     hookspath=["./hooks"],

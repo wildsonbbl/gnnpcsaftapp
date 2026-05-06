@@ -14,6 +14,14 @@ if (-not $versionNumber) {
 $version = "v$versionNumber"
 $platform='windows'
 $installerName = "gnnpcsaft-$version-$platform.msi"
+$appDir = Join-Path $PSScriptRoot 'app'
+
+if ([string]::IsNullOrWhiteSpace($env:PYTHONPATH)) {
+	$env:PYTHONPATH = $appDir
+}
+else {
+	$env:PYTHONPATH = "$appDir;$($env:PYTHONPATH)"
+}
 
 # ## create tag and release
 # git tag $version
