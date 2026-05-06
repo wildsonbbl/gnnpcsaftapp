@@ -69,7 +69,7 @@ def _build_binary_bubble_data(
     if vf.height == 0:
         return None
     return (
-        vf.with_columns((pl.col("x_c1").round(2)).alias("x_approx"))
+        vf.with_columns((pl.col("x_c1").round(4)).alias("x_approx"))
         .group_by("x_approx")
         .agg(
             pl.col("T_K").min().alias("T_min"),
@@ -457,7 +457,7 @@ def retrieve_bubble_pressure_data(
     df = pl.read_parquet(osp.join(application_path, "_data", "vp_binary.parquet"))
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
-    tol_x = 0.01
+    tol_x = 0.0001
 
     filtered = (
         df.filter(

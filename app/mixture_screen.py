@@ -177,7 +177,7 @@ class MixtureLayout(BaseInputLayout):
             t_max=request.t_max,
         )
         if request.x1 is not None:
-            self.fractions_input.text = f"{request.x1:.2f} {1.0 - request.x1:.2f}"
+            self.fractions_input.text = f"{request.x1:.4f} {1.0 - request.x1:.4f}"
 
     def _fill_inputs_ternary(self, request: TernaryFillRequest):
         """Helper to populate inputs with clicked values for ternary."""

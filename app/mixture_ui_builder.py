@@ -64,7 +64,7 @@ class MixtureUIBuilder:
             bubble_data,
             lambda row, dropdown: self.layout._make_binary_button(
                 dropdown,
-                f"x={row[0]:.2f} ({int(row[3])} points)",
+                f"x={row[0]:.4f} ({int(row[3])} points)",
                 lambda: self.layout._fill_inputs_binary(BinaryFillRequest(x1=row[0])),
             ),
         )
