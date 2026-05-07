@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from gnnepcsaft_mcp_server.utils import inchitosmiles, smilestoinchi
 from kivy.app import App
 from kivy.clock import Clock, mainthread
+from kivy.logger import Logger
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
@@ -181,7 +182,16 @@ def run_with_loading(func):
         context.ui.popup.open()
 
         def background_task():
-            func(self, *args, **kwargs)
+            try:
+                func(self, *args, **kwargs)
+            except BaseException as exc:  # pylint: disable=W0718
+                exception_type = type(exc).__name__
+                if exception_type == "PanicException":
+                    err = ValueError("PC-SAFT calculation failed.")
+                    show_error_popup(err)
+                else:
+                    Logger.exception("Unexpected Error: %s", exception_type)
+                    raise
             _safe_dismiss(context)
 
         threading.Thread(target=background_task, daemon=True).start()
@@ -211,6 +221,12 @@ def show_error_popup(err):
             suggestions = [
                 "Use space-separated numeric values",
                 "Match number of components",
+            ]
+        elif "pc-saft" in lowered and "failed" in lowered:
+            suggestions = [
+                "Adjust temperatures to be within meaningful values",
+                "Reduce pressure if very high or increase if very low",
+                "Adjust mole fractions to avoid extremes (0 or 1)",
             ]
 
     if suggestions:
