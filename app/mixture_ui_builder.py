@@ -110,7 +110,7 @@ class MixtureUIBuilder:
             rho_data,
             lambda row, dropdown: self.layout._make_binary_button(
                 dropdown,
-                f"P={row[0]:.5g} kPa, x={row[1]:.2f} ({int(row[4])} points)",
+                f"P={row[0]:.5g} kPa, x={row[1]:.4f} ({int(row[4])} points)",
                 lambda: self.layout._fill_inputs_binary(
                     BinaryFillRequest(pressure=row[0], x1=row[1])
                 ),
@@ -129,7 +129,7 @@ class MixtureUIBuilder:
             lambda row, dropdown: self.layout._make_ternary_button(
                 dropdown,
                 (
-                    f"P={row[0]:.5g} kPa, x=[{row[1]:.2f}, {row[2]:.2f}] "
+                    f"P={row[0]:.5g} kPa, x=[{row[1]:.4f}, {row[2]:.4f}] "
                     f"({int(row[5])} points)"
                 ),
                 lambda: self.layout._fill_inputs_ternary(

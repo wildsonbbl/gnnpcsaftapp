@@ -10,6 +10,16 @@ from numpy.typing import NDArray
 
 application_path = osp.dirname(osp.abspath(__file__))
 
+# Tolerance constants used across data retrieval functions
+# Fraction tolerance matches rounding to 4 decimal places used in grouping
+TOL_FRACTION = 1e-4
+# Solvent ratio tolerance matches rounding to 2 decimal places
+TOL_SOLVENT_RATIO = 0.01
+# Temperature tolerance for coarse matching (K)
+TOL_TEMP = 0.5
+# Small tolerance for pressure/temperature fine matching
+TOL_PRESSURE_TEMP = 0.01
+
 
 def _read_parquet_if_exists(path: str) -> Optional[pl.DataFrame]:
     if not osp.exists(path):
@@ -46,7 +56,7 @@ def _build_binary_rho_data(
     if rf.height == 0:
         return None
     return (
-        rf.with_columns((pl.col("x_c1").round(2)).alias("x_approx"))
+        rf.with_columns((pl.col("x_c1").round(4)).alias("x_approx"))
         .group_by(["P_kPa", "x_approx"])
         .agg(
             pl.col("T_K").min().alias("T_min"),
@@ -196,8 +206,8 @@ def _build_ternary_rho_data(
         _map_ternary_fractions(filtered, inchi1, inchi2)
         .with_columns(
             [
-                pl.col("x_mapped_1").round(2).alias("x_approx_1"),
-                pl.col("x_mapped_2").round(2).alias("x_approx_2"),
+                pl.col("x_mapped_1").round(4).alias("x_approx_1"),
+                pl.col("x_mapped_2").round(4).alias("x_approx_2"),
             ]
         )
         .group_by(["P_kPa", "x_approx_1", "x_approx_2"])
@@ -406,7 +416,7 @@ def retrieve_rho_binary_data(
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
     # Tolerance
-    tol_x = 0.01
+    tol_x = TOL_FRACTION
 
     # Normalize x1 to strictly match input order
     # If file has (i1, i2) -> use mole_fraction_c1
@@ -457,7 +467,7 @@ def retrieve_bubble_pressure_data(
     df = pl.read_parquet(osp.join(application_path, "_data", "vp_binary.parquet"))
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
-    tol_x = 0.0001
+    tol_x = TOL_FRACTION
 
     filtered = (
         df.filter(
@@ -541,7 +551,7 @@ def retrieve_vle_pxy_binary_data(
     df = pl.read_parquet(path)
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
-    tol_t = 0.5  # Tolerance for temperature
+    tol_t = TOL_TEMP  # Tolerance for temperature
 
     # Filter
     filtered = df.filter(
@@ -692,7 +702,7 @@ def retrieve_rho_ternary_data(
         )
 
     # Tolerance
-    tol_x = 0.01
+    tol_x = TOL_FRACTION
 
     filtered = (
         df.filter(
@@ -769,7 +779,7 @@ def retrieve_lle_ternary_data(
             )
         )
 
-    tol = 0.01
+    tol = TOL_PRESSURE_TEMP
     return (
         df.filter(
             pl.col("inchi1").is_in(target_set)
@@ -811,7 +821,7 @@ def retrieve_vle_ternary_data(
 
     df = pl.read_parquet(path_vle)
 
-    tol = 0.01
+    tol = TOL_PRESSURE_TEMP
     # VLE points might be scatter points, not necessarily
     # tie lines with both phases in this file context,
     # but we plot the liquid composition.
@@ -860,8 +870,8 @@ def retrieve_vle_ternary_tx_fixed_data(
 
     df = pl.read_parquet(path_vle)
 
-    tol_t = 0.5
-    tol_ratio = 0.01
+    tol_t = TOL_TEMP
+    tol_ratio = TOL_SOLVENT_RATIO
     return (
         df.filter(
             pl.col("inchi1").is_in(target_set)

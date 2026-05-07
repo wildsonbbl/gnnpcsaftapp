@@ -189,7 +189,7 @@ class MixtureLayout(BaseInputLayout):
         )
         if request.x1 is not None and request.x2 is not None:
             x3 = max(0.0, 1.0 - request.x1 - request.x2)
-            self.fractions_input.text = f"{request.x1:.2f} {request.x2:.2f} {x3:.2f}"
+            self.fractions_input.text = f"{request.x1:.4f} {request.x2:.4f} {x3:.4f}"
 
     @run_with_loading
     def on_submit(self):
