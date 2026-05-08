@@ -2,13 +2,13 @@ param(
 	[switch]$SkipUpload
 )
 
-$kvFile = Join-Path $PSScriptRoot 'app/gnnpcsaft.kv'
-$versionNumber = Select-String -Path $kvFile -Pattern 'text:\s*"Version:\s*([0-9]+\.[0-9]+\.[0-9]+)"' |
+$versionFile = Join-Path $PSScriptRoot 'app/_version.py'
+$versionNumber = Select-String -Path $versionFile -Pattern '"([0-9]+\.[0-9]+\.[0-9]+)"' |
 	Select-Object -First 1 |
 	ForEach-Object { $_.Matches[0].Groups[1].Value }
 
 if (-not $versionNumber) {
-	throw "Could not find version in $kvFile"
+	throw "Could not find version in $versionFile"
 }
 
 $version = "v$versionNumber"

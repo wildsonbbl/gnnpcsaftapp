@@ -43,6 +43,7 @@ from app import utils, utils_mix, utils_pure
 from app.mixture_ui_builder import MixtureUIBuilder
 from app.plots import mixture_binary, mixture_common, mixture_ternary, plot_helpers
 from app.pure_ui_builder import PureUIBuilder, PureUIData
+from app.update_check import fetch_latest_release, is_newer_version
 from app.utils_data import default_mixture_output_args
 
 
@@ -188,6 +189,32 @@ class TestPlotHelpers(unittest.TestCase):
 
         self.assertEqual(x_liquid, [0.1, 0.1])
         self.assertEqual(y_vapor, [0.9, 0.9])
+
+
+class TestUpdateCheck(unittest.TestCase):
+    """test update-check helpers"""
+
+    def test_is_newer_version(self):
+        self.assertTrue(is_newer_version("v2.0.1", "2.0.0"))
+        self.assertTrue(is_newer_version("2.1.0", "2.0.9"))
+        self.assertFalse(is_newer_version("2.0.0", "2.0.0"))
+        self.assertFalse(is_newer_version("2.0.0", "2.1.0"))
+
+    @patch("app.update_check.urlopen")
+    def test_fetch_latest_release(self, mock_urlopen):
+        response = MagicMock()
+        response.read.return_value = (
+            b'{"tag_name": "v2.1.0", "html_url": "https://example.com", '
+            b'"name": "Release 2.1.0", "body": "notes"}'
+        )
+        mock_urlopen.return_value.__enter__.return_value = response
+
+        release = fetch_latest_release()
+
+        self.assertEqual(release.tag_name, "v2.1.0")
+        self.assertEqual(release.html_url, "https://example.com")
+        self.assertEqual(release.name, "Release 2.1.0")
+        self.assertEqual(release.body, "notes")
 
 
 class TestPlotBinaryHandlers(unittest.TestCase):

@@ -376,6 +376,48 @@ WindowManager:
         height: 50
         color: color_primary_rgba
 
+    BoxLayout:
+        orientation: "vertical"
+        size_hint_y: None
+        height: 0 if not app.update_available else 118
+        opacity: 1 if app.update_available else 0
+        disabled: not app.update_available
+        padding: 12
+        spacing: 8
+        canvas.before:
+            Color:
+                rgba: color_warning_rgba
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [12]
+
+        Label:
+            text: "Update available: " + app.update_tag
+            color: color_dark_rgba
+            bold: True
+            size_hint_y: None
+            height: 24
+
+        Label:
+            text: "Current version: " + app.version
+            color: color_dark_rgba
+            size_hint_y: None
+            height: 20
+
+        Button:
+            text: "Open release notes"
+            size_hint_y: None
+            height: 36
+            background_color: color_dark_rgba
+            on_release: app.open_update_release()
+
+    Button:
+        text: "Check for updates"
+        size_hint_y: None
+        height: 40
+        on_release: app.check_for_updates()
+
     ScrollView:
         do_scroll_x: False
         BoxLayout:
@@ -386,7 +428,7 @@ WindowManager:
             spacing: 10
 
             Label:
-                text: "Version: 2.0.0"
+                text: "Version: " + app.version
                 font_size: 16
                 color: color_secondary_rgba
                 size_hint_y: None

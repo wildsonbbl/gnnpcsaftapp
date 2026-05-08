@@ -1,6 +1,6 @@
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-kv_file="$script_dir/app/gnnpcsaft.kv"
-version_number="$(sed -nE 's/^[[:space:]]*text:[[:space:]]*"Version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' "$kv_file" | head -n 1)"
+version_file="$script_dir/app/_version.py"
+version_number="$(sed -nE 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' "$version_file" | head -n 1)"
 skip_upload=false
 
 if [ "${1:-}" = "--skip-upload" ]; then
@@ -10,7 +10,7 @@ fi
 set -euo pipefail
 
 if [ -z "$version_number" ]; then
-	echo "Could not find version in $kv_file" >&2
+	echo "Could not find version in $version_file" >&2
 	exit 1
 fi
 
