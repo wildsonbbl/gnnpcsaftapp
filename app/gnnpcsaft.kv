@@ -72,13 +72,13 @@ WindowManager:
         text: "Mixture"
         on_release:
             app.root.current = "mixture_screen"
-            app.root.transition.direction = "right"
+            app.root.transition.direction = "up"
     
     MenuButton:
         text: "About"
         on_release:
             app.root.current = "about_screen"
-            app.root.transition.direction = "left"
+            app.root.transition.direction = "right"
 
 <PureScreen>:
     name: "pure_screen"
@@ -379,9 +379,9 @@ WindowManager:
     BoxLayout:
         orientation: "vertical"
         size_hint_y: None
-        height: 0 if not app.update_available else 118
+        height: 118
         opacity: 1 if app.update_available else 0
-        disabled: not app.update_available
+        disabled: False
         padding: 12
         spacing: 8
         canvas.before:
