@@ -452,24 +452,41 @@ def mix_vp(params: MixVpParams) -> Tuple[List[float], List[float], List[float]]:
     parameters_list = [
         predict_pcsaft_parameters(smiles) for smiles in params.smiles_list
     ]
-    temperatures = np.linspace(params.min_temp, params.max_temp, num=10).tolist()
+    temperatures = np.linspace(params.min_temp, params.max_temp, num=50).tolist()
 
     buble_points = []
     dew_point = []
+    valid_temperatures = []
     for temp in temperatures:
-        x_bubble, y_dew = mix_vp_feos(
-            parameters=parameters_list,
-            state=[temp, 0] + params.mole_fractions,
-            kij_matrix=params.kij_matrix,
-        )
-        if x_bubble > y_dew:
-            buble_points.append(x_bubble)
-            dew_point.append(y_dew)
-        else:
-            buble_points.append(y_dew)
-            dew_point.append(x_bubble)
+        try:
+            bp, dp = mix_vp_feos(
+                parameters=parameters_list,
+                state=[temp, 0] + params.mole_fractions,
+                kij_matrix=params.kij_matrix,
+            )
+            if bp > dp:
+                buble_points.append(bp)
+                dew_point.append(dp)
+            else:
+                buble_points.append(dp)
+                dew_point.append(bp)
+            valid_temperatures.append(temp)
+        except RuntimeError as exc:
+            Logger.debug("mix_vp: Runtime Error at temperature=%.4f: %s", temp, exc)
+        except BaseException as exc:  # pylint: disable=W0718
+            exception_type = type(exc).__name__
+            if exception_type == "PanicException":
+                Logger.warning(
+                    "mix_vp: PanicException at temperature=%.4f: %s", temp, exc
+                )
+            Logger.exception(
+                "mix_vp: unexpected %s at temperature=%.4f",
+                exception_type,
+                temp,
+            )
+            raise
 
-    return temperatures, buble_points, dew_point
+    return valid_temperatures, buble_points, dew_point
 
 
 def mix_vle(
@@ -493,7 +510,7 @@ def mix_vle_pxy(
 ) -> Tuple[List[float], List[float], List[float]]:
     "Calculate mixture VLE (P-x-y) using PC-SAFT EOS"
     parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
-    x0s = _build_fraction_grid(mole_fractions)
+    x0s = _build_fraction_grid(mole_fractions, 102)
     tcs, pcs = _binary_critical_points(parameters_list)
     vps = _binary_pure_vps(parameters_list, temperature, tcs)
 
