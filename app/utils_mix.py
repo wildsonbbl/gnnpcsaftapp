@@ -71,6 +71,18 @@ class MixDenParams:
 
 
 @dataclass
+class MixLLEParams:
+    """Inputs for mixture LLE calculations."""
+
+    smiles_list: List[str]
+    mole_fractions: List[float]
+    kij_matrix: List[List[float]]
+    temperature: float
+    pressure: float
+    npoints: int
+
+
+@dataclass
 class TernaryVleTxParams:
     """Inputs for ternary VLE P-x calculations."""
 
@@ -497,15 +509,16 @@ def mix_vp(params: MixVpParams) -> Tuple[List[float], List[float], List[float]]:
 
 
 def mix_vle(
-    smiles_list: List[str],
-    kij_matrix: List[List[float]],
-    pressure: float,
+    smiles_list: List[str], kij_matrix: List[List[float]], pressure: float, npoints: int
 ) -> Dict[str, List[float]]:
     "Calculate mixture VLE (T-x-y) using PC-SAFT EOS"
     parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
 
     return mix_vle_diagram_feos(
-        parameters=parameters_list, state=[pressure], kij_matrix=kij_matrix
+        parameters=parameters_list,
+        state=[pressure],
+        kij_matrix=kij_matrix,
+        npoints=npoints,
     )
 
 
@@ -544,19 +557,18 @@ def mix_vle_pxy(
 
 
 def mix_lle(
-    smiles_list: List[str],
-    mole_fractions: List[float],
-    kij_matrix: List[List[float]],
-    temperature: float,
-    pressure: float,
+    params: MixLLEParams,
 ) -> Dict[str, List[float]]:
     "Calculate mixture LLE using PC-SAFT EOS"
-    parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
+    parameters_list = [
+        predict_pcsaft_parameters(smiles) for smiles in params.smiles_list
+    ]
 
     return mix_lle_diagram_feos(
         parameters=parameters_list,
-        state=[temperature, pressure, *mole_fractions],
-        kij_matrix=kij_matrix,
+        state=[params.temperature, params.pressure, *params.mole_fractions],
+        kij_matrix=params.kij_matrix,
+        npoints=params.npoints,
     )
 
 

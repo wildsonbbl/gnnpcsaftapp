@@ -7,7 +7,7 @@ from app.utils_data import (
     retrieve_vle_binary_data,
     retrieve_vle_pxy_binary_data,
 )
-from app.utils_mix import mix_lle, mix_vle, mix_vle_pxy
+from app.utils_mix import MixLLEParams, mix_lle, mix_vle, mix_vle_pxy
 
 
 # pylint: disable = w0212
@@ -22,6 +22,7 @@ def plot_vle_txy(layout):
     n = len(smiles_list)
     kij_matrix = layout._get_kij(n)
     p_val = layout._get_pressure()
+    npoints = layout._get_npoints()
 
     exp_data = None
     try:
@@ -31,7 +32,7 @@ def plot_vle_txy(layout):
     except (ValueError, RuntimeError):
         pass
 
-    output = mix_vle(smiles_list, kij_matrix, p_val)
+    output = mix_vle(smiles_list, kij_matrix, p_val, npoints)
     x_liquid, y_vapor = assign_phase_by_density(output)
 
     layout._generate_plot(
@@ -104,8 +105,9 @@ def plot_vle_xy(layout):
     n = len(smiles_list)
     kij_matrix = layout._get_kij(n)
     p_val = layout._get_pressure()
+    npoints = layout._get_npoints()
 
-    output = mix_vle(smiles_list, kij_matrix, p_val)
+    output = mix_vle(smiles_list, kij_matrix, p_val, npoints)
     x_liquid, y_vapor = assign_phase_by_density(output)
 
     layout._generate_plot(
@@ -141,7 +143,15 @@ def plot_lle_txx(layout):
     except (ValueError, RuntimeError):
         pass
 
-    output = mix_lle(smiles_list, fractions, kij_matrix, t_min, p_val)
+    params = MixLLEParams(
+        smiles_list=smiles_list,
+        mole_fractions=fractions,
+        kij_matrix=kij_matrix,
+        temperature=t_min,
+        pressure=p_val,
+        npoints=layout._get_npoints(),
+    )
+    output = mix_lle(params)
     layout._generate_plot(
         PlotRequest(
             x_data=[output["x0"], output["y0"]],

@@ -169,7 +169,7 @@ class TestUtilsMix(unittest.TestCase):
         expected_output = {"x0": [0.1], "y0": [0.9], "temperature": [300]}
         mock_calc.return_value = expected_output
 
-        res = utils_mix.mix_vle(["A", "B"], [[0, 0], [0, 0]], 101325)
+        res = utils_mix.mix_vle(["A", "B"], [[0, 0], [0, 0]], 101325, 10)
 
         self.assertEqual(res, expected_output)
 
