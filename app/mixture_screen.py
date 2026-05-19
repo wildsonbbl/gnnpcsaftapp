@@ -24,12 +24,14 @@ from app.utils import (
     generate_ternary_plot,
     get_smiles_from_input,
     run_with_loading,
+    show_warning_popup,
 )
 from app.utils_data import (
     default_mixture_output_args,
     retrieve_available_data_binary,
     retrieve_available_data_ternary,
 )
+from app.validators import validate_fractions
 
 
 class MixtureScreen(Screen):
@@ -78,6 +80,7 @@ class MixtureLayout(BaseInputLayout):
 
         if len(fractions) != n:
             raise ValueError("Number of components and fractions must match")
+        validate_fractions(fractions)
         return fractions
 
     def _get_kij(self, n):
@@ -127,8 +130,11 @@ class MixtureLayout(BaseInputLayout):
                     output_args["vle_data"],
                     output_args["vle_pxy_data"],
                 ) = retrieve_available_data_binary(smiles_list)
-            except (ValueError, RuntimeError):
-                pass
+            except (ValueError, RuntimeError) as e:
+                show_warning_popup(
+                    "Exp. Data Notice",
+                    f"Could not load binary experimental data:\n{str(e)}",
+                )
         elif len(smiles_list) == 3:
             try:
                 (
@@ -137,8 +143,11 @@ class MixtureLayout(BaseInputLayout):
                     output_args["vle_data_t"],
                     output_args["vle_tx_data_t"],
                 ) = retrieve_available_data_ternary(smiles_list)
-            except (ValueError, RuntimeError):
-                pass
+            except (ValueError, RuntimeError) as e:
+                show_warning_popup(
+                    "Exp. Data Notice",
+                    f"Could not load ternary experimental data:\n{str(e)}",
+                )
 
         return output_args
 

@@ -173,10 +173,11 @@ def run_with_loading(func):
             context.ui.message_label.text = "Cancel requested..."
             context.ui.cancel_button.disabled = True
             _safe_dismiss(context)
+            Logger.debug("Operation cancelled successfully")
 
-            context.ui.cancel_button.bind(  # type: ignore pylint: disable=no-member
-                on_release=on_cancel
-            )
+        context.ui.cancel_button.bind(  # type: ignore pylint: disable=no-member
+            on_release=on_cancel
+        )
 
         _disable_buttons(context.buttons_state)
         context.ui.popup.open()
@@ -184,14 +185,17 @@ def run_with_loading(func):
         def background_task():
             try:
                 func(self, *args, **kwargs)
-            except BaseException as exc:  # pylint: disable=W0718
+            except Exception as exc:  # pylint: disable=broad-except
                 exception_type = type(exc).__name__
                 if exception_type == "PanicException":
-                    err = ValueError("PC-SAFT calculation failed.")
+                    err = ValueError(
+                        "PC-SAFT calculation failed (Rust panic). "
+                        "Limit values (e.g. check Critical Points)."
+                    )
                     show_error_popup(err)
                 else:
                     Logger.exception("Unexpected Error: %s", exception_type)
-                    raise
+                    show_error_popup(ValueError(f"Calculation failed: {str(exc)}"))
             _safe_dismiss(context)
 
         threading.Thread(target=background_task, daemon=True).start()
@@ -267,6 +271,42 @@ def show_error_popup(err):
         auto_dismiss=True,
     )
     error_popup.open()
+
+
+@mainthread
+def show_warning_popup(title, message_text):
+    """Shows a UI warning popup without aborting flow."""
+    message = Label(
+        text=message_text,
+        halign="left",
+        valign="top",
+        color=(0, 0, 0, 1),
+        size_hint=(1, None),
+    )
+    scroll = ScrollView(size_hint=(1, 1), do_scroll_x=False)
+    scroll.add_widget(message)
+
+    def update_message_layout(_instance, _value=None):
+        content_width = max(scroll.width - 20, 1)
+        message.text_size = (content_width, None)
+        message.texture_update()
+        message.height = message.texture_size[1]
+
+    scroll.bind(size=update_message_layout)  # type: ignore pylint: disable=no-member
+    message.bind(texture_size=lambda _w, size: setattr(message, "height", size[1]))  # type: ignore pylint: disable=no-member
+    Clock.schedule_once(update_message_layout, 0)
+
+    popup = Popup(
+        title=title,
+        content=scroll,
+        title_color=(0, 0, 0, 1),
+        background="",
+        background_color=(1, 0.9, 0.6, 1),
+        size_hint=(None, None),
+        size=(360, 200),
+        auto_dismiss=True,
+    )
+    popup.open()
 
 
 def get_smiles_from_input(input_text):

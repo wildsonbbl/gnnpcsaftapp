@@ -15,6 +15,7 @@ from app.utils import (
     generate_plot,
     get_smiles_from_input,
     run_with_loading,
+    show_warning_popup,
 )
 from app.utils_data import (
     retrieve_available_data_pure,
@@ -69,8 +70,11 @@ class PureLayout(BaseInputLayout):
                 exp_array = retrieve_rho_pure_data(smiles, p_val / 1000.0)
                 if exp_array is not None and len(exp_array) > 0:
                     exp_data = (exp_array[:, 0], exp_array[:, 1], "Exp. Data")
-            except (ValueError, RuntimeError):
-                pass  # Ignore exp data errors
+            except (ValueError, RuntimeError) as e:
+                show_warning_popup(
+                    "Missing Exp. Data",
+                    f"Experimental Density data not found:\n{str(e)}",
+                )
 
             temperatures, densities = pure_den(smiles, t_min, t_max, p_val, npoints)
             self._generate_plot(
@@ -101,8 +105,11 @@ class PureLayout(BaseInputLayout):
                 if exp_array is not None and len(exp_array) > 0:
                     # Convert kPa to Pa for plotting
                     exp_data = (exp_array[:, 0], exp_array[:, 1] * 1000.0, "Exp. Data")
-            except (ValueError, RuntimeError):
-                pass
+            except (ValueError, RuntimeError) as e:
+                show_warning_popup(
+                    "Missing Exp. Data",
+                    f"Experimental Vapor Pressure data not found:\n{str(e)}",
+                )
 
             temperatures, vps = pure_vp(smiles, t_min, t_max, npoints)
             self._generate_plot(
@@ -153,8 +160,11 @@ class PureLayout(BaseInputLayout):
                 if exp_array is not None and len(exp_array) > 0:
                     # Convert N/m to mN/m for plotting
                     exp_data = (exp_array[:, 0], exp_array[:, 1] * 1e3, "Exp. Data")
-            except (ValueError, RuntimeError):
-                pass
+            except (ValueError, RuntimeError) as e:
+                show_warning_popup(
+                    "Missing Exp. Data",
+                    f"Experimental Surface Tension data not found:\n{str(e)}",
+                )
 
             temperatures, st = pure_surface_tension(smiles, t_min)
             self._generate_plot(
@@ -233,8 +243,11 @@ class PureLayout(BaseInputLayout):
             st_range = [None] * 5
             try:
                 rho_data, vp_range, st_range = retrieve_available_data_pure(smiles)
-            except (ValueError, RuntimeError):
-                pass  # Fail silently if data retrieval errors, proceed to prediction
+            except (ValueError, RuntimeError) as e:
+                show_warning_popup(
+                    "Exp. Data Notice",
+                    f"Could not load pure experimental data:\n{str(e)}",
+                )
 
             pred = predict_pcsaft_parameters(smiles)
             pred += critical_points_feos(copy(pred))

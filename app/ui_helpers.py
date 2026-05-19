@@ -4,6 +4,8 @@ from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 
+from app.validators import validate_pressure, validate_temperatures
+
 
 def show_error_alert(layout, error, show_error_popup):
     """Render an error alert in the predicted-parameters panel."""
@@ -30,9 +32,10 @@ def get_temperatures(layout, require_max=True):
         t_max = 0.0
         if require_max:
             t_max = float(layout.temp_max.text)
+        validate_temperatures(t_min, t_max, require_max)
         return t_min, t_max
     except ValueError as exc:
-        raise ValueError("Temperature values must be numeric") from exc
+        raise ValueError(str(exc)) from exc
 
 
 def get_pressure(layout):
@@ -40,9 +43,11 @@ def get_pressure(layout):
     if not layout.pressure.text:
         raise ValueError("Pressure required")
     try:
-        return float(layout.pressure.text)
+        pressure_val = float(layout.pressure.text)
+        validate_pressure(pressure_val)
+        return pressure_val
     except ValueError as exc:
-        raise ValueError("Pressure must be a numeric value") from exc
+        raise ValueError(str(exc)) from exc
 
 
 def get_npoints(layout):

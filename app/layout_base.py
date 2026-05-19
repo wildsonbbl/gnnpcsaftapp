@@ -21,8 +21,11 @@ class BaseInputLayout(BoxLayout):
     temp_max = ObjectProperty(None)
     pressure = ObjectProperty(None)
     predicted_parameters = ObjectProperty(None)
-    _dropdown_cache = []
     npoints = ObjectProperty(None)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._dropdown_cache = []
 
     @mainthread
     def _show_error_alert(self, error):
