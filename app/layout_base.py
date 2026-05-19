@@ -6,6 +6,7 @@ from kivy.uix.boxlayout import BoxLayout
 
 from app.ui_helpers import (
     fill_pressure_temperature,
+    get_npoints,
     get_pressure,
     get_temperatures,
     show_error_alert,
@@ -21,6 +22,7 @@ class BaseInputLayout(BoxLayout):
     pressure = ObjectProperty(None)
     predicted_parameters = ObjectProperty(None)
     _dropdown_cache = []
+    npoints = ObjectProperty(None)
 
     @mainthread
     def _show_error_alert(self, error):
@@ -31,6 +33,9 @@ class BaseInputLayout(BoxLayout):
 
     def _get_pressure(self):
         return get_pressure(self)
+
+    def _get_npoints(self):
+        return get_npoints(self)
 
     def _fill_inputs(self, pressure=None, t_min=None, t_max=None):
         """Helper to populate inputs with clicked values."""

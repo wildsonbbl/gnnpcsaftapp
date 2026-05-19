@@ -57,6 +57,7 @@ def plot_vle_pxy(layout):
 
     n = len(smiles_list)
     kij_matrix, t_min, _ = get_kij_tmin_pressure(layout, n)
+    npoints = layout._get_npoints()
 
     exp_data = None
     try:
@@ -71,7 +72,11 @@ def plot_vle_pxy(layout):
         pass
 
     x0s, bps, dps = mix_vle_pxy(
-        smiles_list, kij_matrix, t_min, exp_data and exp_data[0].tolist()
+        smiles_list,
+        kij_matrix,
+        t_min,
+        npoints,
+        exp_data and exp_data[0].tolist(),
     )
 
     layout._generate_plot(

@@ -45,6 +45,13 @@ def get_pressure(layout):
         raise ValueError("Pressure must be a numeric value") from exc
 
 
+def get_npoints(layout):
+    """Parse the npoints input"""
+    if layout.npoints.text:
+        return int(layout.npoints.text)
+    return 10
+
+
 def fill_pressure_temperature(layout, pressure=None, t_min=None, t_max=None):
     """Populate pressure and temperature fields from selected values."""
     if pressure is not None:
@@ -105,9 +112,7 @@ def build_param_table(param_names, param_values):
         param_label.bind(size=param_label.setter("text_size"))  # type: ignore pylint: disable=no-member
         table.add_widget(param_label)
 
-        param_value_label = Label(
-            text=f"{value:.5g}", color="#212529", halign="right"
-        )
+        param_value_label = Label(text=f"{value:.5g}", color="#212529", halign="right")
         param_value_label.bind(size=param_value_label.setter("text_size"))  # type: ignore pylint: disable=no-member
         table.add_widget(param_value_label)
 

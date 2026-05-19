@@ -103,6 +103,7 @@ WindowManager:
     temp_max: temp_max
     pressure: pressure
     predicted_parameters: predicted_parameters
+    npoints: npoints
     
     
     orientation:'vertical'
@@ -149,6 +150,15 @@ WindowManager:
             id: pressure
             hint_text: 'Pressure (Pa)'
             type: 'number'
+            input_filter: 'float'
+            multiline: False
+            on_text_validate: root.on_submit()
+
+        TextInput:
+            id: npoints
+            hint_text: 'Number of datapoints (default = 10)'
+            type: 'number'
+            input_filter: 'int'
             multiline: False
             on_text_validate: root.on_submit()
 
@@ -221,6 +231,7 @@ WindowManager:
     temp_max: temp_max
     pressure: pressure
     predicted_parameters: predicted_parameters
+    npoints: npoints
 
     NavBar:
     
@@ -275,6 +286,15 @@ WindowManager:
             id: pressure
             hint_text: 'Pressure (Pa)'
             type: 'number'
+            input_filter: 'float'
+            multiline: False
+            on_text_validate: root.on_submit()
+        
+        TextInput:
+            id: npoints
+            hint_text: 'Number of datapoints (default = 10)'
+            type: 'int'
+            input_filter: 'int'
             multiline: False
             on_text_validate: root.on_submit()
 

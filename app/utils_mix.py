@@ -67,6 +67,7 @@ class MixDenParams:
     min_temp: float
     max_temp: float
     pressure: float
+    npoints: int
 
 
 @dataclass
@@ -77,7 +78,7 @@ class TernaryVleTxParams:
     kij_matrix: List[List[float]]
     temperature: float
     solvent_ratio: float
-    n_points: int = 52
+    npoints: int
     mole_fractions: Optional[List[float]] = None
 
 
@@ -90,6 +91,7 @@ class MixVpParams:
     kij_matrix: List[List[float]]
     min_temp: float
     max_temp: float
+    npoints: int
 
 
 def _binary_critical_points(
@@ -420,7 +422,7 @@ def _build_ternary_vle_series(
 
 def _build_fraction_grid(
     mole_fractions: Optional[List[float]],
-    n_points: int = 52,
+    n_points: int,
 ) -> List[float]:
     x_grid = np.linspace(0.0, 1.0, num=n_points, dtype=np.float64).tolist()
     if mole_fractions:
@@ -434,7 +436,9 @@ def mix_den(params: MixDenParams) -> Tuple[List[float], List[float]]:
     parameters_list = [
         predict_pcsaft_parameters(smiles) for smiles in params.smiles_list
     ]
-    temperatures = np.linspace(params.min_temp, params.max_temp, num=10).tolist()
+    temperatures = np.linspace(
+        params.min_temp, params.max_temp, num=params.npoints
+    ).tolist()
 
     densities = [
         mix_den_feos(
@@ -452,7 +456,9 @@ def mix_vp(params: MixVpParams) -> Tuple[List[float], List[float], List[float]]:
     parameters_list = [
         predict_pcsaft_parameters(smiles) for smiles in params.smiles_list
     ]
-    temperatures = np.linspace(params.min_temp, params.max_temp, num=50).tolist()
+    temperatures = np.linspace(
+        params.min_temp, params.max_temp, num=params.npoints
+    ).tolist()
 
     buble_points = []
     dew_point = []
@@ -506,11 +512,12 @@ def mix_vle_pxy(
     smiles_list: List[str],
     kij_matrix: List[List[float]],
     temperature: float,
+    npoints: int,
     mole_fractions: Optional[List[float]] = None,
 ) -> Tuple[List[float], List[float], List[float]]:
     "Calculate mixture VLE (P-x-y) using PC-SAFT EOS"
     parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
-    x0s = _build_fraction_grid(mole_fractions, 102)
+    x0s = _build_fraction_grid(mole_fractions, npoints)
     tcs, pcs = _binary_critical_points(parameters_list)
     vps = _binary_pure_vps(parameters_list, temperature, tcs)
 
@@ -556,10 +563,11 @@ def _get_ternary_lle_data(
     params: List[List[float]],
     state: List[float],
     kij_matrix: List[List[float]],
+    npoints: int,
 ) -> Dict[str, List[float]]:
     t, p = state  # Temperatura (K) e pressão (Pa)
 
-    def _grid(n_pts: int = 25):
+    def _grid(n_pts: int = npoints):
         xi = np.linspace(1e-5, 0.999, n_pts, dtype=np.float64)
         x1_m, x2_m = np.meshgrid(xi, xi, indexing="xy")
         x3_m = 1.0 - x1_m - x2_m
@@ -603,6 +611,7 @@ def mix_ternary_lle(
     kij_matrix: List[List[float]],
     temperature: float,
     pressure: float,
+    npoints: int,
 ) -> Dict[str, List[float]]:
     "Calculate ternary LLE/VLE using PC-SAFT EOS"
     parameters_list = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
@@ -611,6 +620,7 @@ def mix_ternary_lle(
         params=parameters_list,
         state=[temperature, pressure],
         kij_matrix=kij_matrix,
+        npoints=npoints,
     )
 
 
@@ -640,7 +650,7 @@ def mix_ternary_vle_tx_fixed(
         min_pc=min(pcs),
         max_pc=max(pcs),
     )
-    x1_grid = _build_fraction_grid(params.mole_fractions, n_points=params.n_points)
+    x1_grid = _build_fraction_grid(params.mole_fractions, n_points=params.npoints)
     series = _build_ternary_vle_series(x1_grid, params.solvent_ratio, context)
 
     return series.x1_values, series.bubble_pressures, series.dew_pressures

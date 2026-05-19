@@ -21,6 +21,7 @@ def plot_vle_lle(layout):
 
     n = len(smiles_list)
     kij_matrix, t_min, p_val = get_kij_tmin_pressure(layout, n)
+    npoints = layout._get_npoints()
 
     exp_data = None
     try:
@@ -38,7 +39,7 @@ def plot_vle_lle(layout):
     except (ValueError, RuntimeError):
         pass
 
-    output = mix_ternary_lle(smiles_list, kij_matrix, t_min, p_val)
+    output = mix_ternary_lle(smiles_list, kij_matrix, t_min, p_val, npoints)
 
     layout._generate_ternary_plot(
         TernaryPlotRequest(
@@ -63,6 +64,7 @@ def plot_vle_tx_fixed(layout):
     fractions = layout._get_fractions(n)
     kij_matrix = layout._get_kij(n)
     t_min, _ = layout._get_temperatures(require_max=False)
+    npoints = layout._get_npoints()
 
     solvent_pool = fractions[1] + fractions[2]
     if solvent_pool <= 0.0:
@@ -84,6 +86,7 @@ def plot_vle_tx_fixed(layout):
         kij_matrix=kij_matrix,
         temperature=t_min,
         solvent_ratio=solvent_ratio,
+        npoints=npoints,
         mole_fractions=exp_data and exp_data[0].tolist(),
     )
     x1_values, bubble_pressures, dew_pressures = mix_ternary_vle_tx_fixed(vle_params)

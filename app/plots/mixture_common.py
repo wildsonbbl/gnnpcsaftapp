@@ -17,6 +17,7 @@ def plot_density(layout, smiles_list):
     kij_matrix = layout._get_kij(n)
     t_min, t_max = layout._get_temperatures(require_max=True)
     p_val = layout._get_pressure()
+    npoints = layout._get_npoints()
 
     exp_data = None
     try:
@@ -42,6 +43,7 @@ def plot_density(layout, smiles_list):
         min_temp=t_min,
         max_temp=t_max,
         pressure=p_val,
+        npoints=npoints,
     )
     temperatures, densities = mix_den(mix_den_params)
     layout._generate_plot(
@@ -63,6 +65,7 @@ def plot_vp(layout, smiles_list):
     fractions = layout._get_fractions(n)
     kij_matrix = layout._get_kij(n)
     t_min, t_max = layout._get_temperatures(require_max=True)
+    npoints = layout._get_npoints()
 
     exp_data = None
     try:
@@ -83,6 +86,7 @@ def plot_vp(layout, smiles_list):
         kij_matrix=kij_matrix,
         min_temp=t_min,
         max_temp=t_max,
+        npoints=npoints,
     )
     temperatures, bubbles, dews = mix_vp(mix_vp_params)
     layout._generate_plot(

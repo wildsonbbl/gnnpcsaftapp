@@ -61,6 +61,7 @@ class PureLayout(BaseInputLayout):
             smiles = self._get_smiles()
             t_min, t_max = self._get_temperatures(require_max=True)
             p_val = self._get_pressure()
+            npoints = self._get_npoints()
 
             # Fetch experimental data (convert Pa to kPa for DB lookup)
             exp_data = None
@@ -71,7 +72,7 @@ class PureLayout(BaseInputLayout):
             except (ValueError, RuntimeError):
                 pass  # Ignore exp data errors
 
-            temperatures, densities = pure_den(smiles, t_min, t_max, p_val)
+            temperatures, densities = pure_den(smiles, t_min, t_max, p_val, npoints)
             self._generate_plot(
                 PlotRequest(
                     x_data=temperatures,
@@ -91,6 +92,7 @@ class PureLayout(BaseInputLayout):
         try:
             smiles = self._get_smiles()
             t_min, t_max = self._get_temperatures(require_max=True)
+            npoints = self._get_npoints()
 
             # Fetch experimental data
             exp_data = None
@@ -102,7 +104,7 @@ class PureLayout(BaseInputLayout):
             except (ValueError, RuntimeError):
                 pass
 
-            temperatures, vps = pure_vp(smiles, t_min, t_max)
+            temperatures, vps = pure_vp(smiles, t_min, t_max, npoints)
             self._generate_plot(
                 PlotRequest(
                     x_data=temperatures,
@@ -122,8 +124,9 @@ class PureLayout(BaseInputLayout):
         try:
             smiles = self._get_smiles()
             t_min, t_max = self._get_temperatures(require_max=True)
+            npoints = self._get_npoints()
 
-            temperatures, hlvs = pure_h_lv(smiles, t_min, t_max)
+            temperatures, hlvs = pure_h_lv(smiles, t_min, t_max, npoints)
             self._generate_plot(
                 PlotRequest(
                     x_data=temperatures,

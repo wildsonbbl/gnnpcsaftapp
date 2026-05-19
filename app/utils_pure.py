@@ -14,33 +14,33 @@ from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
 
 
 def pure_den(
-    smiles: str, min_temp: float, max_temp: float, pressure: float
+    smiles: str, min_temp: float, max_temp: float, pressure: float, npoints: int
 ) -> Tuple[List[float], List[float]]:
     "Calculate pure-component density using PC-SAFT EOS"
     parameters = predict_pcsaft_parameters(smiles)
-    temperatures = np.linspace(min_temp, max_temp, num=10).tolist()
+    temperatures = np.linspace(min_temp, max_temp, num=npoints).tolist()
 
     densities = [pure_den_feos(parameters, [T, pressure]) for T in temperatures]
     return temperatures, densities
 
 
 def pure_vp(
-    smiles: str, min_temp: float, max_temp: float
+    smiles: str, min_temp: float, max_temp: float, npoints: int
 ) -> Tuple[List[float], List[float]]:
     "Calculate pure-component vapor pressure using PC-SAFT EOS"
     parameters = predict_pcsaft_parameters(smiles)
-    temperatures = np.linspace(min_temp, max_temp, num=10).tolist()
+    temperatures = np.linspace(min_temp, max_temp, num=npoints).tolist()
 
     vapor_pressures = [pure_vp_feos(parameters, [T]) for T in temperatures]
     return temperatures, vapor_pressures
 
 
 def pure_h_lv(
-    smiles: str, min_temp: float, max_temp: float
+    smiles: str, min_temp: float, max_temp: float, npoints: int
 ) -> Tuple[List[float], List[float]]:
     "Calculate pure-component enthalpy of vaporization using PC-SAFT EOS"
     parameters = predict_pcsaft_parameters(smiles)
-    temperatures = np.linspace(min_temp, max_temp, num=10).tolist()
+    temperatures = np.linspace(min_temp, max_temp, num=npoints).tolist()
 
     h_lvs = [pure_h_lv_feos(parameters, [T]) for T in temperatures]
     return temperatures, h_lvs

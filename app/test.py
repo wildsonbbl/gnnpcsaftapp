@@ -107,10 +107,10 @@ class TestUtilsPure(unittest.TestCase):
         mock_calc.return_value = 1000.0  # Mocked density result
 
         # Execute
-        temps, dens = utils_pure.pure_den("water", 300, 310, 101325)
+        temps, dens = utils_pure.pure_den("water", 300, 310, 101325, 10)
 
         # Assert
-        self.assertEqual(len(temps), 10)  # np.linspace default num=10
+        self.assertEqual(len(temps), 10)  # np.linspace with num=10
         self.assertEqual(len(dens), 10)
         self.assertEqual(dens[0], 1000.0)
         mock_predict.assert_called_with("water")
@@ -122,7 +122,7 @@ class TestUtilsPure(unittest.TestCase):
         mock_predict.return_value = "dummy_params"
         mock_calc.return_value = 12345.0
 
-        temps, vps = utils_pure.pure_vp("ethanol", 300, 310)
+        temps, vps = utils_pure.pure_vp("ethanol", 300, 310, 10)
 
         self.assertEqual(len(temps), 10)
         self.assertEqual(vps[0], 12345.0)
@@ -148,6 +148,7 @@ class TestUtilsMix(unittest.TestCase):
             min_temp=300,
             max_temp=310,
             pressure=100000,
+            npoints=10,
         )
         temps, dens = utils_mix.mix_den(params)
 
@@ -244,6 +245,9 @@ class TestPlotBinaryHandlers(unittest.TestCase):
             def _get_pressure(self):
                 return 101325.0
 
+            def _get_npoints(self):
+                return 10
+
         layout = DummyLayout()
         mixture_binary.plot_vle_xy(layout)
 
@@ -278,6 +282,9 @@ class TestPlotBinaryHandlers(unittest.TestCase):
             def _get_pressure(self):
                 return 101325.0
 
+            def _get_npoints(self):
+                return 10
+
         layout = DummyLayout()
         mixture_binary.plot_vle_txy(layout)
 
@@ -309,6 +316,9 @@ class TestPlotBinaryHandlers(unittest.TestCase):
 
             def _get_pressure(self):
                 return 101325.0
+
+            def _get_npoints(self):
+                return 10
 
         layout = DummyLayout()
         mixture_binary.plot_vle_pxy(layout)
@@ -344,6 +354,9 @@ class TestPlotBinaryHandlers(unittest.TestCase):
 
             def _get_pressure(self):
                 return 101325.0
+
+            def _get_npoints(self):
+                return 10
 
         layout = DummyLayout()
         mixture_binary.plot_lle_txx(layout)
@@ -383,6 +396,9 @@ class TestPlotCommonHandlers(unittest.TestCase):
             def _get_pressure(self):
                 return 101325.0
 
+            def _get_npoints(self):
+                return 10
+
         layout = DummyLayout()
         mixture_common.plot_density(layout, ["A", "B", "C", "D"])
 
@@ -410,6 +426,9 @@ class TestPlotCommonHandlers(unittest.TestCase):
 
             def _get_temperatures(self, require_max=True):
                 return 300.0, 310.0
+
+            def _get_npoints(self):
+                return 10
 
         layout = DummyLayout()
         mixture_common.plot_vp(layout, ["A", "B"])
@@ -442,6 +461,9 @@ class TestPlotCommonHandlers(unittest.TestCase):
             def _get_pressure(self):
                 return 101325.0
 
+            def _get_npoints(self):
+                return 10
+
         layout = DummyLayout()
         mixture_common.plot_density(layout, ["A", "B"])
 
@@ -470,6 +492,9 @@ class TestPlotCommonHandlers(unittest.TestCase):
 
             def _get_temperatures(self, require_max=True):
                 return 300.0, 310.0
+
+            def _get_npoints(self):
+                return 10
 
         layout = DummyLayout()
         mixture_common.plot_vp(layout, ["A", "B"])
@@ -506,6 +531,9 @@ class TestPlotTernaryHandlers(unittest.TestCase):
 
             def _get_temperatures(self, require_max=False):
                 return 300.0, 0.0
+
+            def _get_npoints(self):
+                return 10
 
         layout = DummyLayout()
         mixture_ternary.plot_vle_tx_fixed(layout)
@@ -546,6 +574,9 @@ class TestPlotTernaryHandlers(unittest.TestCase):
             def _get_pressure(self):
                 return 101325.0
 
+            def _get_npoints(self):
+                return 10
+
         layout = DummyLayout()
         mixture_ternary.plot_vle_lle(layout)
 
@@ -582,6 +613,9 @@ class TestPlotTernaryHandlers(unittest.TestCase):
 
             def _get_pressure(self):
                 return 101325.0
+
+            def _get_npoints(self):
+                return 10
 
         layout = DummyLayout()
         mixture_ternary.plot_vle_lle(layout)
