@@ -1,5 +1,6 @@
 """Input validation functions for thermodynamic parameters."""
 
+
 def validate_temperatures(t_min, t_max, require_max=True):
     """Validate temperature inputs."""
     if t_min <= 0:
@@ -33,3 +34,13 @@ def validate_fractions(fractions):
     total = sum(fractions)
     if abs(total - 1.0) > 0.01:
         raise ValueError(f"Mole fractions must sum to ~1.0, got {total:.3f}")
+
+
+def validate_npoints(npoints):
+    """Validate number of points input."""
+    if npoints <= 1:
+        raise ValueError(f"Number of points must be greater than 1, got {npoints}")
+    if npoints > 500:
+        raise ValueError(
+            f"Number of points must be lower or equal to 500, got {npoints}"
+        )

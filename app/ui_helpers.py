@@ -4,7 +4,7 @@ from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 
-from app.validators import validate_pressure, validate_temperatures
+from app.validators import validate_npoints, validate_pressure, validate_temperatures
 
 
 def show_error_alert(layout, error, show_error_popup):
@@ -53,7 +53,12 @@ def get_pressure(layout):
 def get_npoints(layout):
     """Parse the npoints input"""
     if layout.npoints.text:
-        return int(layout.npoints.text)
+        try:
+            npoints_val = int(layout.npoints.text)
+            validate_npoints(npoints_val)
+            return npoints_val
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
     return 10
 
 
