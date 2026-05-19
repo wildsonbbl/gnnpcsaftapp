@@ -485,12 +485,13 @@ def mix_vp(params: MixVpParams) -> Tuple[List[float], List[float], List[float]]:
                 Logger.warning(
                     "mix_vp: PanicException at temperature=%.4f: %s", temp, exc
                 )
-            Logger.exception(
-                "mix_vp: unexpected %s at temperature=%.4f",
-                exception_type,
-                temp,
-            )
-            raise
+            else:
+                Logger.exception(
+                    "mix_vp: unexpected %s at temperature=%.4f",
+                    exception_type,
+                    temp,
+                )
+                raise
 
     return valid_temperatures, buble_points, dew_point
 
