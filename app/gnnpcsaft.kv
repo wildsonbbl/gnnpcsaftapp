@@ -400,41 +400,74 @@ WindowManager:
         height: 50
         color: color_primary_rgba
 
-    BoxLayout:
-        orientation: "vertical"
+    FloatLayout:
         size_hint_y: None
         height: 118
-        opacity: 1 if app.update_available else 0
-        disabled: False
         padding: 12
         spacing: 8
-        canvas.before:
-            Color:
-                rgba: color_warning_rgba
-            RoundedRectangle:
-                pos: self.pos
-                size: self.size
-                radius: [12]
 
-        Label:
-            text: "Update available: " + app.update_tag
-            color: color_dark_rgba
-            bold: True
-            size_hint_y: None
-            height: 24
+        BoxLayout:
+            orientation: "vertical"
+            size_hint: 1, 1
+            pos_hint: {"x": 0, "y": 0}
+            opacity: 1 if app.update_available else 0
+            padding: 12
+            spacing: 8
+            canvas.before:
+                Color:
+                    rgba: color_warning_rgba
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [12]
 
-        Label:
-            text: "Current version: " + app.version
-            color: color_dark_rgba
-            size_hint_y: None
-            height: 20
+            Label:
+                text: "Update available: " + app.update_tag
+                color: color_dark_rgba
+                bold: True
+                size_hint_y: None
+                height: 24
 
-        Button:
-            text: "Open release notes"
-            size_hint_y: None
-            height: 36
-            background_color: color_dark_rgba
-            on_release: app.open_update_release()
+            Label:
+                text: "Current version: " + app.version
+                color: color_dark_rgba
+                size_hint_y: None
+                height: 20
+
+            Button:
+                text: "Open release notes"
+                size_hint_y: None
+                height: 36
+                background_color: color_dark_rgba
+                on_release: app.open_update_release()
+
+        BoxLayout:
+            orientation: "vertical"
+            size_hint: 1, 1
+            pos_hint: {"x": 0, "y": 0}
+            opacity: 1 if not app.update_available else 0
+            padding: 12
+            spacing: 8
+            canvas.before:
+                Color:
+                    rgba: color_success_rgba
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [12]
+
+            Label:
+                text: "You're up to date!"
+                color: color_dark_rgba
+                bold: True
+                size_hint_y: None
+                height: 24
+
+            Label:
+                text: "Version: " + app.version
+                color: color_dark_rgba
+                size_hint_y: None
+                height: 20
 
     Button:
         text: "Check for updates"
