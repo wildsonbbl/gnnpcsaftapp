@@ -138,12 +138,14 @@ WindowManager:
             id: temp_min
             hint_text: 'Min Temperature (K)'
             type: 'number'
+            input_filter: 'float'
             multiline: False
             on_text_validate: root.on_submit()
         TextInput:
             id: temp_max
             hint_text: 'Max Temperature (K)'
             type: 'number'
+            input_filter: 'float'
             multiline: False
             on_text_validate: root.on_submit()
         TextInput:
@@ -272,6 +274,7 @@ WindowManager:
             id: temp_min
             hint_text: 'Min Temperature (K)'
             type: 'number'
+            input_filter: 'float'
             multiline: False
             on_text_validate: root.on_submit()
 
@@ -279,6 +282,7 @@ WindowManager:
             id: temp_max
             hint_text: 'Max Temperature (K)'
             type: 'number'
+            input_filter: 'float'
             multiline: False
             on_text_validate: root.on_submit()
         
