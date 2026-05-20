@@ -74,7 +74,36 @@ class PlotLayout(BoxLayout):
         except Exception as e:  # pylint: disable=broad-except
             show_error_popup(e)
 
-    def export_csv(self):  # pylint: disable=too-many-locals
+    def _export_axes_data(self, writer, ax, x_label, y_label):
+        """Helper to export lines and collections from an axis."""
+        # Export Lines (calculations)
+        for line in ax.lines:
+            label = line.get_label()
+            if not label or label.startswith("_"):
+                label = "Line Data"
+            writer.writerow([f"--- {label} ---"])
+            writer.writerow([x_label, y_label])
+            x_data = line.get_xdata()
+            y_data = line.get_ydata()
+            if hasattr(x_data, "__iter__") and hasattr(y_data, "__iter__"):
+                for x, y in zip(x_data, y_data):
+                    writer.writerow([x, y])
+            writer.writerow([])
+
+        # Export Scatter/Collections (experimental data)
+        for collection in ax.collections:
+            label = collection.get_label()
+            if not label or label.startswith("_"):
+                label = "Scatter Data"
+            writer.writerow([f"--- {label} ---"])
+            writer.writerow([x_label, y_label])
+            offsets = collection.get_offsets()
+            if hasattr(offsets, "__iter__"):
+                for pt in offsets:
+                    writer.writerow([pt[0], pt[1]])
+            writer.writerow([])
+
+    def export_csv(self):
         """Export current plot data to a CSV file."""
         try:
             if self.mat_plot_figure and self.mat_plot_figure.figure:
@@ -93,35 +122,7 @@ class PlotLayout(BoxLayout):
                     for ax in fig.axes:
                         x_label = ax.get_xlabel() or "X"
                         y_label = ax.get_ylabel() or "Y"
-
-                        # Export Lines (calculations)
-                        for line in ax.lines:
-                            label = line.get_label()
-                            if not label or label.startswith("_"):
-                                label = "Line Data"
-                            writer.writerow([f"--- {label} ---"])
-                            writer.writerow([x_label, y_label])
-                            x_data = line.get_xdata()
-                            y_data = line.get_ydata()
-                            if hasattr(x_data, "__iter__") and hasattr(
-                                y_data, "__iter__"
-                            ):
-                                for x, y in zip(x_data, y_data):
-                                    writer.writerow([x, y])
-                            writer.writerow([])
-
-                        # Export Scatter/Collections (experimental data)
-                        for collection in ax.collections:
-                            label = collection.get_label()
-                            if not label or label.startswith("_"):
-                                label = "Scatter Data"
-                            writer.writerow([f"--- {label} ---"])
-                            writer.writerow([x_label, y_label])
-                            offsets = collection.get_offsets()
-                            if hasattr(offsets, "__iter__"):
-                                for pt in offsets:
-                                    writer.writerow([pt[0], pt[1]])
-                            writer.writerow([])
+                        self._export_axes_data(writer, ax, x_label, y_label)
 
                 show_warning_popup(
                     "Data Exported", f"Data successfully exported to:\n\n{filename}"
