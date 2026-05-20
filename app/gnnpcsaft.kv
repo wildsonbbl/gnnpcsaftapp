@@ -386,6 +386,13 @@ WindowManager:
             width: 100
             on_release:
                 root.save_plot()
+
+        Button:
+            text: "Export CSV"
+            size_hint_x: None
+            width: 100
+            on_release:
+                root.export_csv()
                 
     MatplotFigure:
         id: mat_plot_figure

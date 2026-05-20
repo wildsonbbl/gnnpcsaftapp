@@ -1,5 +1,6 @@
 """App entrypoint for the Kivy UI."""
 
+import csv
 import os
 import threading
 import time
@@ -69,6 +70,61 @@ class PlotLayout(BoxLayout):
                 fig.savefig(filename, bbox_inches="tight")
                 show_warning_popup(
                     "Plot Saved", f"Plot successfully saved to:\n\n{filename}"
+                )
+        except Exception as e:  # pylint: disable=broad-except
+            show_error_popup(e)
+
+    def export_csv(self):  # pylint: disable=too-many-locals
+        """Export current plot data to a CSV file."""
+        try:
+            if self.mat_plot_figure and self.mat_plot_figure.figure:
+                fig = self.mat_plot_figure.figure
+                if not fig.axes:
+                    show_warning_popup("Empty Plot", "There is no data to export.")
+                    return
+                save_dir = os.path.join(os.path.expanduser("~"), "GNNPCSAFT_Plots")
+                os.makedirs(save_dir, exist_ok=True)
+                Logger.debug("Exporting data to directory: %s", save_dir)
+
+                filename = os.path.join(save_dir, f"data_{int(time.time())}.csv")
+
+                with open(filename, mode="w", newline="", encoding="utf-8") as f:
+                    writer = csv.writer(f)
+                    for ax in fig.axes:
+                        x_label = ax.get_xlabel() or "X"
+                        y_label = ax.get_ylabel() or "Y"
+
+                        # Export Lines (calculations)
+                        for line in ax.lines:
+                            label = line.get_label()
+                            if not label or label.startswith("_"):
+                                label = "Line Data"
+                            writer.writerow([f"--- {label} ---"])
+                            writer.writerow([x_label, y_label])
+                            x_data = line.get_xdata()
+                            y_data = line.get_ydata()
+                            if hasattr(x_data, "__iter__") and hasattr(
+                                y_data, "__iter__"
+                            ):
+                                for x, y in zip(x_data, y_data):
+                                    writer.writerow([x, y])
+                            writer.writerow([])
+
+                        # Export Scatter/Collections (experimental data)
+                        for collection in ax.collections:
+                            label = collection.get_label()
+                            if not label or label.startswith("_"):
+                                label = "Scatter Data"
+                            writer.writerow([f"--- {label} ---"])
+                            writer.writerow([x_label, y_label])
+                            offsets = collection.get_offsets()
+                            if hasattr(offsets, "__iter__"):
+                                for pt in offsets:
+                                    writer.writerow([pt[0], pt[1]])
+                            writer.writerow([])
+
+                show_warning_popup(
+                    "Data Exported", f"Data successfully exported to:\n\n{filename}"
                 )
         except Exception as e:  # pylint: disable=broad-except
             show_error_popup(e)
