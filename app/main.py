@@ -2,6 +2,7 @@
 
 import os
 import threading
+import time
 import webbrowser
 from json import JSONDecodeError
 from urllib.error import HTTPError, URLError
@@ -30,6 +31,7 @@ from app.mixture_screen import (  # pylint: disable=unused-import
 )
 from app.pure_screen import PureLayout, PureScreen  # pylint: disable=unused-import
 from app.update_check import fetch_latest_release, is_newer_version
+from app.utils import show_error_popup, show_warning_popup
 
 kivy.require("2.3.1")  # replace with your current kivy version
 
@@ -48,7 +50,28 @@ class PlotLayout(BoxLayout):
     "Plot Layout"
 
     previous_screen = StringProperty("pure_screen")
-    matplot_figure = ObjectProperty(None)
+    mat_plot_figure = ObjectProperty(None)
+
+    def save_plot(self):
+        """Save current plot to disk."""
+        try:
+
+            if self.mat_plot_figure and self.mat_plot_figure.figure:
+                fig = self.mat_plot_figure.figure
+                if not fig.axes:
+                    show_warning_popup("Empty Plot", "There is no plot to save.")
+                    return
+                save_dir = os.path.join(os.path.expanduser("~"), "GNNPCSAFT_Plots")
+                os.makedirs(save_dir, exist_ok=True)
+                Logger.debug("Saving plot to directory: %s", save_dir)
+
+                filename = os.path.join(save_dir, f"plot_{int(time.time())}.png")
+                fig.savefig(filename, bbox_inches="tight")
+                show_warning_popup(
+                    "Plot Saved", f"Plot successfully saved to:\n\n{filename}"
+                )
+        except Exception as e:  # pylint: disable=broad-except
+            show_error_popup(e)
 
 
 class NavBar(BoxLayout):
