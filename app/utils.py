@@ -327,6 +327,7 @@ def generate_plot(request: PlotRequest):
         return
 
     # Optimized for mobile (390px width)
+    plt.close("all")
     plt.figure(figsize=(3.5, 4.5), dpi=100)
     plt.clf()  # Clear previous figure
 
@@ -345,7 +346,7 @@ def generate_plot(request: PlotRequest):
             plt.plot(
                 request.x_data,
                 y_data,
-                marker=MARKERS[i],
+                marker=MARKERS[i % len(MARKERS)],
                 linestyle="-",
                 markersize=4,
                 label=label,
@@ -363,7 +364,7 @@ def generate_plot(request: PlotRequest):
             plt.plot(
                 x_data,
                 request.y_data,
-                marker=MARKERS[i],
+                marker=MARKERS[i % len(MARKERS)],
                 linestyle="-",
                 markersize=4,
                 label=label,
@@ -399,6 +400,7 @@ def generate_ternary_plot(request: TernaryPlotRequest):
     """Helper to generate right triangle ternary plot and switch screen."""
 
     # Optimized for mobile (390px width)
+    plt.close("all")
     fig = plt.figure(figsize=(3.5, 4.5), dpi=100)
     fig.clf()  # Clear previous figure
 
