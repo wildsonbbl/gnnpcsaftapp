@@ -122,35 +122,87 @@ def _build_binary_vle_data(
 ) -> Tuple[Optional[NDArray[float64]], Optional[NDArray[float64]]]:
     path_vle = osp.join(application_path, "_data", "co2_binary.parquet")
     df_vle = _read_parquet_if_exists(path_vle)
-    if df_vle is None:
-        return None, None
-    vf = _filter_binary_pair(
-        df_vle, inchi1, inchi2, "mole_fraction_c1p2", "mole_fraction_c2p2"
-    )
-    if vf.height == 0:
-        return None, None
-    vle_data = (
-        vf.group_by("P_kPa")
-        .agg(
-            pl.col("T_K").min().alias("T_min"),
-            pl.col("T_K").max().alias("T_max"),
-            pl.len().alias("count"),
+
+    path_vp = osp.join(application_path, "_data", "vp_binary.parquet")
+    df_vp = _read_parquet_if_exists(path_vp)
+
+    vles, pxys = [], []
+
+    if df_vle is not None:
+        vf = _filter_binary_pair(
+            df_vle, inchi1, inchi2, "mole_fraction_c1p2", "mole_fraction_c2p2"
         )
-        .sort("P_kPa")
-        .to_numpy()
-    )
-    vle_pxy_data = (
-        vf.with_columns(pl.col("T_K").round(1).alias("T_approx"))
-        .group_by("T_approx")
-        .agg(
-            pl.col("P_kPa").min().alias("P_min"),
-            pl.col("P_kPa").max().alias("P_max"),
-            pl.len().alias("count"),
+        if vf.height > 0:
+            vles.append(
+                vf.group_by("P_kPa").agg(
+                    pl.col("T_K").min().alias("T_min"),
+                    pl.col("T_K").max().alias("T_max"),
+                    pl.len().alias("count"),
+                )
+            )
+            pxys.append(
+                vf.with_columns(pl.col("T_K").round(1).alias("T_approx"))
+                .group_by("T_approx")
+                .agg(
+                    pl.col("P_kPa").min().alias("P_min"),
+                    pl.col("P_kPa").max().alias("P_max"),
+                    pl.len().alias("count"),
+                )
+            )
+
+    if df_vp is not None:
+        vf_vp = _filter_binary_pair(
+            df_vp, inchi1, inchi2, "mole_fraction_c1", "mole_fraction_c2"
         )
-        .sort("T_approx")
-        .to_numpy()
-    )
-    return vle_data, vle_pxy_data
+        if vf_vp.height > 0:
+            vles.append(
+                vf_vp.group_by("BP_kPa")
+                .agg(
+                    pl.col("T_K").min().alias("T_min"),
+                    pl.col("T_K").max().alias("T_max"),
+                    pl.len().alias("count"),
+                )
+                .rename({"BP_kPa": "P_kPa"})
+            )
+            pxys.append(
+                vf_vp.with_columns(pl.col("T_K").round(1).alias("T_approx"))
+                .group_by("T_approx")
+                .agg(
+                    pl.col("BP_kPa").min().alias("P_min"),
+                    pl.col("BP_kPa").max().alias("P_max"),
+                    pl.len().alias("count"),
+                )
+            )
+
+    vle_data_final = None
+    if vles:
+        vle_data_final = (
+            pl.concat(vles)
+            .group_by("P_kPa")
+            .agg(
+                pl.col("T_min").min(),
+                pl.col("T_max").max(),
+                pl.col("count").sum(),
+            )
+            .sort("P_kPa")
+            .to_numpy()
+        )
+
+    vle_pxy_data_final = None
+    if pxys:
+        vle_pxy_data_final = (
+            pl.concat(pxys)
+            .group_by("T_approx")
+            .agg(
+                pl.col("P_min").min(),
+                pl.col("P_max").max(),
+                pl.col("count").sum(),
+            )
+            .sort("T_approx")
+            .to_numpy()
+        )
+
+    return vle_data_final, vle_pxy_data_final
 
 
 def _filter_ternary_set(dframe: pl.DataFrame, target_set: list) -> pl.DataFrame:
@@ -494,44 +546,55 @@ def retrieve_vle_binary_data(
     smiles_list: list, pressure: float
 ) -> Optional[NDArray[float64]]:
     """
-    retrieve binary VLE data (T-x-y). Currently, only for mixtures with CO2 for
-    mole fractions on the liquid phase (p2)
-
+    retrieve binary VLE data (T-x-y). Currently includes binary bubble point data
+    as well as mixtures with CO2 for mole fractions on the liquid phase (p2).
     """
     if len(smiles_list) != 2:
         return None
 
-    path = osp.join(application_path, "_data", "co2_binary.parquet")
-    if not osp.exists(path):
-        return None
-
-    df = pl.read_parquet(path)
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
+    data_frames = []
 
-    # Filter
-    filtered = df.filter(
-        ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
-        | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
-    ).filter(pl.col("P_kPa") == pressure)
+    path_co2 = osp.join(application_path, "_data", "co2_binary.parquet")
+    if osp.exists(path_co2):
+        df_co2 = pl.read_parquet(path_co2)
+        filtered_co2 = df_co2.filter(
+            ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
+            | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
+        ).filter(pl.col("P_kPa") == pressure)
 
-    if filtered.height == 0:
+        if filtered_co2.height > 0:
+            data_frames.append(
+                filtered_co2.with_columns(
+                    pl.when(pl.col("inchi1") == i1)
+                    .then(pl.col("mole_fraction_c1p2"))
+                    .otherwise(pl.col("mole_fraction_c2p2"))
+                    .alias("x_c1")
+                ).select("T_K", "x_c1")
+            )
+
+    path_vp = osp.join(application_path, "_data", "vp_binary.parquet")
+    if osp.exists(path_vp):
+        df_vp = pl.read_parquet(path_vp)
+        filtered_vp = df_vp.filter(
+            ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
+            | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
+        ).filter(pl.col("BP_kPa") == pressure)
+
+        if filtered_vp.height > 0:
+            data_frames.append(
+                filtered_vp.with_columns(
+                    pl.when(pl.col("inchi1") == i1)
+                    .then(pl.col("mole_fraction_c1"))
+                    .otherwise(pl.col("mole_fraction_c2"))
+                    .alias("x_c1")
+                ).select("T_K", "x_c1")
+            )
+
+    if not data_frames:
         return None
 
-    # Normalize x1 to strictly match input order
-    # If file has (i1, i2) -> use mole_fraction_c1p2
-    # If file has (i2, i1) -> use mole_fraction_c2p2
-
-    data = (
-        filtered.with_columns(
-            pl.when(pl.col("inchi1") == i1)
-            .then(pl.col("mole_fraction_c1p2"))
-            .otherwise(pl.col("mole_fraction_c2p2"))
-            .alias("x_c1"),
-        )
-        .select("T_K", "x_c1")
-        .sort("T_K")
-    )
-
+    data = pl.concat(data_frames).sort("T_K")
     return data.to_numpy()
 
 
@@ -544,38 +607,55 @@ def retrieve_vle_pxy_binary_data(
     if len(smiles_list) != 2:
         return None
 
-    path = osp.join(application_path, "_data", "co2_binary.parquet")
-    if not osp.exists(path):
-        return None
-
-    df = pl.read_parquet(path)
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
-
     tol_t = TOL_TEMP  # Tolerance for temperature
+    data_frames = []
 
-    # Filter
-    filtered = df.filter(
-        ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
-        | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
-    ).filter(
-        (pl.col("T_K") > temperature - tol_t) & (pl.col("T_K") < temperature + tol_t)
-    )
+    path_co2 = osp.join(application_path, "_data", "co2_binary.parquet")
+    if osp.exists(path_co2):
+        df_co2 = pl.read_parquet(path_co2)
+        filtered_co2 = df_co2.filter(
+            ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
+            | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
+        ).filter(
+            (pl.col("T_K") > temperature - tol_t)
+            & (pl.col("T_K") < temperature + tol_t)
+        )
+        if filtered_co2.height > 0:
+            data_frames.append(
+                filtered_co2.with_columns(
+                    pl.when(pl.col("inchi1") == i1)
+                    .then(pl.col("mole_fraction_c1p2"))
+                    .otherwise(pl.col("mole_fraction_c2p2"))
+                    .alias("x_c1"),
+                ).select("P_kPa", "x_c1")
+            )
 
-    if filtered.height == 0:
+    path_vp = osp.join(application_path, "_data", "vp_binary.parquet")
+    if osp.exists(path_vp):
+        df_vp = pl.read_parquet(path_vp)
+        filtered_vp = df_vp.filter(
+            ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
+            | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
+        ).filter(
+            (pl.col("T_K") > temperature - tol_t)
+            & (pl.col("T_K") < temperature + tol_t)
+        )
+        if filtered_vp.height > 0:
+            data_frames.append(
+                filtered_vp.with_columns(
+                    pl.when(pl.col("inchi1") == i1)
+                    .then(pl.col("mole_fraction_c1"))
+                    .otherwise(pl.col("mole_fraction_c2"))
+                    .alias("x_c1"),
+                    pl.col("BP_kPa").alias("P_kPa"),
+                ).select("P_kPa", "x_c1")
+            )
+
+    if not data_frames:
         return None
 
-    # Normalize x1 to strictly match input order
-    data = (
-        filtered.with_columns(
-            pl.when(pl.col("inchi1") == i1)
-            .then(pl.col("mole_fraction_c1p2"))
-            .otherwise(pl.col("mole_fraction_c2p2"))
-            .alias("x_c1"),
-        )
-        .select("P_kPa", "x_c1")
-        .sort("P_kPa")
-    )
-
+    data = pl.concat(data_frames).sort("P_kPa")
     return data.to_numpy()
 
 
