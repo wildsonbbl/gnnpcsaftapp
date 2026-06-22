@@ -74,7 +74,7 @@ def _build_binary_bubble_data(
     inchi2: str,
 ) -> Optional[NDArray[float64]]:
     vf = _filter_binary_pair(
-        vp_bin, inchi1, inchi2, "mole_fraction_c1", "mole_fraction_c2"
+        vp_bin, inchi1, inchi2, "mole_fraction_c1p2", "mole_fraction_c2p2"
     )
     if vf.height == 0:
         return None
@@ -120,7 +120,7 @@ def _build_binary_vle_data(
     inchi1: str,
     inchi2: str,
 ) -> Tuple[Optional[NDArray[float64]], Optional[NDArray[float64]]]:
-    path_vle = osp.join(application_path, "_data", "co2_binary.parquet")
+    path_vle = osp.join(application_path, "_data", "vle_binary.parquet")
     df_vle = _read_parquet_if_exists(path_vle)
 
     path_vp = osp.join(application_path, "_data", "vp_binary.parquet")
@@ -152,24 +152,22 @@ def _build_binary_vle_data(
 
     if df_vp is not None:
         vf_vp = _filter_binary_pair(
-            df_vp, inchi1, inchi2, "mole_fraction_c1", "mole_fraction_c2"
+            df_vp, inchi1, inchi2, "mole_fraction_c1p2", "mole_fraction_c2p2"
         )
         if vf_vp.height > 0:
             vles.append(
-                vf_vp.group_by("BP_kPa")
-                .agg(
+                vf_vp.group_by("P_kPa").agg(
                     pl.col("T_K").min().alias("T_min"),
                     pl.col("T_K").max().alias("T_max"),
                     pl.len().alias("count"),
                 )
-                .rename({"BP_kPa": "P_kPa"})
             )
             pxys.append(
                 vf_vp.with_columns(pl.col("T_K").round(1).alias("T_approx"))
                 .group_by("T_approx")
                 .agg(
-                    pl.col("BP_kPa").min().alias("P_min"),
-                    pl.col("BP_kPa").max().alias("P_max"),
+                    pl.col("P_kPa").min().alias("P_min"),
+                    pl.col("P_kPa").max().alias("P_max"),
                     pl.len().alias("count"),
                 )
             )
@@ -300,7 +298,7 @@ def _build_ternary_vle_data(
     inchi3: str,
     target_set: list,
 ) -> Tuple[Optional[NDArray[float64]], Optional[NDArray[float64]]]:
-    path_vle = osp.join(application_path, "_data", "co2_ternary.parquet")
+    path_vle = osp.join(application_path, "_data", "vle_ternary.parquet")
     df_vle = _read_parquet_if_exists(path_vle)
     if df_vle is None:
         return None, None
@@ -528,8 +526,8 @@ def retrieve_bubble_pressure_data(
         )
         .with_columns(
             pl.when(pl.col("inchi1") == i1)
-            .then(pl.col("mole_fraction_c1"))
-            .otherwise(pl.col("mole_fraction_c2"))
+            .then(pl.col("mole_fraction_c1p2"))
+            .otherwise(pl.col("mole_fraction_c2p2"))
             .alias("x_c1")
         )
         .filter((pl.col("x_c1") > x1 - tol_x) & (pl.col("x_c1") < x1 + tol_x))
@@ -539,15 +537,14 @@ def retrieve_bubble_pressure_data(
         return None
 
     # Return T and P_kPa
-    return filtered.select("T_K", "BP_kPa").sort("T_K").to_numpy()
+    return filtered.select("T_K", "P_kPa").sort("T_K").to_numpy()
 
 
 def retrieve_vle_binary_data(
     smiles_list: list, pressure: float
 ) -> Optional[NDArray[float64]]:
     """
-    retrieve binary VLE data (T-x-y). Currently includes binary bubble point data
-    as well as mixtures with CO2 for mole fractions on the liquid phase (p2).
+    retrieve binary VLE data (T-x-y)
     """
     if len(smiles_list) != 2:
         return None
@@ -555,17 +552,17 @@ def retrieve_vle_binary_data(
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
     data_frames = []
 
-    path_co2 = osp.join(application_path, "_data", "co2_binary.parquet")
-    if osp.exists(path_co2):
-        df_co2 = pl.read_parquet(path_co2)
-        filtered_co2 = df_co2.filter(
+    path_vle = osp.join(application_path, "_data", "vle_binary.parquet")
+    if osp.exists(path_vle):
+        df_vle = pl.read_parquet(path_vle)
+        filtered_vle = df_vle.filter(
             ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
             | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
         ).filter(pl.col("P_kPa") == pressure)
 
-        if filtered_co2.height > 0:
+        if filtered_vle.height > 0:
             data_frames.append(
-                filtered_co2.with_columns(
+                filtered_vle.with_columns(
                     pl.when(pl.col("inchi1") == i1)
                     .then(pl.col("mole_fraction_c1p2"))
                     .otherwise(pl.col("mole_fraction_c2p2"))
@@ -579,14 +576,14 @@ def retrieve_vle_binary_data(
         filtered_vp = df_vp.filter(
             ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
             | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
-        ).filter(pl.col("BP_kPa") == pressure)
+        ).filter(pl.col("P_kPa") == pressure)
 
         if filtered_vp.height > 0:
             data_frames.append(
                 filtered_vp.with_columns(
                     pl.when(pl.col("inchi1") == i1)
-                    .then(pl.col("mole_fraction_c1"))
-                    .otherwise(pl.col("mole_fraction_c2"))
+                    .then(pl.col("mole_fraction_c1p2"))
+                    .otherwise(pl.col("mole_fraction_c2p2"))
                     .alias("x_c1")
                 ).select("T_K", "x_c1")
             )
@@ -611,19 +608,19 @@ def retrieve_vle_pxy_binary_data(
     tol_t = TOL_TEMP  # Tolerance for temperature
     data_frames = []
 
-    path_co2 = osp.join(application_path, "_data", "co2_binary.parquet")
-    if osp.exists(path_co2):
-        df_co2 = pl.read_parquet(path_co2)
-        filtered_co2 = df_co2.filter(
+    path_vle = osp.join(application_path, "_data", "vle_binary.parquet")
+    if osp.exists(path_vle):
+        df_vle = pl.read_parquet(path_vle)
+        filtered_vle = df_vle.filter(
             ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
             | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
         ).filter(
             (pl.col("T_K") > temperature - tol_t)
             & (pl.col("T_K") < temperature + tol_t)
         )
-        if filtered_co2.height > 0:
+        if filtered_vle.height > 0:
             data_frames.append(
-                filtered_co2.with_columns(
+                filtered_vle.with_columns(
                     pl.when(pl.col("inchi1") == i1)
                     .then(pl.col("mole_fraction_c1p2"))
                     .otherwise(pl.col("mole_fraction_c2p2"))
@@ -645,10 +642,9 @@ def retrieve_vle_pxy_binary_data(
             data_frames.append(
                 filtered_vp.with_columns(
                     pl.when(pl.col("inchi1") == i1)
-                    .then(pl.col("mole_fraction_c1"))
-                    .otherwise(pl.col("mole_fraction_c2"))
+                    .then(pl.col("mole_fraction_c1p2"))
+                    .otherwise(pl.col("mole_fraction_c2p2"))
                     .alias("x_c1"),
-                    pl.col("BP_kPa").alias("P_kPa"),
                 ).select("P_kPa", "x_c1")
             )
 
@@ -888,7 +884,7 @@ def retrieve_vle_ternary_data(
     if len(smiles_list) != 3:
         return None
 
-    path_vle = osp.join(application_path, "_data", "co2_ternary.parquet")
+    path_vle = osp.join(application_path, "_data", "vle_ternary.parquet")
     if not osp.exists(path_vle):
         return None
 
@@ -937,7 +933,7 @@ def retrieve_vle_ternary_tx_fixed_data(
     if len(smiles_list) != 3:
         return None
 
-    path_vle = osp.join(application_path, "_data", "co2_ternary.parquet")
+    path_vle = osp.join(application_path, "_data", "vle_ternary.parquet")
     if not osp.exists(path_vle):
         return None
 
