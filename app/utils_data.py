@@ -1,7 +1,7 @@
-"Experimental data utilitis"
+"Experimental data utilities"
 
 import os.path as osp
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import polars as pl
 from gnnepcsaft_mcp_server.utils import smilestoinchi
@@ -16,15 +16,17 @@ TOL_FRACTION = 1e-4
 # Solvent ratio tolerance matches rounding to 2 decimal places
 TOL_SOLVENT_RATIO = 0.01
 # Temperature tolerance for coarse matching (K)
-TOL_TEMP = 0.5
+TOL_TEMP = 0.1
 # Small tolerance for pressure/temperature fine matching
 TOL_PRESSURE_TEMP = 0.01
 
 
-def _read_parquet_if_exists(path: str) -> Optional[pl.DataFrame]:
-    if not osp.exists(path):
+def _read_parquet_if_exists(path_list: List[str]) -> Optional[pl.DataFrame]:
+    if any(not osp.exists(path) for path in path_list):
         return None
-    return pl.read_parquet(path)
+    return pl.scan_parquet(
+        path_list, extra_columns="ignore", missing_columns="insert"
+    ).collect()
 
 
 def _filter_binary_pair(
@@ -34,30 +36,37 @@ def _filter_binary_pair(
     col_x1: str,
     col_x2: str,
 ) -> pl.DataFrame:
-    return dframe.filter(
-        ((pl.col("inchi1") == inchi1) & (pl.col("inchi2") == inchi2))
-        | ((pl.col("inchi1") == inchi2) & (pl.col("inchi2") == inchi1))
-    ).with_columns(
-        pl.when(pl.col("inchi1") == inchi1)
-        .then(pl.col(col_x1))
-        .otherwise(pl.col(col_x2))
-        .alias("x_c1")
+    return (
+        dframe.filter(
+            ((pl.col("inchi1") == inchi1) & (pl.col("inchi2") == inchi2))
+            | ((pl.col("inchi1") == inchi2) & (pl.col("inchi2") == inchi1))
+        )
+        .with_columns(
+            pl.when(pl.col("inchi1") == inchi1)
+            .then(pl.col(col_x1))
+            .otherwise(pl.col(col_x2))
+            .alias("x_c1"),
+        )
+        .with_columns(
+            pl.col("x_c1").round(4).alias("x_approx"),
+            pl.col("T_K").round(1).alias("T_approx"),
+        )
+        .unique()
     )
 
 
 def _build_binary_rho_data(
-    rho_bin: pl.DataFrame,
     inchi1: str,
     inchi2: str,
 ) -> Optional[NDArray[float64]]:
-    rf = _filter_binary_pair(
+    rho_bin = pl.read_parquet(osp.join(application_path, "_data", "rho_binary.parquet"))
+    filtered = _filter_binary_pair(
         rho_bin, inchi1, inchi2, "mole_fraction_c1", "mole_fraction_c2"
     )
-    if rf.height == 0:
+    if filtered.height == 0:
         return None
     return (
-        rf.with_columns((pl.col("x_c1").round(4)).alias("x_approx"))
-        .group_by(["P_kPa", "x_approx"])
+        filtered.group_by(["P_kPa", "x_approx"])
         .agg(
             pl.col("T_K").min().alias("T_min"),
             pl.col("T_K").max().alias("T_max"),
@@ -69,26 +78,29 @@ def _build_binary_rho_data(
 
 
 def _build_binary_bubble_data(
-    vp_bin: pl.DataFrame,
     inchi1: str,
     inchi2: str,
 ) -> Optional[NDArray[float64]]:
-    vf = _filter_binary_pair(
-        vp_bin, inchi1, inchi2, "mole_fraction_c1p2", "mole_fraction_c2p2"
-    )
-    if vf.height == 0:
-        return None
-    return (
-        vf.with_columns((pl.col("x_c1").round(4)).alias("x_approx"))
-        .group_by("x_approx")
-        .agg(
-            pl.col("T_K").min().alias("T_min"),
-            pl.col("T_K").max().alias("T_max"),
-            pl.len().alias("count"),
+    path_vle = osp.join(application_path, "_data", "vle_binary.parquet")
+    path_vp = osp.join(application_path, "_data", "vp_binary.parquet")
+    df = _read_parquet_if_exists([path_vle, path_vp])
+
+    if df is not None:
+        filtered = _filter_binary_pair(
+            df, inchi1, inchi2, "mole_fraction_c1p2", "mole_fraction_c2p2"
         )
-        .sort("x_approx")
-        .to_numpy()
-    )
+        if filtered.height > 0:
+            return (
+                filtered.group_by("x_approx")
+                .agg(
+                    pl.col("T_K").min().alias("T_min"),
+                    pl.col("T_K").max().alias("T_max"),
+                    pl.len().alias("count"),
+                )
+                .sort("x_approx")
+                .to_numpy()
+            )
+    return None
 
 
 def _build_binary_lle_data(
@@ -96,24 +108,25 @@ def _build_binary_lle_data(
     inchi2: str,
 ) -> Optional[NDArray[float64]]:
     path_lle = osp.join(application_path, "_data", "lle_binary.parquet")
-    df_lle = _read_parquet_if_exists(path_lle)
-    if df_lle is None:
-        return None
-    lf = _filter_binary_pair(
-        df_lle, inchi1, inchi2, "mole_fraction_c1", "mole_fraction_c2"
-    )
-    if lf.height == 0:
-        return None
-    return (
-        lf.group_by("P_kPa")
-        .agg(
-            pl.col("T_K").min().alias("T_min"),
-            pl.col("T_K").max().alias("T_max"),
-            pl.len().alias("count"),
+    path_lle_temp = osp.join(application_path, "_data", "lle_binary_temp.parquet")
+    df = _read_parquet_if_exists([path_lle, path_lle_temp])
+
+    if df is not None:
+        filtered = _filter_binary_pair(
+            df, inchi1, inchi2, "mole_fraction_c1", "mole_fraction_c2"
         )
-        .sort("P_kPa")
-        .to_numpy()
-    )
+        if filtered.height > 0:
+            return (
+                filtered.group_by("P_kPa")
+                .agg(
+                    pl.col("T_K").min().alias("T_min"),
+                    pl.col("T_K").max().alias("T_max"),
+                    pl.len().alias("count"),
+                )
+                .sort("P_kPa")
+                .to_numpy()
+            )
+    return None
 
 
 def _build_binary_vle_data(
@@ -121,171 +134,122 @@ def _build_binary_vle_data(
     inchi2: str,
 ) -> Tuple[Optional[NDArray[float64]], Optional[NDArray[float64]]]:
     path_vle = osp.join(application_path, "_data", "vle_binary.parquet")
-    df_vle = _read_parquet_if_exists(path_vle)
-
     path_vp = osp.join(application_path, "_data", "vp_binary.parquet")
-    df_vp = _read_parquet_if_exists(path_vp)
+    df = _read_parquet_if_exists([path_vle, path_vp])
 
-    vles, pxys = [], []
-
-    if df_vle is not None:
-        vf = _filter_binary_pair(
-            df_vle, inchi1, inchi2, "mole_fraction_c1p2", "mole_fraction_c2p2"
+    if df is not None:
+        filtered = _filter_binary_pair(
+            df, inchi1, inchi2, "mole_fraction_c1p2", "mole_fraction_c2p2"
         )
-        if vf.height > 0:
-            vles.append(
-                vf.group_by("P_kPa").agg(
+        if filtered.height > 0:
+            return (
+                filtered.group_by("P_kPa")
+                .agg(
                     pl.col("T_K").min().alias("T_min"),
                     pl.col("T_K").max().alias("T_max"),
                     pl.len().alias("count"),
                 )
-            )
-            pxys.append(
-                vf.with_columns(pl.col("T_K").round(1).alias("T_approx"))
-                .group_by("T_approx")
+                .sort("P_kPa")
+                .to_numpy(),
+                filtered.group_by("T_approx")
                 .agg(
                     pl.col("P_kPa").min().alias("P_min"),
                     pl.col("P_kPa").max().alias("P_max"),
                     pl.len().alias("count"),
                 )
+                .sort("T_approx")
+                .to_numpy(),
             )
 
-    if df_vp is not None:
-        vf_vp = _filter_binary_pair(
-            df_vp, inchi1, inchi2, "mole_fraction_c1p2", "mole_fraction_c2p2"
-        )
-        if vf_vp.height > 0:
-            vles.append(
-                vf_vp.group_by("P_kPa").agg(
-                    pl.col("T_K").min().alias("T_min"),
-                    pl.col("T_K").max().alias("T_max"),
-                    pl.len().alias("count"),
-                )
-            )
-            pxys.append(
-                vf_vp.with_columns(pl.col("T_K").round(1).alias("T_approx"))
-                .group_by("T_approx")
-                .agg(
-                    pl.col("P_kPa").min().alias("P_min"),
-                    pl.col("P_kPa").max().alias("P_max"),
-                    pl.len().alias("count"),
-                )
-            )
-
-    vle_data_final = None
-    if vles:
-        vle_data_final = (
-            pl.concat(vles)
-            .group_by("P_kPa")
-            .agg(
-                pl.col("T_min").min(),
-                pl.col("T_max").max(),
-                pl.col("count").sum(),
-            )
-            .sort("P_kPa")
-            .to_numpy()
-        )
-
-    vle_pxy_data_final = None
-    if pxys:
-        vle_pxy_data_final = (
-            pl.concat(pxys)
-            .group_by("T_approx")
-            .agg(
-                pl.col("P_min").min(),
-                pl.col("P_max").max(),
-                pl.col("count").sum(),
-            )
-            .sort("T_approx")
-            .to_numpy()
-        )
-
-    return vle_data_final, vle_pxy_data_final
+    return None, None
 
 
-def _filter_ternary_set(dframe: pl.DataFrame, target_set: list) -> pl.DataFrame:
-    return dframe.filter(
-        pl.col("inchi1").is_in(target_set)
-        & pl.col("inchi2").is_in(target_set)
-        & pl.col("inchi3").is_in(target_set)
-    )
-
-
-def _map_ternary_fractions(
-    dframe: pl.DataFrame,
-    inchi1: str,
-    inchi2: str,
+def _filter_ternary_set(
+    dframe: pl.DataFrame, target_set: list, col_x1: str, col_x2: str, col_x3: str
 ) -> pl.DataFrame:
-    return dframe.with_columns(
-        [
-            pl.when(pl.col("inchi1") == inchi1)
-            .then(pl.col("mole_fraction_c1"))
+    return (
+        dframe.filter(
+            pl.col("inchi1").is_in(target_set)
+            & pl.col("inchi2").is_in(target_set)
+            & pl.col("inchi3").is_in(target_set)
+        )
+        .with_columns(
+            pl.when(pl.col("inchi1") == target_set[0])
+            .then(pl.col(col_x1))
             .otherwise(
-                pl.when(pl.col("inchi2") == inchi1)
-                .then(pl.col("mole_fraction_c2"))
-                .otherwise(pl.col("mole_fraction_c3"))
+                pl.when(pl.col("inchi2") == target_set[0])
+                .then(pl.col(col_x2))
+                .otherwise(pl.col(col_x3))
             )
             .alias("x_mapped_1"),
-            pl.when(pl.col("inchi1") == inchi2)
-            .then(pl.col("mole_fraction_c1"))
+            pl.when(pl.col("inchi1") == target_set[1])
+            .then(pl.col(col_x1))
             .otherwise(
-                pl.when(pl.col("inchi2") == inchi2)
-                .then(pl.col("mole_fraction_c2"))
-                .otherwise(pl.col("mole_fraction_c3"))
+                pl.when(pl.col("inchi2") == target_set[1])
+                .then(pl.col(col_x2))
+                .otherwise(pl.col(col_x3))
             )
             .alias("x_mapped_2"),
-        ]
+            pl.when(pl.col("inchi1") == target_set[2])
+            .then(pl.col(col_x1))
+            .otherwise(
+                pl.when(pl.col("inchi2") == target_set[2])
+                .then(pl.col(col_x2))
+                .otherwise(pl.col(col_x3))
+            )
+            .alias("x_mapped_3"),
+        )
+        .with_columns(
+            pl.col("x_mapped_1").round(4).alias("x_approx_1"),
+            pl.col("x_mapped_2").round(4).alias("x_approx_2"),
+            (pl.col("x_mapped_2") / (pl.col("x_mapped_2") + pl.col("x_mapped_3")))
+            .round(2)
+            .alias("solvent_ratio"),
+        )
+        .unique()
     )
 
 
 def _build_ternary_rho_data(
-    inchi1: str,
-    inchi2: str,
     target_set: list,
 ) -> Optional[NDArray[float64]]:
     path_rho = osp.join(application_path, "_data", "rho_ternary.parquet")
-    df = _read_parquet_if_exists(path_rho)
+    df = _read_parquet_if_exists([path_rho])
     if df is None:
         return None
 
-    filtered = _filter_ternary_set(df, target_set)
-    if filtered.height == 0:
-        return None
-
-    data = (
-        _map_ternary_fractions(filtered, inchi1, inchi2)
-        .with_columns(
-            [
-                pl.col("x_mapped_1").round(4).alias("x_approx_1"),
-                pl.col("x_mapped_2").round(4).alias("x_approx_2"),
-            ]
-        )
-        .group_by(["P_kPa", "x_approx_1", "x_approx_2"])
-        .agg(
-            pl.col("T_K").min().alias("T_min"),
-            pl.col("T_K").max().alias("T_max"),
-            pl.len().alias("count"),
-        )
-        .sort(["P_kPa", "x_approx_1", "x_approx_2"])
+    filtered = _filter_ternary_set(
+        df, target_set, "mole_fraction_c1", "mole_fraction_c2", "mole_fraction_c3"
     )
-
-    if data.height == 0:
-        return None
-    return data.to_numpy()
+    if filtered.height > 0:
+        return (
+            filtered.group_by(["P_kPa", "x_approx_1", "x_approx_2"])
+            .agg(
+                pl.col("T_K").min().alias("T_min"),
+                pl.col("T_K").max().alias("T_max"),
+                pl.len().alias("count"),
+            )
+            .sort(["P_kPa", "x_approx_1", "x_approx_2"])
+            .to_numpy()
+        )
+    return None
 
 
 def _build_ternary_lle_data(target_set: list) -> Optional[NDArray[float64]]:
     path_lle = osp.join(application_path, "_data", "lle_ternary.parquet")
-    df_lle = _read_parquet_if_exists(path_lle)
-    if df_lle is None:
+    path_lle_mass = osp.join(application_path, "_data", "lle_mass_ternary.parquet")
+    df = _read_parquet_if_exists([path_lle, path_lle_mass])
+    if df is None:
         return None
 
-    filtered_lle = _filter_ternary_set(df_lle, target_set)
-    if filtered_lle.height == 0:
+    filtered = _filter_ternary_set(
+        df, target_set, "mole_fraction_c1", "mole_fraction_c2", "mole_fraction_c3"
+    )
+    if filtered.height == 0:
         return None
 
     return (
-        filtered_lle.group_by(["P_kPa", "T_K"])
+        filtered.group_by(["P_kPa", "T_K"])
         .agg(pl.len().alias("count"))
         .sort(["P_kPa", "T_K"])
         .to_numpy()
@@ -293,50 +257,38 @@ def _build_ternary_lle_data(target_set: list) -> Optional[NDArray[float64]]:
 
 
 def _build_ternary_vle_data(
-    inchi1: str,
-    inchi2: str,
-    inchi3: str,
     target_set: list,
 ) -> Tuple[Optional[NDArray[float64]], Optional[NDArray[float64]]]:
     path_vle = osp.join(application_path, "_data", "vle_ternary.parquet")
-    df_vle = _read_parquet_if_exists(path_vle)
-    if df_vle is None:
+    path_vp = osp.join(application_path, "_data", "vp_ternary.parquet")
+    df = _read_parquet_if_exists([path_vle, path_vp])
+    if df is None:
         return None, None
 
-    filtered_vle = _filter_ternary_set(df_vle, target_set)
-    if filtered_vle.height == 0:
+    filtered = _filter_ternary_set(
+        df, target_set, "mole_fraction_c1p2", "mole_fraction_c2p2", "mole_fraction_c3p2"
+    )
+    if filtered.height == 0:
         return None, None
 
     vle_data = (
-        filtered_vle.group_by(["P_kPa", "T_K"])
+        filtered.group_by(["P_kPa", "T_K"])
         .agg(pl.len().alias("count"))
         .sort(["P_kPa", "T_K"])
         .to_numpy()
     )
 
-    vle_tx = (
-        filtered_vle.with_columns(
-            [
-                _get_col_map_p2(inchi1, "mole_fraction_c").alias("x_m1"),
-                _get_col_map_p2(inchi2, "mole_fraction_c").alias("x_m2"),
-                _get_col_map_p2(inchi3, "mole_fraction_c").alias("x_m3"),
-            ]
-        )
-        .with_columns(
-            (pl.col("x_m2") / (pl.col("x_m2") + pl.col("x_m3")))
-            .alias("solvent_ratio")
-            .round(2)
-        )
-        .group_by(["T_K", "solvent_ratio"])
+    vle_tx_data = (
+        filtered.group_by(["T_K", "solvent_ratio"])
         .agg(
             pl.col("P_kPa").min().alias("P_min"),
             pl.col("P_kPa").max().alias("P_max"),
             pl.len().alias("count"),
         )
         .sort(["T_K", "solvent_ratio"])
+        .to_numpy()
     )
 
-    vle_tx_data = vle_tx.to_numpy() if vle_tx.height > 0 else None
     return vle_data, vle_tx_data
 
 
@@ -381,7 +333,6 @@ def retrieve_vp_pure_data(smiles: str) -> Optional[NDArray[float64]]:
     return (
         df.filter(pl.col("inchi1") == smilestoinchi(smiles))
         .select("T_K", "VP_kPa")
-        .sort("T_K")
         .to_numpy()
     )
 
@@ -394,7 +345,6 @@ def retrieve_st_pure_data(smiles: str) -> Optional[NDArray[float64]]:
     return (
         df.filter(pl.col("inchi1") == smilestoinchi(smiles))
         .select("T_K", "st")
-        .sort("T_K")
         .to_numpy()
     )
 
@@ -471,40 +421,25 @@ def retrieve_rho_binary_data(
     # Normalize x1 to strictly match input order
     # If file has (i1, i2) -> use mole_fraction_c1
     # If file has (i2, i1) -> use mole_fraction_c2
-    filtered = (
-        df.filter(
-            ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
-            | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
-        )
-        .with_columns(
-            pl.when(pl.col("inchi1") == i1)
-            .then(pl.col("mole_fraction_c1"))
-            .otherwise(pl.col("mole_fraction_c2"))
-            .alias("x_c1")
-        )
-        .filter(
-            (pl.col("P_kPa") == pressure)
-            & (pl.col("x_c1") > x1 - tol_x)
-            & (pl.col("x_c1") < x1 + tol_x)
-        )
+    filtered = _filter_binary_pair(
+        df, i1, i2, "mole_fraction_c1", "mole_fraction_c2"
+    ).filter(
+        pl.col("P_kPa").is_close(pressure)
+        & pl.col("x_c1").is_between(x1 - tol_x, x1 + tol_x)
     )
 
     if filtered.height == 0:
         return None
 
-    return (
-        filtered.select(
-            pl.col("T_K"),
-            pl.col("rho")
-            * 1000
-            / (
-                pl.col("molweight1") * pl.col("mole_fraction_c1")
-                + pl.col("molweight2") * (1 - pl.col("mole_fraction_c1"))
-            ),
-        )
-        .sort("T_K")
-        .to_numpy()
-    )
+    return filtered.select(
+        pl.col("T_K"),
+        pl.col("rho")
+        * 1000
+        / (
+            pl.col("molweight1") * pl.col("mole_fraction_c1")
+            + pl.col("molweight2") * (1 - pl.col("mole_fraction_c1"))
+        ),
+    ).to_numpy()
 
 
 def retrieve_bubble_pressure_data(
@@ -514,30 +449,24 @@ def retrieve_bubble_pressure_data(
     if len(smiles_list) != 2:
         return None
 
-    df = pl.read_parquet(osp.join(application_path, "_data", "vp_binary.parquet"))
+    path_vp = osp.join(application_path, "_data", "vp_binary.parquet")
+    path_vle = osp.join(application_path, "_data", "vle_binary.parquet")
+    df = _read_parquet_if_exists([path_vp, path_vle])
+    if df is None:
+        return None
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
     tol_x = TOL_FRACTION
 
-    filtered = (
-        df.filter(
-            ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
-            | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
-        )
-        .with_columns(
-            pl.when(pl.col("inchi1") == i1)
-            .then(pl.col("mole_fraction_c1p2"))
-            .otherwise(pl.col("mole_fraction_c2p2"))
-            .alias("x_c1")
-        )
-        .filter((pl.col("x_c1") > x1 - tol_x) & (pl.col("x_c1") < x1 + tol_x))
-    )
+    filtered = _filter_binary_pair(
+        df, i1, i2, "mole_fraction_c1p2", "mole_fraction_c2p2"
+    ).filter(pl.col("x_c1").is_close(x1, abs_tol=tol_x))
 
     if filtered.height == 0:
         return None
 
     # Return T and P_kPa
-    return filtered.select("T_K", "P_kPa").sort("T_K").to_numpy()
+    return filtered.select("T_K", "P_kPa").to_numpy()
 
 
 def retrieve_vle_binary_data(
@@ -550,49 +479,19 @@ def retrieve_vle_binary_data(
         return None
 
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
-    data_frames = []
 
     path_vle = osp.join(application_path, "_data", "vle_binary.parquet")
-    if osp.exists(path_vle):
-        df_vle = pl.read_parquet(path_vle)
-        filtered_vle = df_vle.filter(
-            ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
-            | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
-        ).filter(pl.col("P_kPa") == pressure)
-
-        if filtered_vle.height > 0:
-            data_frames.append(
-                filtered_vle.with_columns(
-                    pl.when(pl.col("inchi1") == i1)
-                    .then(pl.col("mole_fraction_c1p2"))
-                    .otherwise(pl.col("mole_fraction_c2p2"))
-                    .alias("x_c1")
-                ).select("T_K", "x_c1")
-            )
-
     path_vp = osp.join(application_path, "_data", "vp_binary.parquet")
-    if osp.exists(path_vp):
-        df_vp = pl.read_parquet(path_vp)
-        filtered_vp = df_vp.filter(
-            ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
-            | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
-        ).filter(pl.col("P_kPa") == pressure)
+    df = _read_parquet_if_exists([path_vle, path_vp])
+    if df is not None:
+        filtered = _filter_binary_pair(
+            df, i1, i2, "mole_fraction_c1p2", "mole_fraction_c2p2"
+        ).filter(pl.col("P_kPa").is_close(pressure))
 
-        if filtered_vp.height > 0:
-            data_frames.append(
-                filtered_vp.with_columns(
-                    pl.when(pl.col("inchi1") == i1)
-                    .then(pl.col("mole_fraction_c1p2"))
-                    .otherwise(pl.col("mole_fraction_c2p2"))
-                    .alias("x_c1")
-                ).select("T_K", "x_c1")
-            )
+        if filtered.height > 0:
+            return filtered.select("T_K", "x_c1").to_numpy()
 
-    if not data_frames:
-        return None
-
-    data = pl.concat(data_frames).sort("T_K")
-    return data.to_numpy()
+    return None
 
 
 def retrieve_vle_pxy_binary_data(
@@ -606,53 +505,18 @@ def retrieve_vle_pxy_binary_data(
 
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
     tol_t = TOL_TEMP  # Tolerance for temperature
-    data_frames = []
 
     path_vle = osp.join(application_path, "_data", "vle_binary.parquet")
-    if osp.exists(path_vle):
-        df_vle = pl.read_parquet(path_vle)
-        filtered_vle = df_vle.filter(
-            ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
-            | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
-        ).filter(
-            (pl.col("T_K") > temperature - tol_t)
-            & (pl.col("T_K") < temperature + tol_t)
-        )
-        if filtered_vle.height > 0:
-            data_frames.append(
-                filtered_vle.with_columns(
-                    pl.when(pl.col("inchi1") == i1)
-                    .then(pl.col("mole_fraction_c1p2"))
-                    .otherwise(pl.col("mole_fraction_c2p2"))
-                    .alias("x_c1"),
-                ).select("P_kPa", "x_c1")
-            )
-
     path_vp = osp.join(application_path, "_data", "vp_binary.parquet")
-    if osp.exists(path_vp):
-        df_vp = pl.read_parquet(path_vp)
-        filtered_vp = df_vp.filter(
-            ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
-            | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
-        ).filter(
-            (pl.col("T_K") > temperature - tol_t)
-            & (pl.col("T_K") < temperature + tol_t)
-        )
-        if filtered_vp.height > 0:
-            data_frames.append(
-                filtered_vp.with_columns(
-                    pl.when(pl.col("inchi1") == i1)
-                    .then(pl.col("mole_fraction_c1p2"))
-                    .otherwise(pl.col("mole_fraction_c2p2"))
-                    .alias("x_c1"),
-                ).select("P_kPa", "x_c1")
-            )
+    df = _read_parquet_if_exists([path_vle, path_vp])
+    if df is not None:
+        filtered = _filter_binary_pair(
+            df, i1, i2, "mole_fraction_c1p2", "mole_fraction_c2p2"
+        ).filter(pl.col("T_K").is_close(temperature, abs_tol=tol_t))
+        if filtered.height > 0:
+            return filtered.select("P_kPa", "x_c1").to_numpy()
 
-    if not data_frames:
-        return None
-
-    data = pl.concat(data_frames).sort("P_kPa")
-    return data.to_numpy()
+    return None
 
 
 def retrieve_lle_binary_data(
@@ -663,37 +527,21 @@ def retrieve_lle_binary_data(
         return None
 
     path = osp.join(application_path, "_data", "lle_binary.parquet")
-    if not osp.exists(path):
-        return None
+    path_temp = osp.join(application_path, "_data", "lle_binary_temp.parquet")
 
-    df = pl.read_parquet(path)
+    df = _read_parquet_if_exists([path, path_temp])
+    if df is None:
+        return None
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
-    # Filter
-    filtered = df.filter(
-        ((pl.col("inchi1") == i1) & (pl.col("inchi2") == i2))
-        | ((pl.col("inchi1") == i2) & (pl.col("inchi2") == i1))
-    ).filter(pl.col("P_kPa") == pressure)
+    filtered = _filter_binary_pair(
+        df, i1, i2, "mole_fraction_c1", "mole_fraction_c2"
+    ).filter(pl.col("P_kPa").is_close(pressure))
 
     if filtered.height == 0:
         return None
 
-    # Normalize x1 to strictly match input order
-    # If file has (i1, i2) -> use mole_fraction_c1
-    # If file has (i2, i1) -> use mole_fraction_c2
-
-    data = (
-        filtered.with_columns(
-            pl.when(pl.col("inchi1") == i1)
-            .then(pl.col("mole_fraction_c1"))
-            .otherwise(pl.col("mole_fraction_c2"))
-            .alias("x_c1"),
-        )
-        .select("T_K", "x_c1")
-        .sort("T_K")
-    )
-
-    return data.to_numpy()
+    return filtered.select("T_K", "x_c1").to_numpy()
 
 
 def retrieve_available_data_binary(smiles_list: list) -> Tuple[
@@ -708,11 +556,9 @@ def retrieve_available_data_binary(smiles_list: list) -> Tuple[
         return None, None, None, None, None
 
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
-    rho_bin = pl.read_parquet(osp.join(application_path, "_data", "rho_binary.parquet"))
-    vp_bin = pl.read_parquet(osp.join(application_path, "_data", "vp_binary.parquet"))
 
-    rho_data = _build_binary_rho_data(rho_bin, i1, i2)
-    bubble_data = _build_binary_bubble_data(vp_bin, i1, i2)
+    rho_data = _build_binary_rho_data(i1, i2)
+    bubble_data = _build_binary_bubble_data(i1, i2)
     lle_data = _build_binary_lle_data(i1, i2)
     vle_data, vle_pxy_data = _build_binary_vle_data(i1, i2)
 
@@ -731,16 +577,15 @@ def retrieve_available_data_ternary(
     if len(smiles_list) != 3:
         return None, None, None, None
 
-    i1, i2, i3 = (
+    target_set = [
         smilestoinchi(smiles_list[0]),
         smilestoinchi(smiles_list[1]),
         smilestoinchi(smiles_list[2]),
-    )
-    target_set = [i1, i2, i3]
+    ]
 
-    rho_data = _build_ternary_rho_data(i1, i2, target_set)
+    rho_data = _build_ternary_rho_data(target_set)
     lle_data = _build_ternary_lle_data(target_set)
-    vle_data, vle_tx_data = _build_ternary_vle_data(i1, i2, i3, target_set)
+    vle_data, vle_tx_data = _build_ternary_vle_data(target_set)
 
     return rho_data, lle_data, vle_data, vle_tx_data
 
@@ -753,74 +598,42 @@ def retrieve_rho_ternary_data(
         return None
 
     path_rho = osp.join(application_path, "_data", "rho_ternary.parquet")
-    if not osp.exists(path_rho):
-        return None
 
-    i1, i2, i3 = (
+    target_set = [
         smilestoinchi(smiles_list[0]),
         smilestoinchi(smiles_list[1]),
         smilestoinchi(smiles_list[2]),
-    )
+    ]
 
-    df = pl.read_parquet(path_rho)
-    target_set = [i1, i2, i3]
-
-    # Function to map column X based on inchi match
-    def get_col_map(target_inchi, col_prefix):
-        return (
-            pl.when(pl.col("inchi1") == target_inchi)
-            .then(pl.col(f"{col_prefix}1"))
-            .otherwise(
-                pl.when(pl.col("inchi2") == target_inchi)
-                .then(pl.col(f"{col_prefix}2"))
-                .otherwise(pl.col(f"{col_prefix}3"))
-            )
-        )
+    df = _read_parquet_if_exists([path_rho])
+    if df is None:
+        return None
 
     # Tolerance
     tol_x = TOL_FRACTION
 
-    filtered = (
-        df.filter(
-            pl.col("inchi1").is_in(target_set)
-            & pl.col("inchi2").is_in(target_set)
-            & pl.col("inchi3").is_in(target_set)
-        )
-        .with_columns(
-            [
-                get_col_map(i1, "mole_fraction_c").alias("x_m1"),
-                get_col_map(i2, "mole_fraction_c").alias("x_m2"),
-                get_col_map(i3, "mole_fraction_c").alias("x_m3"),
-                get_col_map(i1, "molweight").alias("mw_m1"),
-                get_col_map(i2, "molweight").alias("mw_m2"),
-                get_col_map(i3, "molweight").alias("mw_m3"),
-            ]
-        )
-        .filter(
-            (pl.col("P_kPa") == pressure)
-            & (pl.col("x_m1").is_between(x1 - tol_x, x1 + tol_x))
-            & (pl.col("x_m2").is_between(x2 - tol_x, x2 + tol_x))
-        )
+    filtered = _filter_ternary_set(
+        df, target_set, "mole_fraction_c1", "mole_fraction_c2", "mole_fraction_c3"
+    ).filter(
+        pl.col("P_kPa").is_close(pressure)
+        & (pl.col("x_mapped_1").is_close(x1, abs_tol=tol_x))
+        & (pl.col("x_mapped_2").is_close(x2, abs_tol=tol_x))
     )
 
     if filtered.height == 0:
         return None
 
     # molar density = mass_rho * 1000 / avg_mw
-    return (
-        filtered.select(
-            pl.col("T_K"),
-            pl.col("rho")
-            * 1000.0
-            / (
-                pl.col("x_m1") * pl.col("mw_m1")
-                + pl.col("x_m2") * pl.col("mw_m2")
-                + pl.col("x_m3") * pl.col("mw_m3")
-            ),
-        )
-        .sort("T_K")
-        .to_numpy()
-    )
+    return filtered.select(
+        pl.col("T_K"),
+        pl.col("rho")
+        * 1000.0
+        / (
+            pl.col("mole_fraction_c1") * pl.col("molweight1")
+            + pl.col("mole_fraction_c2") * pl.col("molweight2")
+            + pl.col("mole_fraction_c3") * pl.col("molweight3")
+        ),
+    ).to_numpy()
 
 
 def retrieve_lle_ternary_data(
@@ -831,48 +644,27 @@ def retrieve_lle_ternary_data(
         return None
 
     path_lle = osp.join(application_path, "_data", "lle_ternary.parquet")
-    if not osp.exists(path_lle):
+    path_lle_mass = osp.join(application_path, "_data", "lle_mass_ternary.parquet")
+    df = _read_parquet_if_exists([path_lle, path_lle_mass])
+    if df is None:
         return None
 
-    i1, i2, i3 = (
+    target_set = [
         smilestoinchi(smiles_list[0]),
         smilestoinchi(smiles_list[1]),
         smilestoinchi(smiles_list[2]),
-    )
-    target_set = [i1, i2, i3]
-
-    df = pl.read_parquet(path_lle)
-
-    # Function to map column X based on inchi match
-    def get_col_map(target_inchi, col_prefix):
-        return (
-            pl.when(pl.col("inchi1") == target_inchi)
-            .then(pl.col(f"{col_prefix}1"))
-            .otherwise(
-                pl.when(pl.col("inchi2") == target_inchi)
-                .then(pl.col(f"{col_prefix}2"))
-                .otherwise(pl.col(f"{col_prefix}3"))
-            )
-        )
+    ]
 
     tol = TOL_PRESSURE_TEMP
     return (
-        df.filter(
-            pl.col("inchi1").is_in(target_set)
-            & pl.col("inchi2").is_in(target_set)
-            & pl.col("inchi3").is_in(target_set)
+        _filter_ternary_set(
+            df, target_set, "mole_fraction_c1", "mole_fraction_c2", "mole_fraction_c3"
         )
         .filter(
-            (pl.col("P_kPa").is_between(pressure - tol, pressure + tol))
-            & (pl.col("T_K").is_between(temperature - tol, temperature + tol))
+            (pl.col("P_kPa").is_close(pressure, abs_tol=tol))
+            & (pl.col("T_K").is_close(temperature, abs_tol=tol))
         )
-        .with_columns(
-            [
-                get_col_map(i1, "mole_fraction_c").alias("x_m1"),
-                get_col_map(i2, "mole_fraction_c").alias("x_m2"),
-            ]
-        )
-        .select("x_m1", "x_m2")
+        .select("x_mapped_1", "x_mapped_2")
         .to_numpy()
     )
 
@@ -885,39 +677,31 @@ def retrieve_vle_ternary_data(
         return None
 
     path_vle = osp.join(application_path, "_data", "vle_ternary.parquet")
-    if not osp.exists(path_vle):
+    path_vp = osp.join(application_path, "_data", "vp_ternary.parquet")
+    df = _read_parquet_if_exists([path_vle, path_vp])
+    if df is None:
         return None
 
-    i1, i2, i3 = (
+    target_set = [
         smilestoinchi(smiles_list[0]),
         smilestoinchi(smiles_list[1]),
         smilestoinchi(smiles_list[2]),
-    )
-    target_set = [i1, i2, i3]
-
-    df = pl.read_parquet(path_vle)
+    ]
 
     tol = TOL_PRESSURE_TEMP
-    # VLE points might be scatter points, not necessarily
-    # tie lines with both phases in this file context,
-    # but we plot the liquid composition.
     return (
-        df.filter(
-            pl.col("inchi1").is_in(target_set)
-            & pl.col("inchi2").is_in(target_set)
-            & pl.col("inchi3").is_in(target_set)
+        _filter_ternary_set(
+            df,
+            target_set,
+            "mole_fraction_c1p2",
+            "mole_fraction_c2p2",
+            "mole_fraction_c3p2",
         )
         .filter(
-            (pl.col("P_kPa").is_between(pressure - tol, pressure + tol))
-            & (pl.col("T_K").is_between(temperature - tol, temperature + tol))
+            pl.col("P_kPa").is_close(pressure, abs_tol=tol)
+            & pl.col("T_K").is_close(temperature, abs_tol=tol)
         )
-        .with_columns(
-            [
-                _get_col_map_p2(i1, "mole_fraction_c").alias("x_m1"),
-                _get_col_map_p2(i2, "mole_fraction_c").alias("x_m2"),
-            ]
-        )
-        .select("x_m1", "x_m2")
+        .select("x_mapped_1", "x_mapped_2")
         .to_numpy()
     )
 
@@ -934,57 +718,32 @@ def retrieve_vle_ternary_tx_fixed_data(
         return None
 
     path_vle = osp.join(application_path, "_data", "vle_ternary.parquet")
-    if not osp.exists(path_vle):
+    path_vp = osp.join(application_path, "_data", "vp_ternary.parquet")
+    df = _read_parquet_if_exists([path_vle, path_vp])
+    if df is None:
         return None
 
-    i1, i2, i3 = (
+    target_set = [
         smilestoinchi(smiles_list[0]),
         smilestoinchi(smiles_list[1]),
         smilestoinchi(smiles_list[2]),
-    )
-    target_set = [i1, i2, i3]
-
-    df = pl.read_parquet(path_vle)
+    ]
 
     tol_t = TOL_TEMP
     tol_ratio = TOL_SOLVENT_RATIO
     return (
-        df.filter(
-            pl.col("inchi1").is_in(target_set)
-            & pl.col("inchi2").is_in(target_set)
-            & pl.col("inchi3").is_in(target_set)
-        )
-        .with_columns(
-            [
-                _get_col_map_p2(i1, "mole_fraction_c").alias("x_m1"),
-                _get_col_map_p2(i2, "mole_fraction_c").alias("x_m2"),
-                _get_col_map_p2(i3, "mole_fraction_c").alias("x_m3"),
-            ]
-        )
-        .with_columns(
-            (pl.col("x_m2") / (pl.col("x_m2") + pl.col("x_m3"))).alias("solvent_ratio")
+        _filter_ternary_set(
+            df,
+            target_set,
+            "mole_fraction_c1p2",
+            "mole_fraction_c2p2",
+            "mole_fraction_c3p2",
         )
         .filter(
-            (pl.col("T_K").is_between(temperature - tol_t, temperature + tol_t))
-            & (pl.col("x_m2") + pl.col("x_m3") > 1e-12)
-            & pl.col("solvent_ratio").is_between(
-                solvent_ratio - tol_ratio, solvent_ratio + tol_ratio
-            )
+            pl.col("T_K").is_close(temperature, abs_tol=tol_t)
+            & (pl.col("x_mapped_2") + pl.col("x_mapped_3") > 1e-12)
+            & pl.col("solvent_ratio").is_close(solvent_ratio, abs_tol=tol_ratio)
         )
-        .select("x_m1", "P_kPa")
-        .sort("x_m1")
+        .select("x_mapped_1", "P_kPa")
         .to_numpy()
-    )
-
-
-# Function to map liquid phase composition (p2) based on inchi match
-def _get_col_map_p2(target_inchi, col_prefix) -> pl.Expr:
-    return (
-        pl.when(pl.col("inchi1") == target_inchi)
-        .then(pl.col(f"{col_prefix}1p2"))
-        .otherwise(
-            pl.when(pl.col("inchi2") == target_inchi)
-            .then(pl.col(f"{col_prefix}2p2"))
-            .otherwise(pl.col(f"{col_prefix}3p2"))
-        )
     )
