@@ -365,38 +365,6 @@ WindowManager:
                 size_hint_y: None
                 height: 40
 
-<PlotLayout>:
-    orientation: 'vertical'
-    mat_plot_figure: mat_plot_figure
-    
-    BoxLayout:
-        size_hint_y: 0.1
-        padding: 5
-        Button:
-            text: "Back"
-            size_hint_x: None
-            width: 100
-            on_release: 
-                app.root.current = root.previous_screen
-                app.root.transition.direction = "right"
-                
-        Button:
-            text: "Save Plot"
-            size_hint_x: None
-            width: 100
-            on_release:
-                root.save_plot()
-
-        Button:
-            text: "Export CSV"
-            size_hint_x: None
-            width: 100
-            on_release:
-                root.export_csv()
-                
-    MatplotFigure:
-        id: mat_plot_figure
-        interactive_axis: True
 
 <AboutLayout>:
     orientation:'vertical'

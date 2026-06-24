@@ -9,7 +9,6 @@ from json import JSONDecodeError
 from urllib.error import HTTPError, URLError
 
 import kivy
-import kivy_matplotlib_widget  # pylint: disable=unused-import
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.logger import Logger

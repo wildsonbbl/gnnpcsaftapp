@@ -326,9 +326,8 @@ def generate_plot(request: PlotRequest):
     if not request.x_data or not request.y_data:
         return
 
-    # Optimized for mobile (390px width)
     plt.close("all")
-    plt.figure(figsize=(3.5, 4.5), dpi=100)
+    plt.figure(figsize=(5.5, 4.5), dpi=100)
     plt.clf()  # Clear previous figure
 
     # Reduce font sizes for mobile
@@ -393,15 +392,15 @@ def generate_plot(request: PlotRequest):
     # Increase padding to ensure labels are not cut off
     plt.tight_layout(pad=2.5)
 
-    _show_plot_screen(plt.gcf())
+    plt.show(block=False)
+    Clock.schedule_interval(_pump_matplotlib, 1 / 60)
 
 
 def generate_ternary_plot(request: TernaryPlotRequest):
     """Helper to generate right triangle ternary plot and switch screen."""
 
-    # Optimized for mobile (390px width)
     plt.close("all")
-    fig = plt.figure(figsize=(3.5, 4.5), dpi=100)
+    fig = plt.figure(figsize=(5.5, 4.5), dpi=100)
     fig.clf()  # Clear previous figure
 
     # Reduce font sizes for mobile
@@ -447,7 +446,8 @@ def generate_ternary_plot(request: TernaryPlotRequest):
     # Increase padding to ensure labels are not cut off
     plt.tight_layout(pad=2.5)
 
-    _show_plot_screen(fig)
+    plt.show(block=False)
+    Clock.schedule_interval(_pump_matplotlib, 1 / 60)
 
 
 def _plot_experimental_data(exp_data):
@@ -489,15 +489,12 @@ def _plot_experimental_data(exp_data):
     plt.legend(fontsize=8)
 
 
-def _show_plot_screen(figure):
-    app = App.get_running_app()
-    plot_screen = app.root.get_screen("plot_screen")  # type: ignore
-    plot_layout = plot_screen.ids.plot_layout
-
-    mat_plot_figure = plot_layout.ids.mat_plot_figure
-    mat_plot_figure.figure = figure
-
-    plot_layout.previous_screen = app.root.current  # type: ignore
-
-    app.root.transition.direction = "left"  # type: ignore
-    app.root.current = "plot_screen"  # type: ignore
+def _pump_matplotlib(_):
+    "pump matplotlib to update figure"
+    # Check if the figure window is still open to prevent errors
+    if plt.fignum_exists(1):
+        fig = plt.gcf()
+        fig.canvas.draw_idle()  # Request a redraw
+        fig.canvas.flush_events()  # Process mouse movements, sliders, zooms
+        return True
+    return False  # Stops the Kivy clock if the plot window is closed

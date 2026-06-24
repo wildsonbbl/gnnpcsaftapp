@@ -2,7 +2,6 @@ gnnepcsaft-mcp-server>=0.4
 gnnepcsaft>=0.4.0
 numpy
 kivy
-kivy-matplotlib-widget
 matplotlib
 polars
 pyinstaller
