@@ -39,6 +39,8 @@ dist_dir="$script_dir/app_pkg/dist/gnnpcsaft"
 pkg_root="$script_dir/app_pkg/dist/deb_pkg"
 icon_src="$script_dir/app/512.png"
 
+cp -r $(uv python dir)/*3.13-*/lib/*tcl* "$dist_dir/_internal/"
+
 rm -rf "$pkg_root"
 mkdir -p \
 	"$pkg_root/DEBIAN" \
@@ -85,5 +87,5 @@ dpkg-deb --build "$pkg_root" "$script_dir/app_pkg/dist/$deb_file"
 
 ## add artifact to release
 if [ "$skip_upload" != true ]; then
-	gh release upload "$version" "$script_dir/app_pkg/dist/$deb_file"
+	gh release upload "$version" "$script_dir/app_pkg/dist/$deb_file" --clobber
 fi
