@@ -7,6 +7,7 @@ from gnnepcsaft.pcsaft.pcsaft_feos import (
     phase_diagram_feos,
     pure_den_feos,
     pure_h_lv_feos,
+    pure_s_lv_feos,
     pure_surface_tension_feos,
     pure_vp_feos,
 )
@@ -44,6 +45,17 @@ def pure_h_lv(
 
     h_lvs = [pure_h_lv_feos(parameters, [T]) for T in temperatures]
     return temperatures, h_lvs
+
+
+def pure_s_lv(
+    smiles: str, min_temp: float, max_temp: float, npoints: int
+) -> Tuple[List[float], List[float]]:
+    "Calculate pure-component entropy of vaporization using PC-SAFT EOS"
+    parameters = predict_pcsaft_parameters(smiles)
+    temperatures = np.linspace(min_temp, max_temp, num=npoints).tolist()
+
+    s_lvs = [pure_s_lv_feos(parameters, [T]) for T in temperatures]
+    return temperatures, s_lvs
 
 
 def pure_surface_tension(
