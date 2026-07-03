@@ -72,6 +72,7 @@ def _build_binary_rho_data(
             pl.col("T_K").max().alias("T_max"),
             pl.len().alias("count"),
         )
+        .filter(pl.col("count") > 1)
         .sort(["P_kPa", "x_approx"])
         .to_numpy()
     )
@@ -97,6 +98,7 @@ def _build_binary_bubble_data(
                     pl.col("T_K").max().alias("T_max"),
                     pl.len().alias("count"),
                 )
+                .filter(pl.col("count") > 1, pl.col("x_approx").is_not_nan())
                 .sort("x_approx")
                 .to_numpy()
             )
@@ -123,6 +125,7 @@ def _build_binary_lle_data(
                     pl.col("T_K").max().alias("T_max"),
                     pl.len().alias("count"),
                 )
+                .filter(pl.col("count") > 1)
                 .sort("P_kPa")
                 .to_numpy()
             )
@@ -149,6 +152,7 @@ def _build_binary_vle_data(
                     pl.col("T_K").max().alias("T_max"),
                     pl.len().alias("count"),
                 )
+                .filter(pl.col("count") > 1)
                 .sort("P_kPa")
                 .to_numpy(),
                 filtered.group_by("T_approx")
@@ -157,6 +161,7 @@ def _build_binary_vle_data(
                     pl.col("P_kPa").max().alias("P_max"),
                     pl.len().alias("count"),
                 )
+                .filter(pl.col("count") > 1)
                 .sort("T_approx")
                 .to_numpy(),
             )
@@ -229,6 +234,7 @@ def _build_ternary_rho_data(
                 pl.col("T_K").max().alias("T_max"),
                 pl.len().alias("count"),
             )
+            .filter(pl.col("count") > 1)
             .sort(["P_kPa", "x_approx_1", "x_approx_2"])
             .to_numpy()
         )
@@ -251,6 +257,7 @@ def _build_ternary_lle_data(target_set: list) -> Optional[NDArray[float64]]:
     return (
         filtered.group_by(["P_kPa", "T_K"])
         .agg(pl.len().alias("count"))
+        .filter(pl.col("count") > 1)
         .sort(["P_kPa", "T_K"])
         .to_numpy()
     )
@@ -274,6 +281,7 @@ def _build_ternary_vle_data(
     vle_data = (
         filtered.group_by(["P_kPa", "T_K"])
         .agg(pl.len().alias("count"))
+        .filter(pl.col("count") > 1)
         .sort(["P_kPa", "T_K"])
         .to_numpy()
     )
@@ -285,6 +293,7 @@ def _build_ternary_vle_data(
             pl.col("P_kPa").max().alias("P_max"),
             pl.len().alias("count"),
         )
+        .filter(pl.col("count") > 1, pl.col("solvent_ratio").is_not_nan())
         .sort(["T_K", "solvent_ratio"])
         .to_numpy()
     )
@@ -382,6 +391,7 @@ def retrieve_available_data_pure(
                 pl.col("T_K").max().alias("T_max"),
                 pl.len().alias("count"),
             )
+            .filter(pl.col("count") > 1)
             .sort(pl.col("P_kPa"))
             .to_numpy()
         )
