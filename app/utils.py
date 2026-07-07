@@ -221,11 +221,20 @@ def show_error_popup(err):
                 "Enter numeric values only",
                 "Check units (K, Pa)",
             ]
+            if "temperature" in lowered:
+                suggestions.append(
+                    "For binary LLE, min temperature is used as starting value for calculations",
+                )
         elif "fraction" in lowered or "kij" in lowered:
             suggestions = [
                 "Use space-separated numeric values",
                 "Match number of components",
             ]
+            if "fraction" in lowered:
+                suggestions.append(
+                    "For binary LLE, mole fractions are "
+                    "used as starting value for calculations",
+                )
         elif "pc-saft" in lowered and "failed" in lowered:
             suggestions = [
                 "Adjust temperatures to be within meaningful values",
