@@ -1,13 +1,21 @@
 """Plot handlers for mixture screens."""
 
+from app.input_requests import BinaryFillRequest
 from app.plot_requests import PlotRequest
 from app.plots.plot_helpers import assign_phase_by_density, get_kij_tmin_pressure
 from app.utils_data import (
     retrieve_lle_binary_data,
     retrieve_vle_binary_data,
+    retrieve_vle_for_kij,
     retrieve_vle_pxy_binary_data,
 )
-from app.utils_mix import MixLLEParams, mix_lle, mix_vle, mix_vle_pxy
+from app.utils_mix import (
+    MixLLEParams,
+    mix_lle,
+    mix_vle,
+    mix_vle_pxy,
+    optimize_binary_kij_for_vle,
+)
 
 
 # pylint: disable = w0212
@@ -166,3 +174,28 @@ def plot_lle_txx(layout):
                 exp_data=exp_data,
             )
         )
+
+
+def estimate_kij(layout):
+    "estimate binary kij"
+    try:
+        smiles_list = layout._get_smiles()
+        n = len(smiles_list)
+        if n != 2:
+            raise ValueError(
+                f"Estimate kij available for binary mixture, "
+                f"got {len(smiles_list)} components instead"
+            )
+        kij_matrix = layout._get_kij(n)
+        initial_kij = kij_matrix[0][1]
+        vle = retrieve_vle_for_kij(smiles_list=smiles_list)
+        if vle is not None:
+            kij_value = optimize_binary_kij_for_vle(
+                smiles_list=smiles_list, initial_kij=initial_kij, vle=vle
+            )
+            layout._fill_inputs_binary(BinaryFillRequest(kij=round(kij_value, 4)))
+        else:
+            raise ValueError("No vle available to optimize kij")
+
+    except (ValueError, RuntimeError) as e:
+        layout._show_error_alert(e)

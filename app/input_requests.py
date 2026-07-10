@@ -12,6 +12,7 @@ class BinaryFillRequest:
     t_min: Optional[float] = None
     t_max: Optional[float] = None
     x1: Optional[float] = None
+    kij: Optional[float] = None
 
 
 @dataclass

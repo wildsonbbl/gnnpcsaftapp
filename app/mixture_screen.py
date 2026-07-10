@@ -177,6 +177,7 @@ class MixtureLayout(BaseInputLayout):
     def _make_ternary_button(self, dropdown, text, fill_action):
         return self._make_binary_button(dropdown, text, fill_action)
 
+    @mainthread
     def _fill_inputs_binary(self, request: BinaryFillRequest):
         """Helper to populate inputs with clicked values."""
         fill_pressure_temperature(
@@ -187,6 +188,9 @@ class MixtureLayout(BaseInputLayout):
         )
         if request.x1 is not None:
             self.fractions_input.text = f"{request.x1:.4f} {1.0 - request.x1:.4f}"
+
+        if request.kij is not None:
+            self.kij_input.text = str(request.kij)
 
     def _fill_inputs_ternary(self, request: TernaryFillRequest):
         """Helper to populate inputs with clicked values for ternary."""
@@ -293,5 +297,13 @@ class MixtureLayout(BaseInputLayout):
         "plot ternary VLE P-x at fixed T and fixed solvent ratio"
         try:
             mixture_ternary.plot_vle_tx_fixed(self)
+        except (ValueError, RuntimeError) as e:
+            self._show_error_alert(e)
+
+    @run_with_loading
+    def on_estimate_kij(self):
+        "estimate binary kij"
+        try:
+            mixture_binary.estimate_kij(self)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)

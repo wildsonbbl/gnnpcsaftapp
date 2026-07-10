@@ -345,6 +345,10 @@ WindowManager:
             text: 'Ternary VLE P-x (T and x2/x3 fixed)'
             on_press: root.on_plot_ternary_vle_tx_fixed()
 
+        Button:
+            text: 'Estimate binary kij'
+            on_press: root.on_estimate_kij()
+
     ScrollView:
         size_hint: 1, 1
         pos_hint: {"center_x":0.5}
