@@ -645,6 +645,27 @@ def _get_ternary_lle_data(
                 )
             except (RuntimeError, ValueError):
                 continue
+            except BaseException as exc:  # pylint: disable=W0718
+                exception_type = type(exc).__name__
+                if exception_type == "PanicException":
+                    Logger.warning(
+                        "mix_ternary_lle: PanicException at temperature=%.4f, "
+                        "pressure=%.4f, molefractions=%.4f: %s",
+                        t,
+                        p,
+                        [x1_m[i, j].item(), x2_m[i, j].item(), x3_m[i, j].item()],
+                        exc,
+                    )
+                    continue
+                Logger.exception(
+                    "mix_ternary_lle: unexpected %s at temperature=%.4f, "
+                    "pressure=%.4f, molefractions=%.4f",
+                    exception_type,
+                    t,
+                    p,
+                    [x1_m[i, j].item(), x2_m[i, j].item(), x3_m[i, j].item()],
+                )
+                raise
             # For LLE, y is one phase and x is the other phase
             if lle["density liquid"][0] > lle["density vapor"][0]:
                 ternary_data["x0"].extend(lle["x0"])
