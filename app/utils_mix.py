@@ -15,6 +15,11 @@ from gnnepcsaft.pcsaft.pcsaft_feos import (
 )
 from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
 from kivy.logger import Logger
+from numpy import float64
+from numpy.typing import NDArray
+from scipy.optimize import least_squares
+
+EPS = 1e-6
 
 
 @dataclass
@@ -735,3 +740,115 @@ def mix_ternary_vle_tx_fixed(
     series = _build_ternary_vle_series(x1_grid, params.solvent_ratio, context)
 
     return series.x1_values, series.bubble_pressures, series.dew_pressures
+
+
+def _pred_bp_worker(
+    t: float, x1: float, k_12: float, params: List[List[float]]
+) -> float:
+    """Predict bubble point pressure for one state point.
+
+    Must be at module level for pickle compatibility on Windows.
+
+    Args:
+        t (float): Temperature in Kelvin.
+        x1 (float): Mole fraction of component 1.
+        k_12 (float): Binary interaction parameter.
+        params (List[List[float]]): PC-SAFT parameters for the binary mixture.
+
+    Returns:
+        out (float): Predicted bubble point pressure in kPa.
+            Returns np.nan when bubble point calculation fails.
+    """
+    try:
+        bp_pa, _ = mix_vp_feos(
+            parameters=params,
+            state=[t, 0.0, x1, 1 - x1],
+            kij_matrix=[[0.0, k_12], [k_12, 0.0]],
+            epsilon_ab=None,
+        )
+        return float(bp_pa / 1e3)  # Convert Pa to kPa
+    except RuntimeError:
+        return np.nan
+    except BaseException as exc:  # pylint: disable=W0718
+        exception_type = type(exc).__name__
+        if exception_type == "PanicException":
+            return np.nan
+        raise
+
+
+def _loss_fn_bubble_point(
+    k_12_arr: np.ndarray,
+    params: List[List[float]],
+    x1: np.ndarray,
+    temperature: np.ndarray,
+    pressure: np.ndarray,
+) -> np.ndarray:
+    """Compute residual vector for bubble point optimization.
+
+    Args:
+        k_12_arr (np.ndarray): Array containing a single optimization variable (k_12).
+        params (List[List[float]]): PC-SAFT parameters for the binary mixture.
+        x1 (np.ndarray): Mole fractions of component 1.
+        temperature (np.ndarray): Temperatures in Kelvin.
+        pressure (np.ndarray): Pressures in kPa.
+
+    Returns:
+        out (np.ndarray): Residual vector defined as log(predicted_P/experimental_P).
+            Failed calculations are penalized with a large residual.
+    """
+    k_12 = k_12_arr[0]
+
+    # Run predictions in parallel using the active pool
+    pred_p = np.asarray(
+        [_pred_bp_worker(T, X1, k_12, params) for T, X1 in zip(temperature, x1)]
+    )
+
+    # Calculate residuals: log(pred_P/exp_P)
+    residuals = np.log((pred_p + EPS) / (pressure + EPS))
+
+    # Handle NaNs (failed calculation) by assigning a large penalty
+    nan_mask = np.isnan(residuals)
+    residuals[nan_mask] = 10.0
+
+    return residuals
+
+
+def optimize_binary_kij_for_vle(
+    smiles_list: List[str],
+    initial_kij: float,
+    vle: NDArray[float64],
+) -> float:
+    """
+    Optimize the kij interaction parameters for a binary mixture to match target VLE pressures.
+
+    Args:
+        smiles_list: List of SMILES strings for the components.
+        initial_kij: Initial guess for the kij interaction parameter.
+        vle: Array of target VLE pressures.
+    """
+
+    parameters = [predict_pcsaft_parameters(smiles) for smiles in smiles_list]
+
+    x1s = vle[:, 0]
+    pressures = vle[:, 1]
+    temperatures = vle[:, 2]
+    try:
+        # Optimize
+        res = least_squares(
+            fun=_loss_fn_bubble_point,
+            x0=[initial_kij],
+            kwargs={
+                "params": parameters,
+                "x1": x1s,
+                "temperature": temperatures,
+                "pressure": pressures,
+            },
+            jac="2-point",
+            method="lm",
+            ftol=1e-8,
+            xtol=1e-8,
+        )
+        return res.x[0].item()
+
+    except RuntimeError:
+        return 0.0
