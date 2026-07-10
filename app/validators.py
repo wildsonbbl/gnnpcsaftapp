@@ -40,7 +40,7 @@ def validate_npoints(npoints):
     """Validate number of points input."""
     if npoints <= 1:
         raise ValueError(f"Number of points must be greater than 1, got {npoints}")
-    if npoints > 500:
-        raise ValueError(
-            f"Number of points must be lower or equal to 500, got {npoints}"
-        )
+    # if npoints > 500:
+    #     raise ValueError(
+    #         f"Number of points must be lower or equal to 500, got {npoints}"
+    # )
