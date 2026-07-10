@@ -680,7 +680,7 @@ def mix_ternary_lle(
         params=parameters_list,
         state=[temperature, pressure],
         kij_matrix=kij_matrix,
-        npoints=npoints,
+        npoints=npoints if npoints < 100 else 100,
     )
 
 
