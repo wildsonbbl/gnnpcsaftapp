@@ -33,19 +33,20 @@ def plot_vle_txy(layout):
         pass
 
     output = mix_vle(smiles_list, kij_matrix, p_val, npoints)
-    x_liquid, y_vapor = assign_phase_by_density(output)
+    if output:
+        x_liquid, y_vapor = assign_phase_by_density(output)
 
-    layout._generate_plot(
-        PlotRequest(
-            x_data=[x_liquid, y_vapor],
-            y_data=output["temperature"],
-            title=f"VLE T-x-y for {smiles_list[0]} at {p_val} Pa",
-            x_label="x,y",
-            y_label="Temperature (K)",
-            legends=["Bubble Point", "Dew Point"],
-            exp_data=exp_data,
+        layout._generate_plot(
+            PlotRequest(
+                x_data=[x_liquid, y_vapor],
+                y_data=output["temperature"],
+                title=f"VLE T-x-y for {smiles_list[0]} at {p_val} Pa",
+                x_label="x,y",
+                y_label="Temperature (K)",
+                legends=["Bubble Point", "Dew Point"],
+                exp_data=exp_data,
+            )
         )
-    )
 
 
 def plot_vle_pxy(layout):
@@ -108,17 +109,18 @@ def plot_vle_xy(layout):
     npoints = layout._get_npoints()
 
     output = mix_vle(smiles_list, kij_matrix, p_val, npoints)
-    x_liquid, y_vapor = assign_phase_by_density(output)
+    if output:
+        x_liquid, y_vapor = assign_phase_by_density(output)
 
-    layout._generate_plot(
-        PlotRequest(
-            x_data=x_liquid,
-            y_data=y_vapor,
-            title=f"VLE x-y for {smiles_list[0]} at {p_val} Pa",
-            x_label="x",
-            y_label="y",
+        layout._generate_plot(
+            PlotRequest(
+                x_data=x_liquid,
+                y_data=y_vapor,
+                title=f"VLE x-y for {smiles_list[0]} at {p_val} Pa",
+                x_label="x",
+                y_label="y",
+            )
         )
-    )
 
 
 def plot_lle_txx(layout):
@@ -152,14 +154,15 @@ def plot_lle_txx(layout):
         npoints=layout._get_npoints(),
     )
     output = mix_lle(params)
-    layout._generate_plot(
-        PlotRequest(
-            x_data=[output["x0"], output["y0"]],
-            y_data=output["temperature"],
-            title=f"LLE T-x-x for {smiles_list[0]} at {p_val} Pa",
-            x_label="x,x",
-            y_label="Temperature (K)",
-            legends=["Phase 1", "Phase 2"],
-            exp_data=exp_data,
+    if output:
+        layout._generate_plot(
+            PlotRequest(
+                x_data=[output["x0"], output["y0"]],
+                y_data=output["temperature"],
+                title=f"LLE T-x-x for {smiles_list[0]} at {p_val} Pa",
+                x_label="x,x",
+                y_label="Temperature (K)",
+                legends=["Phase 1", "Phase 2"],
+                exp_data=exp_data,
+            )
         )
-    )
