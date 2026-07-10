@@ -434,9 +434,9 @@ def _build_ternary_vle_series(
 
 def _build_fraction_grid(
     mole_fractions: Optional[List[float]],
-    n_points: int,
+    npoints: int,
 ) -> List[float]:
-    x_grid = np.linspace(0.0, 1.0, num=n_points, dtype=np.float64).tolist()
+    x_grid = np.linspace(0.0, 1.0, num=npoints, dtype=np.float64).tolist()
     if mole_fractions:
         x_grid.extend(mole_fractions)
         x_grid = sorted(x_grid)
@@ -710,7 +710,7 @@ def mix_ternary_vle_tx_fixed(
         min_pc=min(pcs),
         max_pc=max(pcs),
     )
-    x1_grid = _build_fraction_grid(params.mole_fractions, n_points=params.npoints)
+    x1_grid = _build_fraction_grid(params.mole_fractions, npoints=params.npoints)
     series = _build_ternary_vle_series(x1_grid, params.solvent_ratio, context)
 
     return series.x1_values, series.bubble_pressures, series.dew_pressures
