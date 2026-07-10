@@ -104,7 +104,7 @@ def _build_loading_popup():
     content.add_widget(message_label)
     content.add_widget(progress)
     content.add_widget(elapsed_label)
-    content.add_widget(cancel_button)
+    # content.add_widget(cancel_button)
 
     popup = Popup(
         title="Processing",
