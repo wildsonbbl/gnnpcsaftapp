@@ -105,7 +105,7 @@ def build_param_table(param_names, param_values):
             text="Parameter name",
             bold=True,
             color="#212529",
-            halign="left",
+            halign="center",
         )
     )
     table.add_widget(
@@ -113,16 +113,16 @@ def build_param_table(param_names, param_values):
             text="Parameter value",
             bold=True,
             color="#212529",
-            halign="right",
+            halign="center",
         )
     )
 
     for name, value in zip(param_names, param_values):
-        param_label = Label(text=str(name), color="#212529", halign="left")
+        param_label = Label(text=str(name), color="#212529", halign="center")
         param_label.bind(size=param_label.setter("text_size"))  # type: ignore pylint: disable=no-member
         table.add_widget(param_label)
 
-        param_value_label = Label(text=f"{value:.5g}", color="#212529", halign="right")
+        param_value_label = Label(text=f"{value:.5g}", color="#212529", halign="center")
         param_value_label.bind(size=param_value_label.setter("text_size"))  # type: ignore pylint: disable=no-member
         table.add_widget(param_value_label)
 

@@ -207,7 +207,7 @@ class MixtureUIBuilder:
                 color="#198754",
                 font_size=18,
                 bold=True,
-                halign="left",
+                halign="center",
             )
             comp_header.bind(size=comp_header.setter("text_size"))  # type: ignore pylint: disable=no-member
             self.layout.predicted_parameters.add_widget(comp_header)
