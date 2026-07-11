@@ -528,6 +528,7 @@ def mix_vle(
         )
     except RuntimeError as exc:
         Logger.debug("mix_vle: Runtime Error at pressure=%.4f: %s", pressure, exc)
+        raise
     except BaseException as exc:  # pylint: disable=W0718
         exception_type = type(exc).__name__
         if exception_type == "PanicException":
@@ -601,6 +602,7 @@ def mix_lle(
             params.mole_fractions,
             exc,
         )
+        raise
     except BaseException as exc:  # pylint: disable=W0718
         exception_type = type(exc).__name__
         if exception_type == "PanicException":
