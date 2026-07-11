@@ -118,6 +118,20 @@ class MixtureLayout(BaseInputLayout):
                         kij_matrix[j][i] = k_vals[k_idx]
                         k_idx += 1
 
+    def get_kij_tmin_pressure(self, n, require_pressure=True):
+        """Fetch kij matrix, min temperature, and optionally pressure from layout.
+
+        Parameters
+        - n: number of components
+        - require_pressure: if True, will read and return pressure; otherwise returns None
+        """
+        kij_matrix = self._get_kij(n)
+        t_min, _ = self._get_temperatures(require_max=False)
+        p_val = None
+        if require_pressure:
+            p_val = self._get_pressure()
+        return kij_matrix, t_min, p_val
+
     def _get_available_data(self, smiles_list):
         output_args = default_mixture_output_args()
 

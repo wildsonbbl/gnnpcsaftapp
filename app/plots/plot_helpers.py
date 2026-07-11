@@ -19,20 +19,3 @@ def assign_phase_by_density(output):
             y_vapor.append(x_liq)
 
     return x_liquid, y_vapor
-
-
-# pylint: disable=protected-access
-def get_kij_tmin_pressure(layout, n, require_pressure=True):
-    """Fetch kij matrix, min temperature, and optionally pressure from layout.
-
-    Parameters
-    - layout: layout instance
-    - n: number of components
-    - require_pressure: if True, will read and return pressure; otherwise returns None
-    """
-    kij_matrix = layout._get_kij(n)
-    t_min, _ = layout._get_temperatures(require_max=False)
-    p_val = None
-    if require_pressure:
-        p_val = layout._get_pressure()
-    return kij_matrix, t_min, p_val

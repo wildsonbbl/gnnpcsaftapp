@@ -1,7 +1,6 @@
 """Plot handlers for mixture screens."""
 
 from app.plot_requests import PlotRequest, TernaryPlotRequest
-from app.plots.plot_helpers import get_kij_tmin_pressure
 from app.utils_data import (
     retrieve_lle_ternary_data,
     retrieve_vle_ternary_data,
@@ -20,7 +19,7 @@ def plot_vle_lle(layout):
         )
 
     n = len(smiles_list)
-    kij_matrix, t_min, p_val = get_kij_tmin_pressure(layout, n)
+    kij_matrix, t_min, p_val = layout.get_kij_tmin_pressure(n)
     npoints = layout._get_npoints()
     assert p_val is not None
 

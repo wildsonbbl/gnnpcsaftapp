@@ -2,7 +2,7 @@
 
 from app.input_requests import BinaryFillRequest
 from app.plot_requests import PlotRequest
-from app.plots.plot_helpers import assign_phase_by_density, get_kij_tmin_pressure
+from app.plots.plot_helpers import assign_phase_by_density
 from app.utils_data import (
     retrieve_lle_binary_data,
     retrieve_vle_binary_data,
@@ -67,7 +67,7 @@ def plot_vle_pxy(layout):
 
     n = len(smiles_list)
     # For P-x-y we don't require an explicit pressure input; only temperature is needed
-    kij_matrix, t_min, _ = get_kij_tmin_pressure(layout, n, require_pressure=False)
+    kij_matrix, t_min, _ = layout.get_kij_tmin_pressure(n, require_pressure=False)
     npoints = layout._get_npoints()
 
     exp_data = None

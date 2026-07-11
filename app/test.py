@@ -320,6 +320,13 @@ class TestPlotBinaryHandlers(unittest.TestCase):
             def _get_npoints(self):
                 return 10
 
+            def get_kij_tmin_pressure(self, n, require_pressure=True):
+                return (
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                    300.0,
+                    101325.0,
+                )
+
         layout = DummyLayout()
         mixture_binary.plot_vle_pxy(layout)
 
@@ -582,6 +589,13 @@ class TestPlotTernaryHandlers(unittest.TestCase):
             def _get_npoints(self):
                 return 10
 
+            def get_kij_tmin_pressure(self, n, require_pressure=True):
+                return (
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                    300.0,
+                    101325.0,
+                )
+
         layout = DummyLayout()
         mixture_ternary.plot_vle_lle(layout)
 
@@ -621,6 +635,13 @@ class TestPlotTernaryHandlers(unittest.TestCase):
 
             def _get_npoints(self):
                 return 10
+
+            def get_kij_tmin_pressure(self, n, require_pressure=True):
+                return (
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                    300.0,
+                    101325.0,
+                )
 
         layout = DummyLayout()
         mixture_ternary.plot_vle_lle(layout)
