@@ -50,7 +50,7 @@ def plot_density(layout, smiles_list):
         PlotRequest(
             x_data=temperatures,
             y_data=densities,
-            title="Mixture Density vs Temperature",
+            title=f"Density at P={p_val} Pa and mole fractions={fractions}",
             x_label="Temperature (K)",
             y_label="Density (mol/m³)",
             exp_data=exp_data,
@@ -93,7 +93,7 @@ def plot_vp(layout, smiles_list):
         PlotRequest(
             x_data=temperatures,
             y_data=[bubbles, dews],
-            title="Mixture Phase Envelope (P-T)",
+            title=f"VLE at mole fractions={fractions}",
             x_label="Temperature (K)",
             y_label="Pressure (Pa)",
             legends=["Bubble Point", "Dew Point"],

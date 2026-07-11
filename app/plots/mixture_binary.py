@@ -48,7 +48,7 @@ def plot_vle_txy(layout):
             PlotRequest(
                 x_data=[x_liquid, y_vapor],
                 y_data=output["temperature"],
-                title=f"VLE T-x-y for {smiles_list[0]} at {p_val} Pa",
+                title=f"VLE T-x-y for {smiles_list[0]} at P={p_val} Pa",
                 x_label="x,y",
                 y_label="Temperature (K)",
                 legends=["Bubble Point", "Dew Point"],
@@ -94,7 +94,7 @@ def plot_vle_pxy(layout):
         PlotRequest(
             x_data=x0s,
             y_data=[bps, dps],
-            title=f"VLE P-x-y for {smiles_list[0]} at {t_min} K",
+            title=f"VLE P-x-y for {smiles_list[0]} at T={t_min} K",
             x_label="x,y",
             y_label="Pressure (Pa)",
             legends=["Bubble Point", "Dew Point"],
@@ -124,7 +124,7 @@ def plot_vle_xy(layout):
             PlotRequest(
                 x_data=x_liquid,
                 y_data=y_vapor,
-                title=f"VLE x-y for {smiles_list[0]} at {p_val} Pa",
+                title=f"VLE x-y for {smiles_list[0]} at P={p_val} Pa",
                 x_label="x",
                 y_label="y",
             )

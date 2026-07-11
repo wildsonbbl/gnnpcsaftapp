@@ -22,6 +22,7 @@ def plot_vle_lle(layout):
     n = len(smiles_list)
     kij_matrix, t_min, p_val = get_kij_tmin_pressure(layout, n)
     npoints = layout._get_npoints()
+    assert p_val is not None
 
     exp_data = None
     try:
@@ -45,7 +46,7 @@ def plot_vle_lle(layout):
         TernaryPlotRequest(
             a=[output["x0"], output["y0"]],
             b=[output["x1"], output["y1"]],
-            title=f"VLE/LLE at {p_val} Pa, {t_min} K",
+            title=f"VLE/LLE at P={p_val} Pa, T={t_min} K",
             a_label=smiles_list[0],
             b_label=smiles_list[1],
             legends=["Phase 1", "Phase 2"],
@@ -101,7 +102,7 @@ def plot_vle_tx_fixed(layout):
             x_data=x1_values,
             y_data=[bubble_pressures, dew_pressures],
             title=(
-                f"Ternary VLE P-x at {t_min} K\n"
+                f"Ternary VLE P-x at T={t_min} K\n"
                 f"Fixed solvent ratio x2/(x2+x3)={solvent_ratio:.3f}"
             ),
             x_label=f"x({smiles_list[0]})",
