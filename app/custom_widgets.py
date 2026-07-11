@@ -25,11 +25,11 @@ class ActionLabelCustom(ButtonBehavior, Label):  # type: ignore
         # Bind mouse position for hover effect
         Window.bind(mouse_pos=self.on_mouse_pos)
 
-    def _update_rect(self, instance, value):  # pylint: disable=unused-argument
+    def _update_rect(self, instance, _value):
         self.rect.pos = instance.pos
         self.rect.size = instance.size
 
-    def on_mouse_pos(self, window, pos):  # pylint: disable=unused-argument
+    def on_mouse_pos(self, _window, pos):
         "function for mouse hover effect"
         if not self.get_root_window():
             return
