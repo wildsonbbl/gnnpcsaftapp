@@ -132,11 +132,11 @@ def plot_vle_xy(layout):
 
 
 def plot_lle_txx(layout):
-    """Plot binary LLE T-x-x using layout inputs and rendering helpers."""
+    """Plot binary VLE/LLE T-x-y or T-x-x using layout inputs and rendering helpers."""
     smiles_list = layout._get_smiles()
     if len(smiles_list) != 2:
         raise ValueError(
-            f"LLE for binary mixture, got {len(smiles_list)} components instead"
+            f"VLE/LLE for binary mixture, got {len(smiles_list)} components instead"
         )
 
     n = len(smiles_list)
@@ -150,6 +150,9 @@ def plot_lle_txx(layout):
         lle_arr = retrieve_lle_binary_data(smiles_list, p_val / 1000.0)
         if lle_arr is not None and len(lle_arr) > 0:
             exp_data = (lle_arr[:, 1], lle_arr[:, 0], "Exp. LLE Data")
+        vle_arr = retrieve_vle_binary_data(smiles_list, p_val / 1000.0)
+        if vle_arr is not None and len(vle_arr) > 0:
+            exp_data = (vle_arr[:, 1], vle_arr[:, 0], "Exp. VLE Data")
     except (ValueError, RuntimeError):
         pass
 
@@ -167,8 +170,8 @@ def plot_lle_txx(layout):
             PlotRequest(
                 x_data=[output["x0"], output["y0"]],
                 y_data=output["temperature"],
-                title=f"LLE T-x-x for {smiles_list[0]} at {p_val} Pa",
-                x_label="x,x",
+                title=f"VLE/LLE T-x-y/T-x-x for {smiles_list[0]} at P={p_val} Pa",
+                x_label="x,y or x,x",
                 y_label="Temperature (K)",
                 legends=["Phase 1", "Phase 2"],
                 exp_data=exp_data,

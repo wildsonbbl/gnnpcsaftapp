@@ -278,7 +278,7 @@ class MixtureLayout(BaseInputLayout):
 
     @run_with_loading
     def on_plot_binary_lle_txx(self):
-        "plot binary LLE T-x-x"
+        "plot binary VLE/LLE T-x-y or T-x-x"
         try:
             mixture_binary.plot_lle_txx(self)
         except (ValueError, RuntimeError) as e:
