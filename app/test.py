@@ -330,10 +330,12 @@ class TestPlotBinaryHandlers(unittest.TestCase):
         self.assertEqual(request.exp_data, ([0.3], [200000.0], "Exp. Bubble P"))
 
     @patch("app.plots.mixture_binary.retrieve_lle_binary_data")
+    @patch("app.plots.mixture_binary.retrieve_vle_binary_data")
     @patch("app.plots.mixture_binary.mix_lle")
-    def test_plot_lle_txx_exp(self, mock_mix, mock_exp):
-        """Plot binary LLE T-x-x with experimental overlay."""
+    def test_plot_lle_txx_exp(self, mock_mix, mock_exp, mock_exp2):
+        """Plot binary VLE/LLE T-x-y or T-x-x with experimental overlay."""
         mock_exp.return_value = FakeArray([[300.0, 0.4]])
+        mock_exp2.return_value = FakeArray([[300.0, 0.4]])
         mock_mix.return_value = {"x0": [0.4], "y0": [0.6], "temperature": [300.0]}
 
         class DummyLayout:
@@ -365,7 +367,10 @@ class TestPlotBinaryHandlers(unittest.TestCase):
         (request,), _ = layout._generate_plot.call_args
         self.assertEqual(request.x_data, [[0.4], [0.6]])
         self.assertEqual(request.y_data, [300.0])
-        self.assertEqual(request.exp_data, ([0.4], [300.0], "Exp. LLE Data"))
+        self.assertIn(
+            request.exp_data,
+            [([0.4], [300.0], "Exp. LLE Data"), ([0.4], [300.0], "Exp. VLE Data")],
+        )
 
 
 class TestPlotCommonHandlers(unittest.TestCase):
