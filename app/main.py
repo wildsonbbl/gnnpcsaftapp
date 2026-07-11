@@ -11,6 +11,7 @@ from urllib.error import HTTPError, URLError
 import kivy
 from kivy.app import App
 from kivy.clock import Clock
+from kivy.core.window import Window
 from kivy.logger import Logger
 from kivy.properties import (  # pylint: disable=no-name-in-module
     BooleanProperty,
@@ -34,6 +35,8 @@ from app.update_check import fetch_latest_release, is_newer_version
 from app.utils import show_error_popup, show_warning_popup
 
 kivy.require("2.3.1")  # replace with your current kivy version
+
+Window.maximize()
 
 application_path = os.path.dirname(os.path.abspath(__file__))
 
