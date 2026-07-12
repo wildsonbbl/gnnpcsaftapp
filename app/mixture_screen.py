@@ -252,8 +252,7 @@ class MixtureLayout(BaseInputLayout):
     def on_plot_density(self):
         "plot mixture density vs temperature"
         try:
-            smiles_list = self._get_smiles()
-            mixture_common.plot_density(self, smiles_list)
+            mixture_common.plot_density(self)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 
@@ -261,8 +260,7 @@ class MixtureLayout(BaseInputLayout):
     def on_plot_vp(self):
         "plot mixture vapor pressure vs temperature"
         try:
-            smiles_list = self._get_smiles()
-            mixture_common.plot_vp(self, smiles_list)
+            mixture_common.plot_vp(self)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)
 

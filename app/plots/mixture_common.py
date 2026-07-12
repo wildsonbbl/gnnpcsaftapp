@@ -10,8 +10,9 @@ from app.utils_mix import MixDenParams, MixVpParams, mix_den, mix_vp
 
 
 # pylint: disable = w0212
-def plot_density(layout, smiles_list):
+def plot_density(layout):
     """Plot mixture density vs temperature for any component count."""
+    smiles_list = layout._get_smiles()
     n = len(smiles_list)
     fractions = layout._get_fractions(n)
     kij_matrix = layout._get_kij(n)
@@ -59,8 +60,9 @@ def plot_density(layout, smiles_list):
 
 
 # pylint: disable = w0212
-def plot_vp(layout, smiles_list):
+def plot_vp(layout):
     """Plot mixture vapor pressure vs temperature for any component count."""
+    smiles_list = layout._get_smiles()
     n = len(smiles_list)
     fractions = layout._get_fractions(n)
     kij_matrix = layout._get_kij(n)
