@@ -7,7 +7,8 @@ import time
 from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
-from gnnepcsaft_mcp_server.utils import inchitosmiles, smilestoinchi
+from gnnepcsaft.data.ogb_utils import smiles2graph
+from gnnepcsaft.data.rdkit_util import assoc_number, inchitosmiles, smilestoinchi
 from kivy.app import App
 from kivy.clock import Clock, mainthread
 from kivy.logger import Logger
@@ -322,10 +323,13 @@ def get_smiles_from_input(input_text):
     "check if input is SMILES or InChI and convert to SMILES if needed"
     inchi_check = re.search("^InChI=", input_text)
     if inchi_check:
-        smiles = inchitosmiles(input_text)
+        smiles = inchitosmiles(input_text, False, False)
+        inchi = smilestoinchi(smiles, False, False)
     else:
-        smilestoinchi(input_text)
-        smiles = input_text
+        inchi = smilestoinchi(input_text, False, False)
+        smiles = inchitosmiles(inchi, False, False)
+    smiles2graph(smiles)
+    assoc_number(inchi)
     return smiles
 
 
