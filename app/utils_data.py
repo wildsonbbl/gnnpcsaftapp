@@ -1,7 +1,7 @@
 "Experimental data utilities"
 
 import os.path as osp
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import polars as pl
 from gnnepcsaft_mcp_server.utils import smilestoinchi
@@ -52,13 +52,14 @@ def _filter_binary_pair(
             pl.col("T_K").round(1).alias("T_approx"),
         )
         .unique()
+        .filter(pl.col("x_c1").is_not_nan())
     )
 
 
 def _build_binary_rho_data(
     inchi1: str,
     inchi2: str,
-) -> Optional[NDArray[float64]]:
+) -> Optional[List[List[float]]]:
     rho_bin = pl.read_parquet(osp.join(application_path, "_data", "rho_binary.parquet"))
     filtered = _filter_binary_pair(
         rho_bin, inchi1, inchi2, "mole_fraction_c1", "mole_fraction_c2"
@@ -67,21 +68,18 @@ def _build_binary_rho_data(
         return None
     return (
         filtered.group_by(["P_kPa", "x_approx"])
-        .agg(
-            pl.col("T_K").min().alias("T_min"),
-            pl.col("T_K").max().alias("T_max"),
-            pl.len().alias("count"),
-        )
+        .agg(pl.len().alias("count"))
         .filter(pl.col("count") > 1)
         .sort(["P_kPa", "x_approx"])
         .to_numpy()
+        .tolist()
     )
 
 
 def _build_binary_bubble_data(
     inchi1: str,
     inchi2: str,
-) -> Optional[NDArray[float64]]:
+) -> Optional[List[List[float]]]:
     path_vle = osp.join(application_path, "_data", "vle_binary.parquet")
     path_vp = osp.join(application_path, "_data", "vp_binary.parquet")
     df = _read_parquet_if_exists([path_vle, path_vp])
@@ -93,14 +91,11 @@ def _build_binary_bubble_data(
         if filtered.height > 0:
             return (
                 filtered.group_by("x_approx")
-                .agg(
-                    pl.col("T_K").min().alias("T_min"),
-                    pl.col("T_K").max().alias("T_max"),
-                    pl.len().alias("count"),
-                )
+                .agg(pl.len().alias("count"))
                 .filter(pl.col("count") > 1, pl.col("x_approx").is_not_nan())
                 .sort("x_approx")
                 .to_numpy()
+                .tolist()
             )
     return None
 
@@ -108,7 +103,7 @@ def _build_binary_bubble_data(
 def _build_binary_lle_data(
     inchi1: str,
     inchi2: str,
-) -> Optional[NDArray[float64]]:
+) -> Optional[List[List[float]]]:
     path_lle = osp.join(application_path, "_data", "lle_binary.parquet")
     path_lle_temp = osp.join(application_path, "_data", "lle_binary_temp.parquet")
     df = _read_parquet_if_exists([path_lle, path_lle_temp])
@@ -120,14 +115,11 @@ def _build_binary_lle_data(
         if filtered.height > 0:
             return (
                 filtered.group_by("P_kPa")
-                .agg(
-                    pl.col("T_K").min().alias("T_min"),
-                    pl.col("T_K").max().alias("T_max"),
-                    pl.len().alias("count"),
-                )
+                .agg(pl.len().alias("count"))
                 .filter(pl.col("count") > 1)
                 .sort("P_kPa")
                 .to_numpy()
+                .tolist()
             )
     return None
 
@@ -135,7 +127,7 @@ def _build_binary_lle_data(
 def _build_binary_vle_data(
     inchi1: str,
     inchi2: str,
-) -> Tuple[Optional[NDArray[float64]], Optional[NDArray[float64]]]:
+) -> Tuple[Optional[List[List[float]]], Optional[List[List[float]]]]:
     path_vle = osp.join(application_path, "_data", "vle_binary.parquet")
     path_vp = osp.join(application_path, "_data", "vp_binary.parquet")
     df = _read_parquet_if_exists([path_vle, path_vp])
@@ -147,23 +139,17 @@ def _build_binary_vle_data(
         if filtered.height > 0:
             return (
                 filtered.group_by("P_kPa")
-                .agg(
-                    pl.col("T_K").min().alias("T_min"),
-                    pl.col("T_K").max().alias("T_max"),
-                    pl.len().alias("count"),
-                )
+                .agg(pl.len().alias("count"))
                 .filter(pl.col("count") > 1)
                 .sort("P_kPa")
-                .to_numpy(),
+                .to_numpy()
+                .tolist(),
                 filtered.group_by("T_approx")
-                .agg(
-                    pl.col("P_kPa").min().alias("P_min"),
-                    pl.col("P_kPa").max().alias("P_max"),
-                    pl.len().alias("count"),
-                )
+                .agg(pl.len().alias("count"))
                 .filter(pl.col("count") > 1)
                 .sort("T_approx")
-                .to_numpy(),
+                .to_numpy()
+                .tolist(),
             )
 
     return None, None
@@ -217,7 +203,7 @@ def _filter_ternary_set(
 
 def _build_ternary_rho_data(
     target_set: list,
-) -> Optional[NDArray[float64]]:
+) -> Optional[List[List[float]]]:
     path_rho = osp.join(application_path, "_data", "rho_ternary.parquet")
     df = _read_parquet_if_exists([path_rho])
     if df is None:
@@ -229,19 +215,16 @@ def _build_ternary_rho_data(
     if filtered.height > 0:
         return (
             filtered.group_by(["P_kPa", "x_approx_1", "x_approx_2"])
-            .agg(
-                pl.col("T_K").min().alias("T_min"),
-                pl.col("T_K").max().alias("T_max"),
-                pl.len().alias("count"),
-            )
+            .agg(pl.len().alias("count"))
             .filter(pl.col("count") > 1)
             .sort(["P_kPa", "x_approx_1", "x_approx_2"])
             .to_numpy()
+            .tolist()
         )
     return None
 
 
-def _build_ternary_lle_data(target_set: list) -> Optional[NDArray[float64]]:
+def _build_ternary_lle_data(target_set: list) -> Optional[List[List[float]]]:
     path_lle = osp.join(application_path, "_data", "lle_ternary.parquet")
     path_lle_mass = osp.join(application_path, "_data", "lle_mass_ternary.parquet")
     df = _read_parquet_if_exists([path_lle, path_lle_mass])
@@ -260,12 +243,13 @@ def _build_ternary_lle_data(target_set: list) -> Optional[NDArray[float64]]:
         .filter(pl.col("count") > 1)
         .sort(["P_kPa", "T_K"])
         .to_numpy()
+        .tolist()
     )
 
 
 def _build_ternary_vle_data(
     target_set: list,
-) -> Tuple[Optional[NDArray[float64]], Optional[NDArray[float64]]]:
+) -> Tuple[Optional[List[List[float]]], Optional[List[List[float]]]]:
     path_vle = osp.join(application_path, "_data", "vle_ternary.parquet")
     path_vp = osp.join(application_path, "_data", "vp_ternary.parquet")
     df = _read_parquet_if_exists([path_vle, path_vp])
@@ -278,40 +262,40 @@ def _build_ternary_vle_data(
     if filtered.height == 0:
         return None, None
 
-    vle_data = (
+    vle_pt_data = (
         filtered.group_by(["P_kPa", "T_K"])
         .agg(pl.len().alias("count"))
         .filter(pl.col("count") > 1)
         .sort(["P_kPa", "T_K"])
         .to_numpy()
+        .tolist()
     )
 
     vle_tx_data = (
         filtered.group_by(["T_K", "solvent_ratio"])
-        .agg(
-            pl.col("P_kPa").min().alias("P_min"),
-            pl.col("P_kPa").max().alias("P_max"),
-            pl.len().alias("count"),
-        )
+        .agg(pl.len().alias("count"))
         .filter(pl.col("count") > 1, pl.col("solvent_ratio").is_not_nan())
         .sort(["T_K", "solvent_ratio"])
         .to_numpy()
+        .tolist()
     )
 
-    return vle_data, vle_tx_data
+    return vle_pt_data, vle_tx_data
 
 
-def default_mixture_output_args():
+def default_mixture_output_args() -> (
+    Dict[str, Optional[Union[List[List[float]], List[Tuple[str, List[float]]]]]]
+):
     """Return the default output_args dict for mixture plots."""
     return {
-        "rho_data": None,
-        "bubble_data": None,
-        "lle_data": None,
-        "vle_data": None,
-        "vle_pxy_data": None,
-        "rho_data_t": None,
-        "lle_data_t": None,
-        "vle_data_t": None,
+        "rho_px_data_b": None,
+        "vle_x_data_b": None,
+        "lle_p_data_b": None,
+        "vle_p_data_b": None,
+        "vle_t_data_b": None,
+        "rho_px_data_t": None,
+        "lle_pt_data_t": None,
+        "vle_pt_data_t": None,
         "vle_tx_data_t": None,
         "preds": [],
     }
@@ -360,19 +344,7 @@ def retrieve_st_pure_data(smiles: str) -> Optional[NDArray[float64]]:
 
 def retrieve_available_data_pure(
     smiles: str,
-) -> Tuple[
-    Optional[NDArray[float64]],
-    Tuple[
-        Optional[NDArray[float64]],
-        Optional[NDArray[float64]],
-        int,
-    ],
-    Tuple[
-        Optional[NDArray[float64]],
-        Optional[NDArray[float64]],
-        int,
-    ],
-]:
+) -> Dict[str, Optional[Union[List[float], int]]]:
     "retrieve available pure data for smiles"
 
     rho_pure = pl.read_parquet(osp.join(application_path, "_data", "rho_pure.parquet"))
@@ -383,36 +355,32 @@ def retrieve_available_data_pure(
 
     rho_filtered = rho_pure.filter(pl.col("inchi1") == inchi)
     if rho_filtered.height > 0:
-        pure_data = (
-            rho_filtered.select("T_K", "P_kPa")
+        rho_range = (
+            rho_filtered.select("P_kPa")
             .group_by(pl.col("P_kPa"))
-            .agg(
-                pl.col("T_K").min().alias("T_min"),
-                pl.col("T_K").max().alias("T_max"),
-                pl.len().alias("count"),
-            )
+            .agg(pl.len().alias("count"))
             .filter(pl.col("count") > 1)
             .sort(pl.col("P_kPa"))
             .to_numpy()
+            .tolist()
         )
     else:
-        pure_data = None
+        rho_range = None
 
     vp_filtered = vp_pure.filter(pl.col("inchi1") == inchi)
     if vp_filtered.height > 0:
-        vp_data = vp_filtered.select("T_K").to_numpy()
-        vp_range = (vp_data.min(), vp_data.max(), vp_filtered.height)
+        vp_range = vp_filtered.height
     else:
-        vp_range = (None, None, 0)
+        vp_range = 0
 
     st_filtered = st_pure.filter(pl.col("inchi1") == inchi)
     if st_filtered.height > 0:
-        st_data = st_filtered.select("T_K").to_numpy()
-        st_range = (st_data.min(), st_data.max(), st_filtered.height)
-    else:
-        st_range = (None, None, 0)
 
-    return pure_data, vp_range, st_range
+        st_range = st_filtered.height
+    else:
+        st_range = 0
+
+    return {"rho_range": rho_range, "vp_range": vp_range, "st_range": st_range}
 
 
 def retrieve_rho_binary_data(
@@ -524,7 +492,7 @@ def retrieve_vle_pxy_binary_data(
             df, i1, i2, "mole_fraction_c1p2", "mole_fraction_c2p2"
         ).filter(pl.col("T_K").is_close(temperature, abs_tol=tol_t))
         if filtered.height > 0:
-            return filtered.select("P_kPa", "x_c1").to_numpy()
+            return filtered.select("x_c1", "P_kPa").to_numpy()
 
     return None
 
@@ -576,16 +544,10 @@ def retrieve_lle_binary_data(
     return filtered.select("T_K", "x_c1").to_numpy()
 
 
-def retrieve_available_data_binary(smiles_list: list) -> Tuple[
-    Optional[NDArray[float64]],
-    Optional[NDArray[float64]],
-    Optional[NDArray[float64]],
-    Optional[NDArray[float64]],
-    Optional[NDArray[float64]],
-]:
+def retrieve_available_data_binary(
+    smiles_list: list,
+) -> Dict[str, Optional[List[List[float]]]]:
     "retrieve available binary data"
-    if len(smiles_list) != 2:
-        return None, None, None, None, None
 
     i1, i2 = smilestoinchi(smiles_list[0]), smilestoinchi(smiles_list[1])
 
@@ -594,20 +556,19 @@ def retrieve_available_data_binary(smiles_list: list) -> Tuple[
     lle_data = _build_binary_lle_data(i1, i2)
     vle_data, vle_pxy_data = _build_binary_vle_data(i1, i2)
 
-    return rho_data, bubble_data, lle_data, vle_data, vle_pxy_data
+    return {
+        "rho_px_data_b": rho_data,
+        "vle_x_data_b": bubble_data,
+        "lle_p_data_b": lle_data,
+        "vle_p_data_b": vle_data,
+        "vle_t_data_b": vle_pxy_data,
+    }
 
 
 def retrieve_available_data_ternary(
     smiles_list: list,
-) -> Tuple[
-    Optional[NDArray[float64]],
-    Optional[NDArray[float64]],
-    Optional[NDArray[float64]],
-    Optional[NDArray[float64]],
-]:
+) -> Dict[str, Optional[List[List[float]]]]:
     "retrieve available ternary data"
-    if len(smiles_list) != 3:
-        return None, None, None, None
 
     target_set = [
         smilestoinchi(smiles_list[0]),
@@ -617,9 +578,14 @@ def retrieve_available_data_ternary(
 
     rho_data = _build_ternary_rho_data(target_set)
     lle_data = _build_ternary_lle_data(target_set)
-    vle_data, vle_tx_data = _build_ternary_vle_data(target_set)
+    vle_pt_data, vle_tx_data = _build_ternary_vle_data(target_set)
 
-    return rho_data, lle_data, vle_data, vle_tx_data
+    return {
+        "rho_px_data_t": rho_data,
+        "lle_pt_data_t": lle_data,
+        "vle_pt_data_t": vle_pt_data,
+        "vle_tx_data_t": vle_tx_data,
+    }
 
 
 def retrieve_rho_ternary_data(

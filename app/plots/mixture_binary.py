@@ -75,8 +75,8 @@ def plot_vle_pxy(layout):
         vle_arr = retrieve_vle_pxy_binary_data(smiles_list, t_min)
         if vle_arr is not None and len(vle_arr) > 0:
             exp_data = (
-                vle_arr[:, 1],
-                vle_arr[:, 0] * 1000.0,
+                vle_arr[:, 0],
+                vle_arr[:, 1] * 1000.0,
                 "Exp. Bubble P",
             )
     except (ValueError, RuntimeError):

@@ -21,8 +21,8 @@ class PureUIData:
     """Payload for rendering pure-component UI results."""
 
     rho_data: list
-    vp_range: list
-    st_range: list
+    vp_range: int
+    st_range: int
     pred: list
 
 
@@ -54,13 +54,13 @@ class PureUIBuilder:
         self._render_footer()
 
     def _render_surface_tension(self):
-        if self.st_range[0] is None:
+        if self.st_range == 0:
             return
 
         dropdown = DropDown()
         self._cache_dropdown(dropdown)
         btn = Button(
-            text=f"ST data ({int(self.st_range[2])} points, T is variable)",
+            text=f"ST data ({int(self.st_range)} points)",
             size_hint_y=None,
             height=44,
         )
@@ -70,13 +70,13 @@ class PureUIBuilder:
         add_dropdown_button(self.layout, "Select Surface Tension Data", dropdown)
 
     def _render_vapor_pressure(self):
-        if self.vp_range[0] is None:
+        if self.vp_range == 0:
             return
 
         dropdown = DropDown()
         self._cache_dropdown(dropdown)
         btn = Button(
-            text=f"VP data ({int(self.vp_range[2])} points, T is variable)",
+            text=f"VP data ({int(self.vp_range)} points)",
             size_hint_y=None,
             height=44,
         )
@@ -93,7 +93,7 @@ class PureUIBuilder:
         self._cache_dropdown(dropdown)
         for row in self.rho_data:
             btn = Button(
-                text=f"P={row[0]:.5g} kPa ({int(row[3])} points)",
+                text=f"P={row[0]:.5g} kPa ({int(row[1])} points)",
                 size_hint_y=None,
                 height=44,
             )
@@ -129,5 +129,5 @@ class PureUIBuilder:
 
     def _has_exp_data(self):
         return (self.rho_data is not None and len(self.rho_data) > 0) or (
-            self.vp_range[0] is not None or self.st_range[0] is not None
+            self.vp_range > 0 or self.st_range > 0
         )

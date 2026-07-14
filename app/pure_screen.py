@@ -237,12 +237,9 @@ class PureLayout(BaseInputLayout):
         try:
             smiles = get_smiles_from_input(smiles_or_inchi_input)
 
-            # Display Available Data
-            rho_data = []
-            vp_range = [None] * 5
-            st_range = [None] * 5
+            available_data_pure = {"rho_range": None, "vp_range": 0, "st_range": 0}
             try:
-                rho_data, vp_range, st_range = retrieve_available_data_pure(smiles)
+                available_data_pure = retrieve_available_data_pure(smiles)
             except (ValueError, RuntimeError) as e:
                 show_warning_popup(
                     "Exp. Data Notice",
@@ -263,7 +260,12 @@ class PureLayout(BaseInputLayout):
                 builder = PureUIBuilder(self, ui_data)
                 builder.build()
 
-            build_ui(rho_data, vp_range, st_range, pred)
+            build_ui(
+                available_data_pure["rho_range"],
+                available_data_pure["vp_range"],
+                available_data_pure["st_range"],
+                pred,
+            )
 
         except (RuntimeError, ValueError) as e:
             self._show_error_alert(e)

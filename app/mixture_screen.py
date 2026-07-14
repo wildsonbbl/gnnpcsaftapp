@@ -137,13 +137,7 @@ class MixtureLayout(BaseInputLayout):
 
         if len(smiles_list) == 2:
             try:
-                (
-                    output_args["rho_data"],
-                    output_args["bubble_data"],
-                    output_args["lle_data"],
-                    output_args["vle_data"],
-                    output_args["vle_pxy_data"],
-                ) = retrieve_available_data_binary(smiles_list)
+                output_args.update(retrieve_available_data_binary(smiles_list))
             except (ValueError, RuntimeError) as e:
                 show_warning_popup(
                     "Exp. Data Notice",
@@ -151,12 +145,7 @@ class MixtureLayout(BaseInputLayout):
                 )
         elif len(smiles_list) == 3:
             try:
-                (
-                    output_args["rho_data_t"],
-                    output_args["lle_data_t"],
-                    output_args["vle_data_t"],
-                    output_args["vle_tx_data_t"],
-                ) = retrieve_available_data_ternary(smiles_list)
+                output_args.update(retrieve_available_data_ternary(smiles_list))
             except (ValueError, RuntimeError) as e:
                 show_warning_popup(
                     "Exp. Data Notice",
@@ -233,10 +222,12 @@ class MixtureLayout(BaseInputLayout):
             smiles_list = self._get_smiles()
             output_args = self._get_available_data(smiles_list)
 
+            preds = []
             for smile in smiles_list:
                 pred = predict_pcsaft_parameters(smile)
                 pred += critical_points_feos(copy(pred))
-                output_args["preds"].append((smile, pred))
+                preds.append((smile, pred))
+            output_args["preds"] = preds
 
             @mainthread
             def build_ui():

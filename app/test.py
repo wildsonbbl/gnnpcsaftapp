@@ -301,7 +301,7 @@ class TestPlotBinaryHandlers(unittest.TestCase):
     @patch("app.plots.mixture_binary.mix_vle_pxy")
     def test_plot_vle_pxy_exp(self, mock_mix, mock_exp):
         """Plot binary VLE P-x-y with experimental overlay."""
-        mock_exp.return_value = FakeArray([[200.0, 0.3]])
+        mock_exp.return_value = FakeArray([[0.3, 200.0]])
         mock_mix.return_value = ([0.3], [1000.0], [900.0])
 
         class DummyLayout:
@@ -691,8 +691,8 @@ class TestPureUIBuilder(unittest.TestCase):
     def test_build_adds_availability_header(self, _mock_label):
         """Show availability header when experimental data exists."""
         test_rho_data = [[101.0, 300.0, 310.0, 5]]
-        test_vp_range = [None] * 5
-        test_st_range = [None] * 5
+        test_vp_range = 0
+        test_st_range = 0
         pred = [1.0] * len(utils.available_params)
 
         class DummyLayout:
@@ -725,8 +725,8 @@ class TestPureUIBuilder(unittest.TestCase):
     def test_build_skips_availability_header(self, _mock_label):
         """Skip availability header when no experimental data exists."""
         test_rho_data = []
-        test_vp_range = [None] * 5
-        test_st_range = [None] * 5
+        test_vp_range = 0
+        test_st_range = 0
         pred = [1.0] * len(utils.available_params)
 
         class DummyLayout:
