@@ -143,7 +143,7 @@ def plot_lle_txx(layout):
     n = len(smiles_list)
     fractions = layout._get_fractions(n)
     kij_matrix = layout._get_kij(n)
-    t_min, _ = layout._get_temperatures(require_max=False)
+    t_min, t_max = layout._get_temperatures(require_max=True)
     p_val = layout._get_pressure()
 
     exp_data = None
@@ -166,7 +166,8 @@ def plot_lle_txx(layout):
         smiles_list=smiles_list,
         mole_fractions=fractions,
         kij_matrix=kij_matrix,
-        temperature=t_min,
+        temperature_min=t_min,
+        temperature_max=t_max,
         pressure=p_val,
         npoints=layout._get_npoints(),
     )
@@ -180,6 +181,76 @@ def plot_lle_txx(layout):
                 x_label="x,y or x,x",
                 y_label="Temperature (K)",
                 legends=["Phase 1", "Phase 2"],
+                exp_data=exp_data,
+            )
+        )
+
+
+def plot_vlle_txx(layout):
+    """Plot binary VLLE using layout inputs and rendering helpers."""
+    smiles_list = layout._get_smiles()
+    if len(smiles_list) != 2:
+        raise ValueError(
+            f"VLLE for binary mixture, got {len(smiles_list)} components instead"
+        )
+
+    n = len(smiles_list)
+    fractions = layout._get_fractions(n)
+    kij_matrix = layout._get_kij(n)
+    t_min, t_max = layout._get_temperatures(require_max=True)
+    p_val = layout._get_pressure()
+
+    exp_data = None
+    try:
+        lle_arr = retrieve_lle_binary_data(smiles_list, p_val / 1000.0)
+        vle_arr = retrieve_vle_binary_data(smiles_list, p_val / 1000.0)
+        vlle_arr = retrieve_vlle_binary_data(
+            smiles_list=smiles_list, pressure=p_val / 1000.0
+        )
+        if vlle_arr is not None and len(vlle_arr):
+            exp_data = (vlle_arr[:, 1], vlle_arr[:, 0], "Exp. VLLE Data")
+        elif lle_arr is not None and len(lle_arr) > 0:
+            exp_data = (lle_arr[:, 1], lle_arr[:, 0], "Exp. LLE Data")
+        elif vle_arr is not None and len(vle_arr) > 0:
+            exp_data = (vle_arr[:, 1], vle_arr[:, 0], "Exp. VLE Data")
+    except (ValueError, RuntimeError):
+        pass
+
+    params = MixLLEParams(
+        smiles_list=smiles_list,
+        mole_fractions=fractions,
+        kij_matrix=kij_matrix,
+        temperature_min=t_min,
+        temperature_max=t_max,
+        pressure=p_val,
+        npoints=layout._get_npoints(),
+    )
+    output_lle = mix_lle(params)
+    output_vle = mix_vle(
+        smiles_list=smiles_list,
+        kij_matrix=kij_matrix,
+        pressure=p_val,
+        npoints=layout._get_npoints(),
+    )
+    if output_lle is not None and output_vle is not None:
+        layout._generate_plot(
+            PlotRequest(
+                x_data=[
+                    output_lle["x0"],
+                    output_lle["y0"],
+                    output_vle["x0"],
+                    output_vle["y0"],
+                ],
+                y_data=[
+                    output_lle["temperature"],
+                    output_lle["temperature"],
+                    output_vle["temperature"],
+                    output_vle["temperature"],
+                ],
+                title=f"VLLE for {smiles_list[0]} at P={p_val} Pa",
+                x_label="x,y and x,x",
+                y_label="Temperature (K)",
+                legends=["Phase 1 LLE", "Phase 2 LLE", "Phase 1 VLE", "Phase 2 VLE"],
                 exp_data=exp_data,
             )
         )

@@ -10,6 +10,7 @@ from gnnepcsaft.pcsaft.pcsaft_feos import (
     mix_lle_diagram_feos,
     mix_lle_feos,
     mix_vle_diagram_feos,
+    mix_vlle_diagram_feos,
     mix_vp_feos,
     pure_vp_feos,
 )
@@ -82,7 +83,8 @@ class MixLLEParams:
     smiles_list: List[str]
     mole_fractions: List[float]
     kij_matrix: List[List[float]]
-    temperature: float
+    temperature_min: float
+    temperature_max: float
     pressure: float
     npoints: int
 
@@ -553,6 +555,55 @@ def mix_vle(
     return None
 
 
+def mix_vlle(
+    params: MixLLEParams,
+) -> Optional[
+    Tuple[Dict[str, List[float]], Dict[str, List[float]], Dict[str, List[float]]]
+]:
+    "Calculate mixture VLLE using PC-SAFT EOS"
+    parameters_list = [
+        predict_pcsaft_parameters(smiles) for smiles in params.smiles_list
+    ]
+
+    try:
+        return mix_vlle_diagram_feos(
+            parameters=parameters_list,
+            state=[params.temperature_min, params.pressure, *params.mole_fractions],
+            kij_matrix=params.kij_matrix,
+            npoints=params.npoints if params.npoints < 500 else 500,
+        )
+    except RuntimeError as exc:
+        Logger.debug(
+            "mix_vlle: Runtime Error at temperature=%.4f, pressure=%.4f, molefractions=%s: %s",
+            params.temperature_min,
+            params.pressure,
+            params.mole_fractions,
+            exc,
+        )
+        raise
+    except BaseException as exc:  # pylint: disable=W0718
+        exception_type = type(exc).__name__
+        if exception_type == "PanicException":
+            Logger.warning(
+                "mix_vlle: PanicException at temperature=%.4f, "
+                "pressure=%.4f, molefractions=%s: %s",
+                params.temperature_min,
+                params.pressure,
+                params.mole_fractions,
+                exc,
+            )
+        else:
+            Logger.exception(
+                "mix_vlle: unexpected %s at temperature=%.4f, pressure=%.4f, molefractions=%s",
+                exception_type,
+                params.temperature_min,
+                params.pressure,
+                params.mole_fractions,
+            )
+            raise
+    return None
+
+
 def mix_vle_pxy(
     smiles_list: List[str],
     kij_matrix: List[List[float]],
@@ -598,14 +649,19 @@ def mix_lle(
     try:
         return mix_lle_diagram_feos(
             parameters=parameters_list,
-            state=[params.temperature, params.pressure, *params.mole_fractions],
+            state=[
+                params.temperature_min,
+                params.temperature_max,
+                params.pressure,
+                *params.mole_fractions,
+            ],
             kij_matrix=params.kij_matrix,
             npoints=params.npoints if params.npoints < 500 else 500,
         )
     except RuntimeError as exc:
         Logger.debug(
             "mix_lle: Runtime Error at temperature=%.4f, pressure=%.4f, molefractions=%s: %s",
-            params.temperature,
+            params.temperature_min,
             params.pressure,
             params.mole_fractions,
             exc,
@@ -617,7 +673,7 @@ def mix_lle(
             Logger.warning(
                 "mix_lle: PanicException at temperature=%.4f, "
                 "pressure=%.4f, molefractions=%s: %s",
-                params.temperature,
+                params.temperature_min,
                 params.pressure,
                 params.mole_fractions,
                 exc,
@@ -626,7 +682,7 @@ def mix_lle(
             Logger.exception(
                 "mix_lle: unexpected %s at temperature=%.4f, pressure=%.4f, molefractions=%s",
                 exception_type,
-                params.temperature,
+                params.temperature_min,
                 params.pressure,
                 params.mole_fractions,
             )

@@ -13,8 +13,8 @@ NumericSeq = Sequence[float]
 class PlotRequest:
     """Parameters for a standard 2D plot."""
 
-    x_data: Union[NumericSeq, Sequence[NumericSeq]]
-    y_data: Union[NumericSeq, Sequence[NumericSeq]]
+    x_data: Union[NumericSeq, Sequence[NumericSeq], Sequence[Sequence[NumericSeq]]]
+    y_data: Union[NumericSeq, Sequence[NumericSeq], Sequence[Sequence[NumericSeq]]]
     title: str
     x_label: str
     y_label: str

@@ -224,7 +224,8 @@ def show_error_popup(err):
             ]
             if "temperature" in lowered:
                 suggestions.append(
-                    "For binary LLE, min temperature is used as starting value for calculations",
+                    "For binary LLE, min/max temperature are "
+                    "used as range values for calculations",
                 )
         elif "fraction" in lowered or "kij" in lowered:
             suggestions = [
@@ -347,7 +348,27 @@ def generate_plot(request: PlotRequest):
     plt.xticks(fontsize=8)
     plt.yticks(fontsize=8)
 
-    if isinstance(request.y_data[0], list):
+    if (
+        isinstance(request.y_data[0], list)
+        and isinstance(request.x_data[0], list)
+        and request.legends is not None
+    ):
+        i = 0
+        for y_data, x_data, legend in zip(
+            request.y_data, request.x_data, request.legends
+        ):
+            plt.plot(
+                x_data,
+                y_data,
+                marker=MARKERS[i % len(MARKERS)],
+                linestyle="-",
+                markersize=4,
+                label=legend,
+            )
+            if request.legends:
+                plt.legend(fontsize=8)
+            i += 1
+    elif isinstance(request.y_data[0], list):
         # Multiple lines (e.g., Bubble/Dew points)
         for i, y_data in enumerate(request.y_data):
             label = (

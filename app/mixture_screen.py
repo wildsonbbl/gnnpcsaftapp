@@ -288,6 +288,14 @@ class MixtureLayout(BaseInputLayout):
             self._show_error_alert(e)
 
     @run_with_loading
+    def on_plot_binary_vlle_txx(self):
+        "plot binary VLLE"
+        try:
+            mixture_binary.plot_vlle_txx(self)
+        except (ValueError, RuntimeError) as e:
+            self._show_error_alert(e)
+
+    @run_with_loading
     def on_plot_ternary_vle_lle(self):
         "plot ternary VLE/LLE"
         try:
