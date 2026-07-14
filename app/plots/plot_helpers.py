@@ -1,5 +1,7 @@
 """Plot handlers for mixture screens."""
 
+# pylint: disable = w0212
+
 
 def assign_phase_by_density(output):
     """Assign liquid and vapor compositions based on density ordering."""
@@ -19,3 +21,13 @@ def assign_phase_by_density(output):
             y_vapor.append(x_liq)
 
     return x_liquid, y_vapor
+
+
+def get_all_input(layout, smiles_list):
+    "get input values"
+    n = len(smiles_list)
+    fractions = layout._get_fractions(n)
+    kij_matrix = layout._get_kij(n)
+    t_min, t_max = layout._get_temperatures(require_max=True)
+    p_val = layout._get_pressure()
+    return fractions, kij_matrix, t_min, t_max, p_val

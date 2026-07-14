@@ -2,7 +2,7 @@
 
 from app.input_requests import BinaryFillRequest
 from app.plot_requests import PlotRequest
-from app.plots.plot_helpers import assign_phase_by_density
+from app.plots.plot_helpers import assign_phase_by_density, get_all_input
 from app.utils_data import (
     retrieve_lle_binary_data,
     retrieve_vle_binary_data,
@@ -194,11 +194,7 @@ def plot_vlle_txx(layout):
             f"VLLE for binary mixture, got {len(smiles_list)} components instead"
         )
 
-    n = len(smiles_list)
-    fractions = layout._get_fractions(n)
-    kij_matrix = layout._get_kij(n)
-    t_min, t_max = layout._get_temperatures(require_max=True)
-    p_val = layout._get_pressure()
+    fractions, kij_matrix, t_min, t_max, p_val = get_all_input(layout, smiles_list)
 
     exp_data = None
     try:

@@ -1,6 +1,7 @@
 """Shared plot handlers for mixture screens."""
 
 from app.plot_requests import PlotRequest
+from app.plots.plot_helpers import get_all_input
 from app.utils_data import (
     retrieve_bubble_pressure_data,
     retrieve_rho_binary_data,
@@ -13,11 +14,7 @@ from app.utils_mix import MixDenParams, MixVpParams, mix_den, mix_vp
 def plot_density(layout):
     """Plot mixture density vs temperature for any component count."""
     smiles_list = layout._get_smiles()
-    n = len(smiles_list)
-    fractions = layout._get_fractions(n)
-    kij_matrix = layout._get_kij(n)
-    t_min, t_max = layout._get_temperatures(require_max=True)
-    p_val = layout._get_pressure()
+    fractions, kij_matrix, t_min, t_max, p_val = get_all_input(layout, smiles_list)
     npoints = layout._get_npoints()
 
     exp_data = None
