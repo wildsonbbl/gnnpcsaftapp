@@ -2,6 +2,7 @@
 
 import csv
 import os
+import platform
 import threading
 import time
 import webbrowser
@@ -148,7 +149,8 @@ class GNNPCSAFT(App):
     icon = os.path.join(application_path, "512.png")
 
     def on_start(self):
-        self.check_for_updates()
+        if platform.system() != "Windows":
+            self.check_for_updates()
 
     def check_for_updates(self):
         """Start a background check for the latest release."""
