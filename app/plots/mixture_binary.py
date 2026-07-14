@@ -140,11 +140,7 @@ def plot_lle_txx(layout):
             f"VLE/LLE for binary mixture, got {len(smiles_list)} components instead"
         )
 
-    n = len(smiles_list)
-    fractions = layout._get_fractions(n)
-    kij_matrix = layout._get_kij(n)
-    t_min, t_max = layout._get_temperatures(require_max=True)
-    p_val = layout._get_pressure()
+    fractions, kij_matrix, t_min, t_max, p_val = get_all_input(layout, smiles_list)
 
     exp_data = None
     try:
