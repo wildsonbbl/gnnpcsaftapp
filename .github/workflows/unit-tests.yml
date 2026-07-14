@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - master
     paths:
       - "**.py"
 
@@ -21,9 +21,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
           activate-environment: true
       - name: Install dependencies
-        run: uv pip install -r requirements.txt
-      - name: Analysing the code with pylint
         run: |
-          pylint $(git ls-files '*.py') --rcfile=.pylintrc
+          uv pip install -r requirements.txt
+          uv pip install pylint
+      - name: Analysing the code with pylint
+        run: pylint $(git ls-files '*.py') --rcfile=.pylintrc
       - name: Unit tests
         run: uv run -m main.test
