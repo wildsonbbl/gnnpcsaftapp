@@ -8,6 +8,7 @@ from app.utils_data import (
     retrieve_vle_binary_data,
     retrieve_vle_for_kij,
     retrieve_vle_pxy_binary_data,
+    retrieve_vlle_binary_data,
 )
 from app.utils_mix import (
     MixLLEParams,
@@ -148,10 +149,15 @@ def plot_lle_txx(layout):
     exp_data = None
     try:
         lle_arr = retrieve_lle_binary_data(smiles_list, p_val / 1000.0)
-        if lle_arr is not None and len(lle_arr) > 0:
-            exp_data = (lle_arr[:, 1], lle_arr[:, 0], "Exp. LLE Data")
         vle_arr = retrieve_vle_binary_data(smiles_list, p_val / 1000.0)
-        if vle_arr is not None and len(vle_arr) > 0:
+        vlle_arr = retrieve_vlle_binary_data(
+            smiles_list=smiles_list, pressure=p_val / 1000.0
+        )
+        if vlle_arr is not None and len(vlle_arr):
+            exp_data = (vlle_arr[:, 1], vlle_arr[:, 0], "Exp. VLLE Data")
+        elif lle_arr is not None and len(lle_arr) > 0:
+            exp_data = (lle_arr[:, 1], lle_arr[:, 0], "Exp. LLE Data")
+        elif vle_arr is not None and len(vle_arr) > 0:
             exp_data = (vle_arr[:, 1], vle_arr[:, 0], "Exp. VLE Data")
     except (ValueError, RuntimeError):
         pass
