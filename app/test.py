@@ -32,6 +32,8 @@ sys.modules["polars"] = MagicMock()
 
 # Mock thermodynamic backend libraries
 sys.modules["gnnepcsaft"] = MagicMock()
+sys.modules["gnnepcsaft.data.ogb_utils"] = MagicMock()
+sys.modules["gnnepcsaft.data.rdkit_util"] = MagicMock()
 sys.modules["gnnepcsaft.pcsaft"] = MagicMock()
 sys.modules["gnnepcsaft.pcsaft.pcsaft_feos"] = MagicMock()
 sys.modules["gnnepcsaft_mcp_server"] = MagicMock()
@@ -82,17 +84,18 @@ class TestUtils(unittest.TestCase):
     def test_get_smiles_from_input(self, mock_s2i, mock_i2s):
         """Test SMILES/InChI input handling"""
         # Case 1: Standard SMILES input
+        mock_s2i.return_value = "InChI=1S/C3H8/c1-3-2/h3H2,1-2H3"
+        mock_i2s.return_value = "CCC"
         input_text = "CCC"
         res = utils.get_smiles_from_input(input_text)
         self.assertEqual(res, "CCC")
-        mock_s2i.assert_called_with("CCC")  # Should attempt validation via conversion
+        mock_s2i.assert_called_with("CCC", False, False)
 
         # Case 2: InChI input
-        mock_i2s.return_value = "CCC_converted"
-        inchi_text = "InChI=1S/C3H8/c1-3-2/h3H2,1-2H3"
-        res = utils.get_smiles_from_input(inchi_text)
-        self.assertEqual(res, "CCC_converted")
-        mock_i2s.assert_called_with(inchi_text)
+        input_text = "InChI=1S/C3H8/c1-3-2/h3H2,1-2H3"
+        res = utils.get_smiles_from_input(input_text)
+        self.assertEqual(res, "CCC")
+        mock_i2s.assert_called_with(input_text, False, False)
 
 
 class TestUtilsPure(unittest.TestCase):
@@ -396,6 +399,9 @@ class TestPlotCommonHandlers(unittest.TestCase):
             def __init__(self):
                 self._generate_plot = MagicMock()
 
+            def _get_smiles(self):
+                return ["A", "B", "C", "D"]
+
             def _get_fractions(self, n):
                 return [1.0 / n] * n
 
@@ -412,7 +418,7 @@ class TestPlotCommonHandlers(unittest.TestCase):
                 return 10
 
         layout = DummyLayout()
-        mixture_common.plot_density(layout, ["A", "B", "C", "D"])
+        mixture_common.plot_density(layout)
 
         layout._generate_plot.assert_called_once()
         (request,) = layout._generate_plot.call_args[0]
@@ -430,6 +436,9 @@ class TestPlotCommonHandlers(unittest.TestCase):
             def __init__(self):
                 self._generate_plot = MagicMock()
 
+            def _get_smiles(self):
+                return ["A", "B"]
+
             def _get_fractions(self, n):
                 return [0.5, 0.5]
 
@@ -443,7 +452,7 @@ class TestPlotCommonHandlers(unittest.TestCase):
                 return 10
 
         layout = DummyLayout()
-        mixture_common.plot_vp(layout, ["A", "B"])
+        mixture_common.plot_vp(layout)
 
         layout._generate_plot.assert_called_once()
         (request,) = layout._generate_plot.call_args[0]
@@ -461,6 +470,9 @@ class TestPlotCommonHandlers(unittest.TestCase):
             def __init__(self):
                 self._generate_plot = MagicMock()
 
+            def _get_smiles(self):
+                return ["A", "B"]
+
             def _get_fractions(self, n):
                 return [0.5, 0.5]
 
@@ -477,7 +489,7 @@ class TestPlotCommonHandlers(unittest.TestCase):
                 return 10
 
         layout = DummyLayout()
-        mixture_common.plot_density(layout, ["A", "B"])
+        mixture_common.plot_density(layout)
 
         layout._generate_plot.assert_called_once()
         (request,), _ = layout._generate_plot.call_args
@@ -496,6 +508,9 @@ class TestPlotCommonHandlers(unittest.TestCase):
             def __init__(self):
                 self._generate_plot = MagicMock()
 
+            def _get_smiles(self):
+                return ["A", "B"]
+
             def _get_fractions(self, n):
                 return [0.5, 0.5]
 
@@ -509,7 +524,7 @@ class TestPlotCommonHandlers(unittest.TestCase):
                 return 10
 
         layout = DummyLayout()
-        mixture_common.plot_vp(layout, ["A", "B"])
+        mixture_common.plot_vp(layout)
 
         layout._generate_plot.assert_called_once()
         (request,), _ = layout._generate_plot.call_args
@@ -761,11 +776,11 @@ class TestMixtureUIBuilder(unittest.TestCase):
         output_args = default_mixture_output_args()
         output_args.update(
             {
-                "rho_data": [[101.0, 0.5, 300.0, 310.0, 5]],
-                "bubble_data": [[0.5, 300.0, 310.0, 5]],
-                "lle_data": [[101.0, 300.0, 310.0, 5]],
-                "vle_data": [[101.0, 300.0, 310.0, 5]],
-                "vle_pxy_data": [[300.0, 101.0, 110.0, 5]],
+                "rho_px_data_b": [[101.0, 0.5, 300.0, 310.0, 5]],
+                "vle_x_data_b": [[0.5, 300.0, 310.0, 5]],
+                "lle_p_data_b": [[101.0, 300.0, 310.0, 5]],
+                "vle_p_data_b": [[101.0, 300.0, 310.0, 5]],
+                "vle_t_data_b": [[300.0, 101.0, 110.0, 5]],
                 "preds": [("A", [1.0] * len(utils.available_params))],
             }
         )
