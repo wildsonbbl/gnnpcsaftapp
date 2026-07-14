@@ -27,4 +27,4 @@ jobs:
       - name: Analysing the code with pylint
         run: pylint $(git ls-files '*.py') --rcfile=.pylintrc
       - name: Unit tests
-        run: uv run -m main.test
+        run: uv run -m app.test
