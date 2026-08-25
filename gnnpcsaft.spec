@@ -8,7 +8,6 @@ a = Analysis(
     datas=[
         ("./app/512.png", "."),
         ("./app/gnnpcsaft.kv", "."),
-        ("./app/_data", "./app/_data"),
     ],
     hiddenimports=[],
     hookspath=["./hooks"],
