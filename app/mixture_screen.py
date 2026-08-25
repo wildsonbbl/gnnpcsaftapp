@@ -4,6 +4,11 @@ from copy import copy
 
 from gnnepcsaft.pcsaft.pcsaft_feos import critical_points_feos
 from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
+from gnnepcsaft_mcp_server.utils_data import (
+    _retrieve_available_data_binary,
+    _retrieve_available_data_ternary,
+    default_mixture_output_args,
+)
 from kivy.clock import mainthread
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
 from kivy.uix.button import Button
@@ -25,11 +30,6 @@ from app.utils import (
     get_smiles_from_input,
     run_with_loading,
     show_warning_popup,
-)
-from app.utils_data import (
-    default_mixture_output_args,
-    retrieve_available_data_binary,
-    retrieve_available_data_ternary,
 )
 from app.validators import validate_fractions
 
@@ -137,7 +137,7 @@ class MixtureLayout(BaseInputLayout):
 
         if len(smiles_list) == 2:
             try:
-                output_args.update(retrieve_available_data_binary(smiles_list))
+                output_args.update(_retrieve_available_data_binary(smiles_list))
             except (ValueError, RuntimeError) as e:
                 show_warning_popup(
                     "Exp. Data Notice",
@@ -145,7 +145,7 @@ class MixtureLayout(BaseInputLayout):
                 )
         elif len(smiles_list) == 3:
             try:
-                output_args.update(retrieve_available_data_ternary(smiles_list))
+                output_args.update(_retrieve_available_data_ternary(smiles_list))
             except (ValueError, RuntimeError) as e:
                 show_warning_popup(
                     "Exp. Data Notice",

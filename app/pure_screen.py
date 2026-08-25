@@ -4,6 +4,19 @@ from copy import copy
 
 from gnnepcsaft.pcsaft.pcsaft_feos import critical_points_feos
 from gnnepcsaft_mcp_server.utils import predict_pcsaft_parameters
+from gnnepcsaft_mcp_server.utils_data import (
+    _retrieve_available_data_pure,
+    retrieve_rho_pure_data,
+    retrieve_st_pure_data,
+    retrieve_vp_pure_data,
+)
+from gnnepcsaft_mcp_server.utils_pure import (
+    pure_den,
+    pure_h_lv,
+    pure_phase_diagram,
+    pure_surface_tension,
+    pure_vp,
+)
 from kivy.clock import mainthread
 from kivy.properties import ObjectProperty  # pylint: disable=no-name-in-module
 from kivy.uix.screenmanager import Screen
@@ -16,19 +29,6 @@ from app.utils import (
     get_smiles_from_input,
     run_with_loading,
     show_warning_popup,
-)
-from app.utils_data import (
-    retrieve_available_data_pure,
-    retrieve_rho_pure_data,
-    retrieve_st_pure_data,
-    retrieve_vp_pure_data,
-)
-from app.utils_pure import (
-    pure_den,
-    pure_h_lv,
-    pure_phase_diagram,
-    pure_surface_tension,
-    pure_vp,
 )
 
 
@@ -239,7 +239,7 @@ class PureLayout(BaseInputLayout):
 
             available_data_pure = {"rho_range": None, "vp_range": 0, "st_range": 0}
             try:
-                available_data_pure = retrieve_available_data_pure(smiles)
+                available_data_pure = _retrieve_available_data_pure(smiles)
             except (ValueError, RuntimeError) as e:
                 show_warning_popup(
                     "Exp. Data Notice",

@@ -1,13 +1,14 @@
 """Shared plot handlers for mixture screens."""
 
-from app.plot_requests import PlotRequest
-from app.plots.plot_helpers import get_all_input
-from app.utils_data import (
+from gnnepcsaft_mcp_server.utils_data import (
     retrieve_bubble_pressure_data,
     retrieve_rho_binary_data,
     retrieve_rho_ternary_data,
 )
-from app.utils_mix import MixDenParams, MixVpParams, mix_den, mix_vp
+from gnnepcsaft_mcp_server.utils_mix import MixDenParams, MixVpParams, mix_den, mix_vp
+
+from app.plot_requests import PlotRequest
+from app.plots.plot_helpers import get_all_input
 
 
 # pylint: disable = w0212

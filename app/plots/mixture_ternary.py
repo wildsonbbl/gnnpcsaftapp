@@ -1,12 +1,17 @@
 """Plot handlers for mixture screens."""
 
-from app.plot_requests import PlotRequest, TernaryPlotRequest
-from app.utils_data import (
+from gnnepcsaft_mcp_server.utils_data import (
     retrieve_lle_ternary_data,
     retrieve_vle_ternary_data,
     retrieve_vle_ternary_tx_fixed_data,
 )
-from app.utils_mix import TernaryVleTxParams, mix_ternary_lle, mix_ternary_vle_tx_fixed
+from gnnepcsaft_mcp_server.utils_mix import (
+    TernaryVleTxParams,
+    mix_ternary_lle,
+    mix_ternary_vle_tx_fixed,
+)
+
+from app.plot_requests import PlotRequest, TernaryPlotRequest
 
 
 # pylint: disable = w0212

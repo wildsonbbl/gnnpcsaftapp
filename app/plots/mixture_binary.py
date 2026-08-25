@@ -1,22 +1,23 @@
 """Plot handlers for mixture screens."""
 
-from app.input_requests import BinaryFillRequest
-from app.plot_requests import PlotRequest
-from app.plots.plot_helpers import assign_phase_by_density, get_all_input
-from app.utils_data import (
+from gnnepcsaft_mcp_server.utils_data import (
     retrieve_lle_binary_data,
     retrieve_vle_binary_data,
     retrieve_vle_for_kij,
     retrieve_vle_pxy_binary_data,
     retrieve_vlle_binary_data,
 )
-from app.utils_mix import (
+from gnnepcsaft_mcp_server.utils_kij import optimize_binary_kij_for_vle
+from gnnepcsaft_mcp_server.utils_mix import (
     MixLLEParams,
     mix_lle,
     mix_vle,
     mix_vle_pxy,
-    optimize_binary_kij_for_vle,
 )
+
+from app.input_requests import BinaryFillRequest
+from app.plot_requests import PlotRequest
+from app.plots.plot_helpers import assign_phase_by_density, get_all_input
 
 
 # pylint: disable = w0212

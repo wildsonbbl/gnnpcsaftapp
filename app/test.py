@@ -36,17 +36,17 @@ sys.modules["gnnepcsaft.data.ogb_utils"] = MagicMock()
 sys.modules["gnnepcsaft.data.rdkit_util"] = MagicMock()
 sys.modules["gnnepcsaft.pcsaft"] = MagicMock()
 sys.modules["gnnepcsaft.pcsaft.pcsaft_feos"] = MagicMock()
-sys.modules["gnnepcsaft_mcp_server"] = MagicMock()
-sys.modules["gnnepcsaft_mcp_server.utils"] = MagicMock()
 
 # -- IMPORT MODULES TO TEST --
 
-from app import utils, utils_mix, utils_pure
+from gnnepcsaft_mcp_server import utils_mix, utils_pure
+from gnnepcsaft_mcp_server.utils_data import default_mixture_output_args
+
+from app import utils
 from app.mixture_ui_builder import MixtureUIBuilder
 from app.plots import mixture_binary, mixture_common, mixture_ternary, plot_helpers
 from app.pure_ui_builder import PureUIBuilder, PureUIData
 from app.update_check import fetch_latest_release, is_newer_version
-from app.utils_data import default_mixture_output_args
 
 
 class FakeArray:
@@ -101,8 +101,8 @@ class TestUtils(unittest.TestCase):
 class TestUtilsPure(unittest.TestCase):
     "test utils_pure.py"
 
-    @patch("app.utils_pure.predict_pcsaft_parameters")
-    @patch("app.utils_pure.pure_den_feos")
+    @patch("gnnepcsaft_mcp_server.utils_pure.predict_pcsaft_parameters")
+    @patch("gnnepcsaft_mcp_server.utils_pure.pure_den_feos")
     def test_pure_den(self, mock_calc, mock_predict):
         """Test Pure Density Logic"""
         # Setup mocks
@@ -118,8 +118,8 @@ class TestUtilsPure(unittest.TestCase):
         self.assertEqual(dens[0], 1000.0)
         mock_predict.assert_called_with("water")
 
-    @patch("app.utils_pure.predict_pcsaft_parameters")
-    @patch("app.utils_pure.pure_vp_feos")
+    @patch("gnnepcsaft_mcp_server.utils_pure.predict_pcsaft_parameters")
+    @patch("gnnepcsaft_mcp_server.utils_pure.pure_vp_feos")
     def test_pure_vp(self, mock_calc, mock_predict):
         """Test Pure Vapor Pressure Logic"""
         mock_predict.return_value = "dummy_params"
@@ -134,8 +134,8 @@ class TestUtilsPure(unittest.TestCase):
 class TestUtilsMix(unittest.TestCase):
     "test utils_mix.py"
 
-    @patch("app.utils_mix.predict_pcsaft_parameters")
-    @patch("app.utils_mix.mix_den_feos")
+    @patch("gnnepcsaft_mcp_server.utils_mix.predict_pcsaft_parameters")
+    @patch("gnnepcsaft_mcp_server.utils_mix.mix_den_feos")
     def test_mix_den(self, mock_calc, mock_predict):
         """Test Mixture Density Logic"""
         mock_predict.side_effect = ["p1", "p2"]
@@ -164,8 +164,8 @@ class TestUtilsMix(unittest.TestCase):
         self.assertIn("state", call_kwargs)
         self.assertIn("kij_matrix", call_kwargs)
 
-    @patch("app.utils_mix.predict_pcsaft_parameters")
-    @patch("app.utils_mix.mix_vle_diagram_feos")
+    @patch("gnnepcsaft_mcp_server.utils_mix.predict_pcsaft_parameters")
+    @patch("gnnepcsaft_mcp_server.utils_mix.mix_vle_diagram_feos")
     def test_mix_vle(self, mock_calc, mock_predict):
         """Test Mixture VLE Logic"""
         mock_predict.return_value = "p"
