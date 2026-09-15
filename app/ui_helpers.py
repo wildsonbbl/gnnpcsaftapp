@@ -89,42 +89,45 @@ def add_dropdown_button(layout, title, dropdown, width_ratio=0.4):
 
 def build_param_table(param_names, param_values):
     """Build a parameter table GridLayout for provided values."""
-    row_height = 30
     params_count = len(param_names)
-    table_height = (params_count + 1) * row_height
+    labels = []
 
     table = GridLayout(
-        cols=2,
+        cols=params_count,
         size_hint_y=None,
-        height=table_height,
         spacing=[10, 5],
     )
 
-    table.add_widget(
-        Label(
-            text="Parameter name",
-            bold=True,
-            color="#212529",
-            halign="center",
+    def update_font_size(*_args):
+        table_width = getattr(table, "width", 0)
+        table_height = getattr(table, "height", 0)
+        if not isinstance(table_width, (int, float)):
+            table_width = 0
+        if not isinstance(table_height, (int, float)):
+            table_height = 0
+        font_size = max(
+            10,
+            min(18, table_width / max(params_count * 8, 1), table_height / 2),
         )
-    )
-    table.add_widget(
-        Label(
-            text="Parameter value",
-            bold=True,
-            color="#212529",
-            halign="center",
-        )
-    )
+        for label in labels:
+            label.font_size = font_size
 
-    for name, value in zip(param_names, param_values):
+    if hasattr(table, "bind"):
+        table.bind(size=update_font_size)  # type: ignore pylint: disable=no-member
+
+    for name in param_names:
         param_label = Label(text=str(name), color="#212529", halign="center")
         param_label.bind(size=param_label.setter("text_size"))  # type: ignore pylint: disable=no-member
+        labels.append(param_label)
         table.add_widget(param_label)
 
+    for value in param_values:
         param_value_label = Label(text=f"{value:.5g}", color="#212529", halign="center")
         param_value_label.bind(size=param_value_label.setter("text_size"))  # type: ignore pylint: disable=no-member
+        labels.append(param_value_label)
         table.add_widget(param_value_label)
+
+    update_font_size()
 
     return table
 
