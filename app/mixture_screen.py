@@ -313,8 +313,16 @@ class MixtureLayout(BaseInputLayout):
 
     @run_with_loading
     def on_estimate_kij(self):
-        "estimate binary kij"
+        "estimate binary kij with vle data"
         try:
             mixture_binary.estimate_kij(self)
+        except (ValueError, RuntimeError) as e:
+            self._show_error_alert(e)
+
+    @run_with_loading
+    def on_estimate_kij_lle(self):
+        "estimate binary kij with lle data"
+        try:
+            mixture_binary.estimate_kij_with_lle(self)
         except (ValueError, RuntimeError) as e:
             self._show_error_alert(e)

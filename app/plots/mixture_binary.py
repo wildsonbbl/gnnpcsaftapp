@@ -7,7 +7,10 @@ from gnnepcsaft_mcp_server.utils_data import (
     retrieve_vle_pxy_binary_data,
     retrieve_vlle_binary_data,
 )
-from gnnepcsaft_mcp_server.utils_kij import optimize_binary_kij_for_vle
+from gnnepcsaft_mcp_server.utils_kij import (
+    optimize_binary_kij_for_vle,
+    optimize_binary_kij_with_lle,
+)
 from gnnepcsaft_mcp_server.utils_mix import (
     MixLLEParams,
     mix_lle,
@@ -269,6 +272,37 @@ def estimate_kij(layout):
             layout._fill_inputs_binary(BinaryFillRequest(kij=round(kij_value, 4)))
         else:
             raise ValueError("No vle available to optimize kij")
+
+    except (ValueError, RuntimeError) as e:
+        layout._show_error_alert(e)
+
+
+def estimate_kij_with_lle(layout):
+    "estimate binary kij with lle data"
+    try:
+        smiles_list = layout._get_smiles()
+        n = len(smiles_list)
+        if n != 2:
+            raise ValueError(
+                f"Estimate kij available for binary mixture, "
+                f"got {len(smiles_list)} components instead"
+            )
+        kij_matrix = layout._get_kij(n)
+        initial_kij = kij_matrix[0][1]
+
+        kij_value = optimize_binary_kij_with_lle(
+            smiles_list=smiles_list,
+            initial_kij=initial_kij,
+        )
+        if isinstance(kij_value, str):
+            raise ValueError(f"Failed to optimize kij from LLE: {kij_value}")
+        if kij_value == initial_kij:
+            raise ValueError(
+                "Trivial solution (optimized kij == initial kij) for kij optimization"
+                f" from LLE using initial kij={initial_kij}:"
+                " consider changing the initial kij value"
+            )
+        layout._fill_inputs_binary(BinaryFillRequest(kij=round(kij_value, 4)))
 
     except (ValueError, RuntimeError) as e:
         layout._show_error_alert(e)

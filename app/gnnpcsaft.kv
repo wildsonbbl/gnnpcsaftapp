@@ -350,8 +350,12 @@ WindowManager:
             on_press: root.on_plot_ternary_vle_tx_fixed()
 
         Button:
-            text: 'Estimate binary kij'
+            text: 'Estimate binary kij from VLE'
             on_press: root.on_estimate_kij()
+
+        Button:
+            text: 'Estimate binary kij from LLE'
+            on_press: root.on_estimate_kij_lle()
 
     ScrollView:
         size_hint: 1, 1
