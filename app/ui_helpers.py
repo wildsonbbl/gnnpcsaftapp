@@ -145,6 +145,8 @@ def build_param_table(param_names, param_values):
         param_value_label.bind(size=param_value_label.setter("text_size"))  # type: ignore pylint: disable=no-member
 
         def copy_value(label, touch):
+            if getattr(touch, "button", None) not in (None, "left"):
+                return False
             if not label.collide_point(*touch.pos):
                 return False
             Clipboard.copy(label.text)
