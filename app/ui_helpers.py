@@ -1,5 +1,6 @@
 """Shared UI helper functions for screens and builders."""
 
+from kivy.core.clipboard import Clipboard
 from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
@@ -124,6 +125,14 @@ def build_param_table(param_names, param_values):
     for value in param_values:
         param_value_label = Label(text=f"{value:.5g}", color="#212529", halign="center")
         param_value_label.bind(size=param_value_label.setter("text_size"))  # type: ignore pylint: disable=no-member
+
+        def copy_value(label, touch):
+            if not label.collide_point(*touch.pos):
+                return False
+            Clipboard.copy(label.text)
+            return True
+
+        param_value_label.bind(on_touch_up=copy_value)  # type: ignore pylint: disable=no-member
         labels.append(param_value_label)
         table.add_widget(param_value_label)
 

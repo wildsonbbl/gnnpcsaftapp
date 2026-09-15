@@ -12,6 +12,8 @@ from unittest.mock import MagicMock, patch
 # -- MOCK DEPENDENCIES BEFORE IMPORTING APP MODULES --
 # This prevents GUI/Backend libraries from trying to initialize during tests
 sys.modules["kivy"] = MagicMock()
+sys.modules["kivy.core"] = MagicMock()
+sys.modules["kivy.core.clipboard"] = MagicMock(Clipboard=MagicMock())
 sys.modules["kivy.app"] = MagicMock()
 sys.modules["kivy.clock"] = MagicMock()
 sys.modules["kivy.logger"] = MagicMock()
