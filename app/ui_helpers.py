@@ -1,9 +1,11 @@
 """Shared UI helper functions for screens and builders."""
 
+from kivy.clock import Clock
 from kivy.core.clipboard import Clipboard
 from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
+from kivy.uix.popup import Popup
 
 from app.validators import validate_npoints, validate_pressure, validate_temperatures
 
@@ -88,6 +90,22 @@ def add_dropdown_button(layout, title, dropdown, width_ratio=0.4):
     layout.predicted_parameters.add_widget(main_button)
 
 
+def show_copy_confirmation():
+    """Show a short confirmation after copying a parameter value."""
+    popup = Popup(
+        title="Copied",
+        content=Label(text="Parameter copied to clipboard."),
+        title_color=(0, 0, 0, 1),
+        background="",
+        background_color=(1, 1, 1, 1),
+        size_hint=(None, None),
+        size=(300, 120),
+        auto_dismiss=True,
+    )
+    popup.open()
+    Clock.schedule_once(lambda *_args: popup.dismiss(), 1.2)
+
+
 def build_param_table(param_names, param_values):
     """Build a parameter table GridLayout for provided values."""
     params_count = len(param_names)
@@ -130,6 +148,7 @@ def build_param_table(param_names, param_values):
             if not label.collide_point(*touch.pos):
                 return False
             Clipboard.copy(label.text)
+            show_copy_confirmation()
             return True
 
         param_value_label.bind(on_touch_up=copy_value)  # type: ignore pylint: disable=no-member
