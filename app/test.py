@@ -38,6 +38,8 @@ sys.modules["gnnepcsaft.data.ogb_utils"] = MagicMock()
 sys.modules["gnnepcsaft.data.rdkit_util"] = MagicMock()
 sys.modules["gnnepcsaft.pcsaft"] = MagicMock()
 sys.modules["gnnepcsaft.pcsaft.pcsaft_feos"] = MagicMock()
+sys.modules["gnnepcsaft.pcsaft.feos"] = MagicMock()
+sys.modules["gnnepcsaft.pcsaft.feos.equilibria"] = MagicMock()
 
 # -- IMPORT MODULES TO TEST --
 
